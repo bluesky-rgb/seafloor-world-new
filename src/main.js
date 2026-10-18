@@ -3543,7 +3543,7 @@ const TOUR_STOPS=[
   {l:'brine',n:'s08_brine',d:18,t:'650 m：海底的湖',s:'比海水重得多的卤水在海底积成湖，有湖面也有湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。'},
   {l:'whalefall',n:'s09_whalefall',d:18,t:'1,800 m：鲸落',s:'一头鲸沉到深海，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物。'},
   {l:'vent',n:'s10_vent',d:20,t:'2,800 m：热液喷口',s:'300 多摄氏度的热液从黑烟囱喷出。周围的盲虾和雪人蟹完全不靠阳光，靠细菌把化学能变成养分。'},
-  {l:'dive',n:'s11_dive',d:105,dive:true,t:'最后一站：马里亚纳海沟',s:'从关岛礁壁出发，一路下潜到地球海洋最深处。光、水温和生物会随深度一层层改变；左侧剖面显示你的位置。'}
+  {l:'dive',n:'s11_dive',d:112,dive:true,t:'最后一站：马里亚纳海沟',s:'从关岛礁壁出发，一路下潜到地球海洋最深处。光、水温和生物会随深度一层层改变；左侧剖面显示你的位置。'}
 ];
 const TOUR={on:false,i:0,t:0,paused:false,prevSpeed:0.35,pend:null,prevZ:0};
 /* ---- voice-over: MiniMax clips from audio/tour/ (made by tools/gen_tts.py), else the browser's own speech ---- */
@@ -3606,8 +3606,11 @@ function stepTour(rdt){
   if(TOUR.paused)return;
   const st=TOUR_STOPS[TOUR.i];TOUR.t+=rdt;
   if(st.dive&&DIVE.on){
-    const u=Math.min(1,TOUR.t/(st.d-15));const e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
-    setDiveZ(5*Math.pow((S.D-2.2)/5,e));
+    /* descent keyframes (time s, depth m), interpolated in log-depth; spaced so each spoken milestone finishes before the next */
+    const KF=[[0,5],[18,30],[30,200],[42,1000],[54,4000],[64,6000],[76,8849],[90,S.D-2.2]];
+    let k=1;while(k<KF.length-1&&TOUR.t>KF[k][0])k++;
+    const a=KF[k-1],b=KF[k],f=Math.max(0,Math.min(1,(TOUR.t-a[0])/(b[0]-a[0])));
+    setDiveZ(Math.exp(Math.log(a[1])+(Math.log(b[1])-Math.log(a[1]))*f));const u=TOUR.t>=90?1:0;
     if(NARR.lines)for(const l of NARR.lines)if(l.depth&&TOUR.prevZ<l.depth&&DIVE.z>=l.depth)TOUR.pend=l.id;
     TOUR.prevZ=DIVE.z;
     if(TOUR.pend&&!narrBusy())narrPlay(TOUR.pend);

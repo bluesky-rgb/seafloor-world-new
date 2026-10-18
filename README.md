@@ -9,7 +9,7 @@ A real-time 3D ocean built from real sites and measured data, from a 10 m coral 
 ## 项目文档
 
 - [项目总结](docs/PROJECT.md)：目标、场景一览、物理模型、功能、技术结构、已知限制和下一步
-- [更新记录](docs/CHANGELOG.md)：22 次更新，逐项说明加了什么
+- [更新记录](docs/CHANGELOG.md)：23 次更新，逐项说明加了什么
 - [路线图](docs/ROADMAP.md)
 - [资料来源](docs/SOURCES.md)：41 条参考资料
 
