@@ -14,28 +14,28 @@ function updateOptics(){
 const H={};let habKey='';
 function rebuild(){
   solveWave();CUR.x=Math.cos(S.dir*Math.PI/180);CUR.z=Math.sin(S.dir*Math.PI/180);updateOptics();
-  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);buildMangrove(S.loc==='mangrove'&&!DIVE.on);buildArctic(S.loc==='arctic'&&!DIVE.on);buildSeamount(S.loc==='seamount'&&!DIVE.on);
+  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);buildMangrove(S.loc==='mangrove'&&!DIVE.on);buildArctic(S.loc==='arctic'&&!DIVE.on);buildSeamount(S.loc==='seamount'&&!DIVE.on);buildIntertidal(S.loc==='nanji'&&!DIVE.on);
   const F=-S.D,lf=light(S.D,1),day=!S.night;
   const sky=(day?1:0.02)*(ICE.on?ICE.T:1);U.uSky.value=sky;U.uDay.value=day?1:0;
   sunLight.intensity=1.5*sky;sunLight.color.setRGB(day?1:0.75,day?1:0.85,1);hemi.intensity=0.65*sky;
   U.uTorch.value=S.torch==='off'?0:(DIVE.on?2.6:1);U.uTorchCol.value.set(...(S.torch==='blue'?[0.08,0.28,1.6]:[1.1,1.0,0.88]));
 
-  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on&&!MANG.on;
-  H.kelp=S.temp<=20&&S.temp>=3&&S.D<=35&&lf>=0.01;
+  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on&&!MANG.on&&!TIDE.on;
+  H.kelp=S.temp<=20&&S.temp>=3&&S.D<=35&&lf>=0.01&&!TIDE.on;
   H.anem=H.coral&&S.temp>=20&&S.D<=40&&lf>=0.1;
   H.clam=H.coral&&S.temp>=22&&S.D<=20&&lf>=0.2;
-  H.fan=S.cur>=0.03&&S.D>=3&&!MANG.on&&!ARC.on;
+  H.fan=S.cur>=0.03&&S.D>=3&&!MANG.on&&!ARC.on&&!TIDE.on;
   H.sponge=(S.D>=400&&S.D<=7000&&!brineOn&&!ABY.on)||ICE.on;
   H.holo=S.D>=6000&&!DIVE.replay;H.xeno=H.holo||ABY.on;
   H.urchinT=S.temp<18&&S.D<=200&&!ARC.on;
-  H.urchinD=S.temp>=18&&S.D<=70&&!MANG.on;
-  H.star=S.D<=200&&!MANG.on&&!ARC.on;
+  H.urchinD=S.temp>=18&&S.D<=70&&!MANG.on&&!TIDE.on;
+  H.star=S.D<=200&&!MANG.on&&!ARC.on&&!TIDE.on;
   H.seep=S.seep&&S.D>=800;
 
-  const hab=MANG.on?'mangrove':SMT.on?'seamount':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
+  const hab=MANG.on?'mangrove':TIDE.on?'intertidal':SMT.on?'seamount':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
   const key=hab+(H.seep?'s':'');
   if(key!==habKey){habKey=key;paintFloor(hab);paintRocks(hab);}
-  floor.position.y=F-(ABY.on||SMT.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on&&!SMT.on;
+  floor.position.y=F-(ABY.on||SMT.on||TIDE.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on&&!SMT.on&&!TIDE.on;
 
   const um=floorOrbitalMax(),uc1=S.cur*curProfile(1);S.ripKind='';
   if(hab!=='deep'&&um>=uc1&&um>0.1){const d0=2*um/W.w;U.uRipL.value=d0<0.44?Math.max(0.62*d0,0.08):0.134;U.uRipAmp.value=Math.min(1,(um-0.1)/0.1);U.uRipDir.value.set(1,0);S.ripKind='wave';}
@@ -62,7 +62,7 @@ function zoneUpdate(){
       lantern:inz('lantern'),hatchet:inz('hatchet'),sperm:z<=2000,squid:z>=300&&z<=1000,siph:z>=300&&z<=1000,vampire:inz('vampire'),gulper:inz('gulper'),
       cucumber:inz('cucumber'),angler:z>=700&&z<=4000,dumbo:inz('dumbo'),snail:inz('snail'),amphi:S.D>=6000&&S.D-z<70,
       sardine:false,chromis:false,anthias:false,butterfly:false,snapper:false,parrot:false,clown:false,rockfish:false,hagfish:false,sleeper:false,osedax:false,crab:false,rimicaris:false,kiwa:false,scalyfoot:false,giga:false,ventmussel:false,barnacle:false,ventanem:false,krill:false,salp:false,childressi:false,acropora:false,icefish:false,borch:false,seal:false,pycno:false,icealgae:false,redfish:false,lophelia:false,geodia:false,acesta:false,dendro:false});
-    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema','enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea','narwhal','beluga','polarcod','apherusa','melosira','pearlocto','smanem','smsnail','smshrimp'].forEach(k=>H[k]=false);
+    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema','enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea','narwhal','beluga','polarcod','apherusa','melosira','pearlocto','smanem','smsnail','smshrimp','tetraclita','capitulum','mytilus','littorina','sargassum','tanem','heliocidaris'].forEach(k=>H[k]=false);
     if(DIVE.dvm)dvmH();
     if(DIVE.bh)bhH();
   }else{
@@ -84,6 +84,8 @@ function zoneUpdate(){
     else Object.assign(H,{icefish:false,borch:false,seal:false,pycno:false,icealgae:false});
     ['narwhal','beluga','polarcod','apherusa','melosira'].forEach(k=>H[k]=ARC.on);
     ['pearlocto','smanem','smsnail','smshrimp'].forEach(k=>H[k]=SMT.on);
+    ['tetraclita','capitulum','mytilus','littorina','sargassum','tanem','heliocidaris'].forEach(k=>H[k]=TIDE.on);
+    if(TIDE.on)Object.assign(H,{sardine:false,turtle:false,baitfish:true});
     if(ARC.on)Object.assign(H,{icealgae:true,sardine:false,rockfish:false,nettle:false,moon:false,comb:false,lantern:false,hatchet:false,sperm:false,squid:false,siph:false,atolla:false});
     {const v=S.loc==='vent';['rimicaris','kiwa','scalyfoot','giga','ventmussel','barnacle','ventanem'].forEach(k=>H[k]=v);}
   }
@@ -117,7 +119,7 @@ function zoneUpdate(){
     setSchool(FISH.butterfly,true,{cx:u.x,cy:u.y,cz:u.z,rx:8,ry:0.6,rz:5});}
   else{['jack','lionfish'].forEach(k=>setSchool(FISH[k],false,null));
     /* juvenile fish shelter among the mangrove roots */
-    setSchool(FISH.baitfish,MANG.on,MANG.on?{cx:MANG.bankX-1.5,cy:-0.75,cz:0,rx:2.2,ry:0.35,rz:6}:null);}
+    setSchool(FISH.baitfish,MANG.on||TIDE.on,MANG.on?{cx:MANG.bankX-1.5,cy:-0.75,cz:0,rx:2.2,ry:0.35,rz:6}:TIDE.on?{cx:3,cy:-2.2,cz:0,rx:4,ry:0.8,rz:6}:null);}
   setSchool(FISH.hammer,H.hammer,{cx:0,cy:Math.min(F+9,-6),cz:0,rx:14,ry:3,rz:14});
   setSchool(FISH.hatchet,H.hatchet,{cx:0,cy:F+6,cz:0,rx:11,ry:4,rz:11});
   setSchool(FISH.snail,H.snail,{cx:0,cy:F+2,cz:0,rx:8,ry:1.5,rz:8});

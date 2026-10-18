@@ -8,10 +8,12 @@ const WATER={
   temperate:{a:[0.370,0.085,0.120], b:[0.17,0.19,0.22]},
   coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]},
   arctic:   {a:[0.355,0.072,0.045], b:[0.07,0.08,0.09]},  /* clear early-season polar water with a little phytoplankton */
+  shelf:    {a:[0.380,0.085,0.110], b:[0.22,0.25,0.28]},  /* East China Sea islands offshore: green-blue, a few metres to ~10 m visibility */
   lagoon:   {a:[0.450,0.120,0.300], b:[0.35,0.40,0.45]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
 };
 const LOC={
   xisha:   {name:'南海西沙群岛珊瑚礁',D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
+  nanji:   {name:'浙江南麂列岛 · 岩礁潮间带',D:5,water:'shelf',temp:22,H:0.6,T:7,cur:0.1,dir:200,sun:60,torch:'off'},
   monterey:{name:'加州蒙特雷湾巨藻林',D:12,water:'temperate',temp:12,H:1.6,T:12,cur:0.08,dir:30,sun:55,torch:'off'},
   eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
   slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
@@ -67,8 +69,8 @@ const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-
 const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
 function floorH(x,z){const f=Math.exp(-(x*x+z*z)/(2*70*70));return f*(0.7*Math.sin(x*0.13+1.3)*Math.cos(z*0.11)+0.35*Math.sin(x*0.37+z*0.29)+0.18*Math.sin(z*0.8-x*0.3));}
 const floorY0=(x,z)=>-S.D+floorH(x,z);
-let brineOn=false,mangOn=false,smtOn=false;
-const floorY=(x,z)=>mangOn?mangFloor(x,z):smtOn?smtFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
+let brineOn=false,mangOn=false,smtOn=false,tideOn=false;
+const floorY=(x,z)=>mangOn?mangFloor(x,z):tideOn?tideFloor(x,z):smtOn?smtFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
 const UP=new THREE.Vector3(0,1,0),ORIGIN=new THREE.Vector3();
 const _u={x:0,y:0,z:0},_m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3(),_d=new THREE.Vector3(),_e=new THREE.Euler();
 

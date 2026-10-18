@@ -1,7 +1,10 @@
 # 资料来源
 
-页面中的物理参数、地点和生物资料引用自以下来源（共 65 条）。
+页面中的物理参数、地点和生物资料引用自以下来源（共 68 条）。
 
+- [拉姆萨尔湿地信息表：南麂列岛 19,893 公顷，422 种藻类、725 种贝类等软体动物，1998 年加入人与生物圈](https://rsis.ramsar.org/ris/2517)
+- [《上海海洋大学学报》（2017）：南麂列岛潮间带 125 种大型底栖生物，优势种为鳞笠藤壶、厚壳贻贝、隔贻贝、短滨螺](https://html.rhhz.net/shhydxxb/20170602095.htm)
+- [Frontiers in Marine Science（2025）：鼠尾藻主导高潮区褐藻，潮下带上部几乎全是马尾藻](https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2025.1563252/pdf)
 - [戴维森海山：长 42 km、高约 2,280 m、山顶水深 1,250 m，237 种生物](https://en.wikipedia.org/wiki/Davidson_Seamount)
 - [AAAS（Barry 等，Science Advances 2023）：5,718 只章鱼、温泉最高 10.8 °C、孵卵约 1.8 年、水中的“抖动”](https://www.aaas.org/news/deep-sea-hot-springs-may-be-vital-nesting-octopus)
 - [CNN：章鱼花园约 3,200 m，2018 年发现，可能多达两万只](https://amp.cnn.com/cnn/2023/08/23/world/octopus-garden-deep-sea-mystery-solved-scn)

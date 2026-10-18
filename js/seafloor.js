@@ -14,10 +14,12 @@ const WATER={
   temperate:{a:[0.370,0.085,0.120], b:[0.17,0.19,0.22]},
   coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]},
   arctic:   {a:[0.355,0.072,0.045], b:[0.07,0.08,0.09]},  /* clear early-season polar water with a little phytoplankton */
+  shelf:    {a:[0.380,0.085,0.110], b:[0.22,0.25,0.28]},  /* East China Sea islands offshore: green-blue, a few metres to ~10 m visibility */
   lagoon:   {a:[0.450,0.120,0.300], b:[0.35,0.40,0.45]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
 };
 const LOC={
   xisha:   {name:'南海西沙群岛珊瑚礁',D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
+  nanji:   {name:'浙江南麂列岛 · 岩礁潮间带',D:5,water:'shelf',temp:22,H:0.6,T:7,cur:0.1,dir:200,sun:60,torch:'off'},
   monterey:{name:'加州蒙特雷湾巨藻林',D:12,water:'temperate',temp:12,H:1.6,T:12,cur:0.08,dir:30,sun:55,torch:'off'},
   eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
   slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
@@ -73,8 +75,8 @@ const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-
 const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
 function floorH(x,z){const f=Math.exp(-(x*x+z*z)/(2*70*70));return f*(0.7*Math.sin(x*0.13+1.3)*Math.cos(z*0.11)+0.35*Math.sin(x*0.37+z*0.29)+0.18*Math.sin(z*0.8-x*0.3));}
 const floorY0=(x,z)=>-S.D+floorH(x,z);
-let brineOn=false,mangOn=false,smtOn=false;
-const floorY=(x,z)=>mangOn?mangFloor(x,z):smtOn?smtFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
+let brineOn=false,mangOn=false,smtOn=false,tideOn=false;
+const floorY=(x,z)=>mangOn?mangFloor(x,z):tideOn?tideFloor(x,z):smtOn?smtFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
 const UP=new THREE.Vector3(0,1,0),ORIGIN=new THREE.Vector3();
 const _u={x:0,y:0,z:0},_m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3(),_d=new THREE.Vector3(),_e=new THREE.Euler();
 
@@ -298,7 +300,8 @@ function paintFloor(hab){
     cwc:[[0.52,0.5,0.45],[0.44,0.42,0.38],[0.7,0.68,0.62]],
     abyss:[[0.56,0.47,0.36],[0.47,0.39,0.3],[0.16,0.13,0.1]],
     mangrove:[[0.48,0.43,0.35],[0.4,0.36,0.29],[0.3,0.26,0.2]],
-    seamount:[[0.3,0.28,0.25],[0.22,0.2,0.18],[0.12,0.11,0.1]]
+    seamount:[[0.3,0.28,0.25],[0.22,0.2,0.18],[0.12,0.11,0.1]],
+    intertidal:[[0.58,0.53,0.44],[0.5,0.46,0.38],[0.36,0.33,0.28]]
   }[hab];
   for(let i=0;i<p.count;i++){
     let col=mixc(pal[0],pal[1],FN1[i]);
@@ -331,8 +334,8 @@ for(let i=0;i<18;i++){
   m.userData.base=floorH(m.position.x,m.position.z)+sc*0.2;rocks.add(m);
 }
 function paintRocks(hab){
-  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25],abyss:[0.2,0.17,0.14],seamount:[0.16,0.15,0.14],mangrove:[0.3,0.27,0.22]}[hab];
-  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3],abyss:[0.3,0.26,0.2],seamount:[0.25,0.23,0.2],mangrove:[0.36,0.34,0.26]}[hab];
+  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25],abyss:[0.2,0.17,0.14],seamount:[0.16,0.15,0.14],intertidal:[0.4,0.38,0.35],mangrove:[0.3,0.27,0.22]}[hab];
+  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3],abyss:[0.3,0.26,0.2],seamount:[0.25,0.23,0.2],intertidal:[0.45,0.42,0.38],mangrove:[0.36,0.34,0.26]}[hab];
   rocks.children.forEach(m=>{
     const g=m.geometry,c=g.attributes.color,nr=g.attributes.normal,n=g.userData.n;
     for(let i=0;i<c.count;i++){
@@ -2853,28 +2856,28 @@ function updateOptics(){
 const H={};let habKey='';
 function rebuild(){
   solveWave();CUR.x=Math.cos(S.dir*Math.PI/180);CUR.z=Math.sin(S.dir*Math.PI/180);updateOptics();
-  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);buildMangrove(S.loc==='mangrove'&&!DIVE.on);buildArctic(S.loc==='arctic'&&!DIVE.on);buildSeamount(S.loc==='seamount'&&!DIVE.on);
+  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);buildMangrove(S.loc==='mangrove'&&!DIVE.on);buildArctic(S.loc==='arctic'&&!DIVE.on);buildSeamount(S.loc==='seamount'&&!DIVE.on);buildIntertidal(S.loc==='nanji'&&!DIVE.on);
   const F=-S.D,lf=light(S.D,1),day=!S.night;
   const sky=(day?1:0.02)*(ICE.on?ICE.T:1);U.uSky.value=sky;U.uDay.value=day?1:0;
   sunLight.intensity=1.5*sky;sunLight.color.setRGB(day?1:0.75,day?1:0.85,1);hemi.intensity=0.65*sky;
   U.uTorch.value=S.torch==='off'?0:(DIVE.on?2.6:1);U.uTorchCol.value.set(...(S.torch==='blue'?[0.08,0.28,1.6]:[1.1,1.0,0.88]));
 
-  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on&&!MANG.on;
-  H.kelp=S.temp<=20&&S.temp>=3&&S.D<=35&&lf>=0.01;
+  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on&&!MANG.on&&!TIDE.on;
+  H.kelp=S.temp<=20&&S.temp>=3&&S.D<=35&&lf>=0.01&&!TIDE.on;
   H.anem=H.coral&&S.temp>=20&&S.D<=40&&lf>=0.1;
   H.clam=H.coral&&S.temp>=22&&S.D<=20&&lf>=0.2;
-  H.fan=S.cur>=0.03&&S.D>=3&&!MANG.on&&!ARC.on;
+  H.fan=S.cur>=0.03&&S.D>=3&&!MANG.on&&!ARC.on&&!TIDE.on;
   H.sponge=(S.D>=400&&S.D<=7000&&!brineOn&&!ABY.on)||ICE.on;
   H.holo=S.D>=6000&&!DIVE.replay;H.xeno=H.holo||ABY.on;
   H.urchinT=S.temp<18&&S.D<=200&&!ARC.on;
-  H.urchinD=S.temp>=18&&S.D<=70&&!MANG.on;
-  H.star=S.D<=200&&!MANG.on&&!ARC.on;
+  H.urchinD=S.temp>=18&&S.D<=70&&!MANG.on&&!TIDE.on;
+  H.star=S.D<=200&&!MANG.on&&!ARC.on&&!TIDE.on;
   H.seep=S.seep&&S.D>=800;
 
-  const hab=MANG.on?'mangrove':SMT.on?'seamount':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
+  const hab=MANG.on?'mangrove':TIDE.on?'intertidal':SMT.on?'seamount':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
   const key=hab+(H.seep?'s':'');
   if(key!==habKey){habKey=key;paintFloor(hab);paintRocks(hab);}
-  floor.position.y=F-(ABY.on||SMT.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on&&!SMT.on;
+  floor.position.y=F-(ABY.on||SMT.on||TIDE.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on&&!SMT.on&&!TIDE.on;
 
   const um=floorOrbitalMax(),uc1=S.cur*curProfile(1);S.ripKind='';
   if(hab!=='deep'&&um>=uc1&&um>0.1){const d0=2*um/W.w;U.uRipL.value=d0<0.44?Math.max(0.62*d0,0.08):0.134;U.uRipAmp.value=Math.min(1,(um-0.1)/0.1);U.uRipDir.value.set(1,0);S.ripKind='wave';}
@@ -2901,7 +2904,7 @@ function zoneUpdate(){
       lantern:inz('lantern'),hatchet:inz('hatchet'),sperm:z<=2000,squid:z>=300&&z<=1000,siph:z>=300&&z<=1000,vampire:inz('vampire'),gulper:inz('gulper'),
       cucumber:inz('cucumber'),angler:z>=700&&z<=4000,dumbo:inz('dumbo'),snail:inz('snail'),amphi:S.D>=6000&&S.D-z<70,
       sardine:false,chromis:false,anthias:false,butterfly:false,snapper:false,parrot:false,clown:false,rockfish:false,hagfish:false,sleeper:false,osedax:false,crab:false,rimicaris:false,kiwa:false,scalyfoot:false,giga:false,ventmussel:false,barnacle:false,ventanem:false,krill:false,salp:false,childressi:false,acropora:false,icefish:false,borch:false,seal:false,pycno:false,icealgae:false,redfish:false,lophelia:false,geodia:false,acesta:false,dendro:false});
-    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema','enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea','narwhal','beluga','polarcod','apherusa','melosira','pearlocto','smanem','smsnail','smshrimp'].forEach(k=>H[k]=false);
+    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema','enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea','narwhal','beluga','polarcod','apherusa','melosira','pearlocto','smanem','smsnail','smshrimp','tetraclita','capitulum','mytilus','littorina','sargassum','tanem','heliocidaris'].forEach(k=>H[k]=false);
     if(DIVE.dvm)dvmH();
     if(DIVE.bh)bhH();
   }else{
@@ -2923,6 +2926,8 @@ function zoneUpdate(){
     else Object.assign(H,{icefish:false,borch:false,seal:false,pycno:false,icealgae:false});
     ['narwhal','beluga','polarcod','apherusa','melosira'].forEach(k=>H[k]=ARC.on);
     ['pearlocto','smanem','smsnail','smshrimp'].forEach(k=>H[k]=SMT.on);
+    ['tetraclita','capitulum','mytilus','littorina','sargassum','tanem','heliocidaris'].forEach(k=>H[k]=TIDE.on);
+    if(TIDE.on)Object.assign(H,{sardine:false,turtle:false,baitfish:true});
     if(ARC.on)Object.assign(H,{icealgae:true,sardine:false,rockfish:false,nettle:false,moon:false,comb:false,lantern:false,hatchet:false,sperm:false,squid:false,siph:false,atolla:false});
     {const v=S.loc==='vent';['rimicaris','kiwa','scalyfoot','giga','ventmussel','barnacle','ventanem'].forEach(k=>H[k]=v);}
   }
@@ -2956,7 +2961,7 @@ function zoneUpdate(){
     setSchool(FISH.butterfly,true,{cx:u.x,cy:u.y,cz:u.z,rx:8,ry:0.6,rz:5});}
   else{['jack','lionfish'].forEach(k=>setSchool(FISH[k],false,null));
     /* juvenile fish shelter among the mangrove roots */
-    setSchool(FISH.baitfish,MANG.on,MANG.on?{cx:MANG.bankX-1.5,cy:-0.75,cz:0,rx:2.2,ry:0.35,rz:6}:null);}
+    setSchool(FISH.baitfish,MANG.on||TIDE.on,MANG.on?{cx:MANG.bankX-1.5,cy:-0.75,cz:0,rx:2.2,ry:0.35,rz:6}:TIDE.on?{cx:3,cy:-2.2,cz:0,rx:4,ry:0.8,rz:6}:null);}
   setSchool(FISH.hammer,H.hammer,{cx:0,cy:Math.min(F+9,-6),cz:0,rx:14,ry:3,rz:14});
   setSchool(FISH.hatchet,H.hatchet,{cx:0,cy:F+6,cz:0,rx:11,ry:4,rz:11});
   setSchool(FISH.snail,H.snail,{cx:0,cy:F+2,cz:0,rx:8,ry:1.5,rz:8});
@@ -3053,6 +3058,7 @@ function readouts(){
   if(MANG.on)h+='<p><span class="tag">蓝碳</span>海草床只占海底面积约 0.2%，却储存了海洋约 10% 的碳；它和红树林、盐沼一起被称为“蓝碳”生态系统。它们也是很多鱼虾的育幼场。</p><p><span class="tag">儒艮</span>中国南方沿海曾有以海草为食的儒艮。2022 年发表的一项调查访问了 788 位渔民，自 2000 年以来没有任何可核实的目击记录，儒艮在中国已功能性灭绝，是中国水域第一种功能性灭绝的大型脊椎动物。</p>';
   if(ABY.on)h+='<p><span class="tag">深海平原</span>深海平原占地球表面一半以上，是地球上面积最大的生境。这里的食物几乎全靠上方几千米飘落的“海洋雪”，动物都长得慢、活得久。克拉里昂-克利珀顿区已记录到 5,578 种动物，约九成还没有被科学描述，而它也是全球最大的深海采矿勘探区。</p>';
   if(ROST.on)h+='<p><span class="tag">冷水珊瑚</span>这里没有阳光，珊瑚也没有共生藻，全靠洋流送来的浮游生物为生，所以冷水珊瑚礁总长在水流强的陆坡和海脊上。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁，2002 年才被发现，同年周围约 300 km² 海域禁止底拖网。</p>';
+  if(TIDE.on)h+='<p><span class="tag">潮间带分带</span>同一块岩石上，越高的地方露出水面越久，要忍受日晒、干燥和温度剧变；越低的地方被淹得越久，但捕食者和竞争者更多。于是生物按高度排成一条条带子：滨螺、藤壶、龟足、贻贝、海藻依次往下。这种分带在世界各地的岩岸都能看到。</p><p><span class="tag">潮汐</span>潮汐主要由月球引力引起，这里每天两涨两落，每次比前一天晚约 50 分钟。</p>';
   if(SMT.on)h+='<p><span class="tag">海山</span>海山是从海底拔起、山顶仍在水下的山，大多是死火山，全球估计有几万座以上。它们把深层海流抬升、加速，带来更多食物，所以常长满珊瑚和海绵，聚集鱼群。</p><p><span class="tag">温泉孵化</span>深海水温只有 1.6 °C，章鱼卵发育很慢；岩缝里的温泉最高 10.8 °C，章鱼妈妈平均约 1.8 年就能孵出小章鱼，大约相当于在 5 °C 的水里孵化。孵化越快，卵被吃掉、母亲饿死前失败的风险就越小。</p>';
   if(ARC.on)h+='<p><span class="tag">冰缘</span>冰缘是北极春天最热闹的地方：冰底的冰藻先于浮游植物开始繁殖，端足类和桡足类啃食冰藻，北极鳕吃它们，一角鲸、白鲸、海豹和海鸟再吃北极鳕。北极鳕幼鱼体内 50–90% 的碳来自冰藻。</p><p><span class="tag">海冰在减少</span>北极夏末的海冰面积 2012 年创下最低纪录；2025 年 9 月的最低值约 460 万平方公里，与 2008 年并列有卫星记录以来第 10 低。冰期变短，正改变一角鲸、白鲸和依赖海冰的整个食物网。</p>';
   if(ICE.on)h+='<p><span class="tag">冰下</span>头顶约 2 m 厚的海冰挡住了大部分阳光，只有冰洞里照下一道光柱。冬天之后的海水几乎没有浮游生物，清澈得能看到很远；水温 −1.9 °C，是海水的冰点。你呼出的气泡会贴在冰底聚成一片片“水银”。</p><p><span class="tag">抗冻</span>这里的鱼血液里有抗冻糖蛋白，冰鱼甚至连血红蛋白都没有，血几乎是透明的。</p>';
@@ -3076,6 +3082,7 @@ function frameCamera(){
   if(S.loc==='monterey'){controls.target.set(0,F+1.2,0);camera.position.set(4,F+2.4,7);return;}
   if(S.loc==='truk'){const D=TRUK.Hh,b0=floorY0(0,0)-1.5;const tw=(x,y,z)=>{const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return new THREE.Vector3(x*c+z*s,b0+y,-x*s+z*c);};controls.target.copy(tw(36,D+2.5,0));camera.position.copy(tw(22,D+8,16));return;}
   if(S.loc==='mangrove'){const y=mangFloor(-5.2,0);controls.target.set(-5.6,y+0.5,0);camera.position.set(-2.6,-0.45,1.7);return;}
+  if(S.loc==='nanji'){controls.target.set(-3.6,-0.9,0);camera.position.set(1.0,-0.7,2.6);return;}
   if(S.loc==='seamount'){const s=SMT.seeps[0],y=smtFloor(s[0],s[1]);controls.target.set(s[0],y+0.1,s[1]);camera.position.set(s[0]+1.3,y+0.9,s[1]+1.5);return;}
   if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
@@ -3120,6 +3127,7 @@ const SITE={
   arctic:['加拿大北极 · 庞德因莱特浮冰边缘','北纬约 73°，巴芬岛北端的埃克利普斯海峡。冬天海面冻成约 1.8 m 厚、连着陆地不动的固定冰；春天它的外缘一点点碎裂后退，冰缘外是开阔水面。5 月底到 6 月，一角鲸和白鲸沿着冰缘向峡湾里迁移，冰底正是冰藻繁殖最旺的时候。','头顶是被冰藻染成褐色的冰底，挂着一缕缕北极直链藻；冰缘外明亮的开阔水里，一角鲸和白鲸的小群会沿着冰缘游过，不时上浮换气。点击冰底和冰缘看说明。'],
   ice:['南极麦克默多湾 · 海冰之下','头顶是约 2 m 厚的海冰，阳光只透下百分之几，冰底被冰藻染成褐色，冰洞里照下一道光柱。水温 −1.9 °C，海底有红海星、南极海胆、玻璃海绵和巨型海蜘蛛，威德尔海豹不时从冰下游过。','抬头看冰底的片状冰和贴在冰下的气泡；在海底找一找趴着不动、几乎透明的冰鱼。'],
   mangrove:['海南陵水新村潟湖 · 海草床与红树林 · 1.6 m','一个几乎被沙坝围住的潟湖。岸边是红树林，支柱根扎进软泥；往外是海菖蒲和泰来草组成的海草床。2007 年，新村港和相邻的黎安港一起设立了我国第一个以海草床为保护对象的特别保护区。','左边是红树林的支柱根，小鱼在根间躲避捕食者；右边的海草随波摆动，水面上漂着海菖蒲的白色雄花。找找缠在海草上的海马和倒躺在泥上的倒立水母。'],
+  nanji:['浙江南麂列岛 · 岩礁潮间带','温州平阳外海的南麂列岛，1990 年成为我国首批 5 个海洋自然保护区之一，1998 年加入联合国“人与生物圈”网络，以“贝藻王国”著称：已记录 422 种藻类、725 种贝类等软体动物。潮间带的岩石每天被海水淹没、露出各两次。','让潮汐播放起来，看海面怎样一点点淹过藤壶带和贻贝床；藤壶一被淹没就伸出蔓足捕食。也可以拖动“潮位”停在任一时刻。'],
   seamount:['加州戴维森海山 · 章鱼花园 · 3,200 m','蒙特雷西南约 129 km 的一座死火山，长 42 km、从海底拔起约 2,280 m。山脚一座小丘上，岩缝里渗出地热加温的海水，几千只珍珠章鱼聚在这里产卵、孵卵——2018 年才被发现，是已知最大的深海章鱼聚集地。','看温泉上方水的“抖动”，那是温水折射光线；章鱼妈妈的外套膜在一张一缩地给卵泵水。点击岩石和温泉看说明。'],
   abyss:['太平洋克拉里昂-克利珀顿区 · 深海平原 · 4,100 m','夏威夷与墨西哥之间一片约 600 万平方公里的深海平原，水深 4,000–6,000 m，水温约 1.5 °C。海底铺满土豆大小的锰结核，每一百万年只长 1–10 cm。这里已记录到 5,578 种动物，约九成从未被科学描述。','在手电光里找沿着自己的取食痕迹爬行的长尾蝶参、成群的海猪、用鳍条“站”在海底的三脚架鱼。右边那条没有结核的宽带是 1979 年采矿试验留下的车辙，点击它看 44 年后的样子。'],
   spawn:['海南三亚鹿回头 · 珊瑚产卵之夜','春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。','把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。'],
@@ -3912,6 +3920,162 @@ Object.assign(FACTS,{
 });
 SPECIES.push(['pearlocto','珍珠章鱼'],['smanem','深海海葵'],['smsnail','捕食性螺'],['smshrimp','深海小虾']);
 /* =========================================================
+   14u. Rocky intertidal shore, Nanji Islands, Pingyang, Wenzhou, Zhejiang (27°27′N 121°02′E).
+   - Nanji Archipelago National Marine Nature Reserve: one of China's first five marine reserves (1990),
+     China's earliest UNESCO biosphere reserve (1998), Ramsar site (2022); 19,893 ha; 422 species of algae and
+     725 of shellfish and other molluscs recorded: the "kingdom of shellfish and algae" (Ramsar RIS 2517).
+   - Dominant animals on its rocky shores: the barnacle Tetraclita, the tMussels Mytilus coruscus and Septifer
+     (S. virgatus in summer), the periwinkle Littorina brevicula; coralline algae and Sargassum thunbergii are
+     common (Shanghai Ocean Univ. 2017 survey: 125 species). S. thunbergii dominates the brown algae of the high
+     tidal zone, browns in general the mid zone, and Sargassum the upper subtidal (Frontiers in Mar. Sci. 2025).
+   - Tide: semidiurnal, two highs and two lows a day; the model uses a 12.42 h cycle with a 4 m range
+     (a simplification of the order of magnitude on this coast).
+   The whole shore sits in a group that moves down as the tide rises (the sea surface stays at y = 0);
+   anything above the surface is clipped, as a diver sees only the underwater part.
+   ========================================================= */
+const TIDE={on:false,h:0,amp:2,hr:5.2,play:true,rate:0.25,size:44,seg:220};   /* hr: hours since low water; rate: tide hours per second */
+renderer.localClippingEnabled=true;
+const CLIP_SURF=[new THREE.Plane(new THREE.Vector3(0,-1,0),0.015)];
+const tideG=new THREE.Group();tideG.visible=false;scene.add(tideG);
+/* elevation of the shore relative to mean sea level: subtidal bench at -S.D on the right, rock rising to +3 m on the left */
+function tideRock(x,z){
+  const s=x+1.4*Math.sin(z*0.27)+0.5*Math.sin(z*0.9+1);
+  let e=-S.D+(S.D+3.2)*sstep(5,-9,s);
+  const[d1,d2,id]=cell2(x*0.42+5,z*0.42+2);e+=0.55*Math.sqrt(sstep(0,0.5,d2-d1))*(0.6+0.8*id)*sstep(6,-2,s);  /* boulders and blocks */
+  e+=0.18*Math.sin(x*1.7+z*0.8)*Math.sin(z*1.3)+0.05*Math.sin(x*6.1+z*4.7);
+  return e*sstep(22,15,Math.hypot(x,z))+(-S.D)*(1-sstep(22,15,Math.hypot(x,z)));
+}
+const tideFloor=(x,z)=>tideRock(x,z)-TIDE.h;
+const tideGeo=new THREE.PlaneGeometry(TIDE.size,TIDE.size,TIDE.seg,TIDE.seg);tideGeo.rotateX(-Math.PI/2);
+tideGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(tideGeo.attributes.position.count*3),3));
+const tideMat=waterify(lambert({clippingPlanes:CLIP_SURF}),'tideRock',{defines:{CAUSTICS:''}});
+const tideMesh=new THREE.Mesh(tideGeo,tideMat);tideG.add(tideMesh);
+function paintTide(){
+  const p=tideGeo.attributes.position,c=tideGeo.attributes.color;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),e=tideRock(x,z);p.setY(i,e);
+    const n=0.5+0.3*Math.sin(x*4.3+z*3.1)*Math.sin(z*5.7)+0.2*Math.sin(x*13+z*11);
+    let col=mixc([0.23,0.22,0.21],[0.14,0.14,0.13],n);                                         /* granite-grey rock */
+    col=mixc(col,[0.12,0.12,0.11],sstep(1.5,1.8,e)*sstep(2.6,2.2,e)*0.8);                     /* black band (cyanobacteria) at the top of the splash zone */
+    {const[b1]=cell2(x*30,z*30);col=mixc(col,b1<0.32?[0.42,0.45,0.42]:[0.25,0.27,0.25],sstep(0.1,0.4,e)*sstep(1.7,1.4,e)*0.85);}   /* barnacle zone: crowded pale cones */
+    col=mixc(col,[0.1,0.08,0.09],sstep(0.5,0.3,e)*sstep(-0.8,-0.5,e)*0.85);                    /* dark mussel beds */
+    col=mixc(col,[0.6,0.33,0.38],sstep(-0.4,-0.8,e)*sstep(-3.2,-2.4,e)*0.8);                  /* pink crusts of coralline algae */
+    col=mixc(col,[0.55,0.5,0.42],sstep(-3.6,-4.2,e));                                          /* coarse sand at the foot */
+    c.setXYZ(i,col[0],col[1],col[2]);}
+  p.needsUpdate=true;c.needsUpdate=true;tideGeo.computeVertexNormals();
+}
+const _tn=new THREE.Vector3();
+function tideNormal(x,z){const e=0.05;_tn.set(tideRock(x-e,z)-tideRock(x+e,z),2*e,tideRock(x,z-e)-tideRock(x,z+e)).normalize();return _tn;}
+/* ---- Tetraclita (鳞笠藤壶): a steep grey-green cone of plates, ~3 cm; when the water covers it the cirri sweep in and out ---- */
+const tetraGeo=(()=>{const acc=Acc();
+  const g=new THREE.CylinderGeometry(0.34,1,0.72,10,1,true);g.translate(0,0.36,0);
+  addGeo(acc,g,null,(x,y,z)=>{const a=Math.atan2(z,x),r=Math.abs(Math.sin(a*6));return mixc([0.4,0.45,0.41],[0.18,0.22,0.2],r*0.8+0.2*sstep(0.5,0.7,y));});
+  addGeo(acc,new THREE.CircleGeometry(0.34,8).rotateX(-Math.PI/2).translate(0,0.715,0),null,()=>[0.18,0.17,0.16]);
+  for(let k=0;k<6;k++){const a=(k-2.5)*0.28;   /* cirri: six curled feeding legs, collapsed into the shell when dry */
+    addGeo(acc,new THREE.CylinderGeometry(0.02,0.035,0.6,3,3,true),M4(Math.sin(a)*0.25,0.98,0.05,0.35,0,a*1.6),()=>[0.85,0.72,0.5]);}
+  return finishGeo(acc);})();
+const tideU={uTideH:{value:0}};
+const tetraMat=waterify(lambert({clippingPlanes:CLIP_SURF}),'tetra',{uniforms:tideU,vHead:'uniform float uTideH;',
+  vBegin:'if(position.y>0.73){ float wy=instanceMatrix[3].y-uTideH; float sub=smoothstep(-0.02,-0.12,wy); float ph=instanceMatrix[3].x*7.1+instanceMatrix[3].z*5.3; float s=sub*max(0.0,sin(uTime*2.2+ph)); transformed.y=0.72+(transformed.y-0.72)*s; transformed.xz*=0.2+0.8*s; transformed.z+=0.25*s*s*(transformed.y-0.72); }'});
+const tetras=new THREE.InstancedMesh(tetraGeo,tetraMat,2200);tetras.frustumCulled=false;tetras.count=0;tideG.add(tetras);
+/* ---- Capitulum mitella (龟足): stalked barnacles in clumps in crevices; a fan of pointed plates on a scaly stalk ---- */
+const pollGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.16,0.2,0.5,8),M4(0,0.25,0),(x,y,z)=>Math.sin(y*60)>0?[0.45,0.38,0.3]:[0.35,0.29,0.22]);
+  for(let k=0;k<7;k++){const a=(k-3)*0.32;addGeo(acc,new THREE.ConeGeometry(0.1,0.55,4),M4(Math.sin(a)*0.12,0.72,Math.cos(a)*0.02*(k%2?1:-1),0,0,-a*0.8),()=>k%2?[0.55,0.58,0.5]:[0.68,0.66,0.55]);}
+  return finishGeo(acc);})();
+const polls=new THREE.InstancedMesh(pollGeo,waterify(lambert({clippingPlanes:CLIP_SURF}),'pollicipes'),700);polls.frustumCulled=false;polls.count=0;tideG.add(polls);
+/* ---- tMussels: Mytilus coruscus (厚壳贻贝, thick dark shells to ~12 cm) packed with smaller Septifer ---- */
+const tMusselGeo=(()=>{const acc=Acc();
+  for(const sg of[1,-1])addColored(acc,loftGeo(8,6,(a,b)=>{const ph=b*Math.PI,w=Math.sin(Math.PI*Math.pow(a,0.7))*0.32+0.01,z=a-0.5;
+    const x=sg*w*Math.sin(ph)*0.55,y=w*Math.cos(ph)*0.9;return[x,y,z,...mixc([0.16,0.12,0.16],[0.3,0.22,0.24],0.5+0.5*Math.sin(a*40))];}));
+  return finishGeo(acc);})();
+const tMussels=new THREE.InstancedMesh(tMusselGeo,waterify(lambert({clippingPlanes:CLIP_SURF,side:THREE.DoubleSide}),'mussel'),1800);tMussels.frustumCulled=false;tMussels.count=0;tideG.add(tMussels);
+/* ---- Littorina brevicula (短滨螺): ~1 cm periwinkles high on the shore ---- */
+const winkGeo=(()=>{const acc=Acc();for(let k=0;k<4;k++)addGeo(acc,new THREE.SphereGeometry(1,8,6),M4(0,0.3+k*0.22,-k*0.06,0,0,0,0.5-k*0.11,0.42-k*0.09,0.5-k*0.11),(x,y,z)=>Math.sin(y*30+Math.atan2(z,x)*2)>0.3?[0.32,0.3,0.26]:[0.5,0.46,0.38]);return finishGeo(acc);})();
+const winks=new THREE.InstancedMesh(winkGeo,waterify(lambert({clippingPlanes:CLIP_SURF}),'littorina'),500);winks.frustumCulled=false;winks.count=0;tideG.add(winks);
+/* ---- Sargassum: short bushy S. thunbergii (鼠尾藻) higher up, taller leafy S. hemiphyllum (半叶马尾藻) below; sway with the surge ---- */
+const sargGeo=(()=>{const acc=Acc();
+  for(let s=0;s<5;s++){const a0=s*1.26,lean=0.25+0.1*s%3;
+    for(let k=0;k<12;k++){const t=k/12,x=Math.cos(a0)*lean*t*0.35,z=Math.sin(a0)*lean*t*0.35,y=t;
+      addGeo(acc,new THREE.CylinderGeometry(0.008,0.01,1/12,3,1,true),M4(x,y+1/24,z),()=>[0.42,0.33,0.14]);
+      for(let j=0;j<3;j++){const b=a0+k*2.1+j*2.1,cx=x+Math.cos(b)*0.07,cz=z+Math.sin(b)*0.07;                    /* small flat leaves */
+        addGeo(acc,triGeo([x,y,z, cx+Math.sin(b)*0.02,y+0.04,cz-Math.cos(b)*0.02, cx+Math.cos(b)*0.05,y+0.08,cz+Math.sin(b)*0.05,  x,y,z, cx+Math.cos(b)*0.05,y+0.08,cz+Math.sin(b)*0.05, cx-Math.sin(b)*0.02,y+0.04,cz+Math.cos(b)*0.02]),null,()=>j?[0.5,0.38,0.12]:[0.44,0.34,0.1]);
+        if((k+j)%4===0)addGeo(acc,new THREE.OctahedronGeometry(0.012,0),M4(x-Math.cos(b)*0.03,y+0.02,z-Math.sin(b)*0.03),()=>[0.55,0.45,0.18]);}}}  /* air bladders */
+  return finishGeo(acc);})();
+const sargMat=waterify(lambert({clippingPlanes:CLIP_SURF,side:THREE.DoubleSide}),'sargassum',{vBegin:'{ float L=length(instanceMatrix[1].xyz); float k=position.y*position.y; float ph=instanceMatrix[3].x*1.9+instanceMatrix[3].z*1.3; transformed.x+=(uFlow.x*0.35+0.06*sin(uTime*0.9+ph))*k/max(L,0.2)*0.9; transformed.z+=(uFlow.y*0.35+0.05*cos(uTime*0.8+ph))*k/max(L,0.2)*0.9; }'});
+const sargs=new THREE.InstancedMesh(sargGeo,sargMat,520);sargs.frustumCulled=false;sargs.count=0;tideG.add(sargs);
+/* ---- green anemones in the low zone, purple urchins (紫海胆) in the crevices below ---- */
+const tAnemGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.4,0.5,0.4,10),M4(0,0.2,0),()=>[0.3,0.45,0.25]);
+  for(let k=0;k<24;k++){const a=k/24*6.283,r=0.28+0.1*(k%2);addGeo(acc,new THREE.CylinderGeometry(0.02,0.045,0.4,4),M4(Math.cos(a)*r,0.5,Math.sin(a)*r,Math.sin(a)*0.9,0,-Math.cos(a)*0.9),()=>[0.45,0.68,0.42]);}
+  return finishGeo(acc);})();
+const tAnems=new THREE.InstancedMesh(tAnemGeo,waterify(lambert({clippingPlanes:CLIP_SURF}),'tAnem'),120);tAnems.frustumCulled=false;tAnems.count=0;tideG.add(tAnems);
+const tUrchins=new THREE.InstancedMesh(urchinT.geometry,urchinT.material,60);tUrchins.frustumCulled=false;tUrchins.count=0;tideG.add(tUrchins);
+regPick(tideMesh,'tide_rock');regPick(tetras,'tetraclita');regPick(polls,'capitulum');regPick(tMussels,'mytilus');regPick(winks,'littorina');regPick(sargs,'sargassum');regPick(tAnems,'tanem');regPick(tUrchins,'heliocidaris');
+/* scatter instances over the shore where the elevation falls in a band; ab = how strongly to prefer the band centre */
+function tideScatter(mesh,n,e0,e1,sc,opt){
+  opt=opt||{};let k=0;const cap=mesh.instanceMatrix.count;
+  const zr=opt.zr||9;for(let i=0;i<n*60&&k<Math.min(n,cap);i++){const x=R(-13,8),z=R(-zr,zr);const e=tideRock(x,z);if(e<e0||e>e1)continue;
+    if(opt.crev){const[d1,d2]=cell2(x*0.42+5,z*0.42+2);if(d2-d1>0.12)continue;}
+    if(opt.p&&rnd()>opt.p(x,z,e))continue;
+    const nrm=tideNormal(x,z);_q.setFromUnitVectors(UP,opt.up?_tn.set(0,1,0).lerp(nrm,0.4).normalize():nrm);
+    _q.multiply(new THREE.Quaternion().setFromEuler(_e.set(opt.tilt?R(-opt.tilt,opt.tilt):0,rnd()*6.28,opt.tilt?R(-opt.tilt,opt.tilt):0)));
+    const s=R(sc[0],sc[1]);if(opt.sy)_s.set(s,s*R(opt.sy[0],opt.sy[1]),s);else _s.setScalar(s);
+    _p.set(x,e-(opt.sink||0)*s,z);_m.compose(_p,_q,_s);mesh.setMatrixAt(k++,_m);}
+  mesh.count=k;mesh.instanceMatrix.needsUpdate=true;
+}
+function buildIntertidal(on){
+  TIDE.on=on;tideOn=on;tideG.visible=on;$('tideSec').hidden=!on;
+  if(!on){TIDE.h=0;tideG.position.y=0;return;}
+  paintTide();
+  const patch=(x,z)=>0.55+0.45*Math.sin(x*0.9+z*0.5)*Math.cos(z*0.7-x*0.3);
+  tideScatter(tetras,2200,0.15,1.65,[0.03,0.05],{zr:5,p:(x,z,e)=>0.4+0.6*patch(x,z)*sstep(1.7,1.2,e)});
+  tideScatter(polls,700,0.0,1.1,[0.05,0.075],{zr:6,crev:true,up:true,tilt:0.35});
+  tideScatter(tMussels,1800,-0.75,0.45,[0.06,0.12],{zr:6,p:(x,z)=>0.5+0.5*patch(x+3,z),tilt:1.1,sink:0.05});
+  tideScatter(winks,500,0.9,2.4,[0.01,0.014],{zr:6});
+  tideScatter(sargs,520,-3.4,0.45,[0.25,0.9],{up:true,p:(x,z,e)=>e>-0.6?0.35:0.9,sy:[0.8,1.3]});
+  /* S. thunbergii stays short; deeper plants (S. hemiphyllum) grow taller */
+  for(let i=0;i<sargs.count;i++){sargs.getMatrixAt(i,_m);_m.decompose(_p,_q,_s);const e=_p.y;const L=e>-0.6?R(0.15,0.3):R(0.4,0.95);_s.set(L*0.8,L,L*0.8);_m.compose(_p,_q,_s);sargs.setMatrixAt(i,_m);}
+  sargs.instanceMatrix.needsUpdate=true;
+  tideScatter(tAnems,120,-1.6,-0.1,[0.04,0.07],{crev:true});
+  tideScatter(tUrchins,60,-3.0,-1.0,[0.05,0.07],{crev:true});
+  stepIntertidal(0,0);
+}
+const tideHr=()=>TIDE.hr%12.42;
+function setTideHr(hr){TIDE.hr=((hr%12.42)+12.42)%12.42;}
+function stepIntertidal(dt,t){
+  if(!TIDE.on)return;
+  if(TIDE.play&&!DIVE.on)setTideHr(TIDE.hr+dt*TIDE.rate);
+  const h=-TIDE.amp*Math.cos(2*Math.PI*TIDE.hr/12.42),dh=h-TIDE.h;TIDE.h=h;
+  tideG.position.y=-h;tideU.uTideH.value=h;floor.position.y=-S.D-0.3-h;
+  if(dh!==0)tideUI();
+}
+let tideUIt=0;
+function tideUI(){
+  const now=performance.now();if(now-tideUIt<150)return;tideUIt=now;
+  const h=TIDE.h,hr=TIDE.hr,rising=hr<6.21;
+  $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+(Math.abs(h)>1.85?(h>0?'高潮':'低潮'):rising?'涨潮':'落潮');
+  if(document.activeElement!==$('sTide'))$('sTide').value=Math.round(hr/12.42*1000);
+  const sub=[['滨螺带',1.9],['藤壶带',1.0],['龟足',0.6],['贻贝床',-0.1],['鼠尾藻',0.0],['珊瑚藻与马尾藻',-1.3]].filter(z=>z[1]<h).map(z=>z[0]);
+  $('tideNote').textContent='距上一次低潮 '+hr.toFixed(1)+' 小时。现在淹在水下：'+(sub.length?sub.join('、'):'只有潮下带的海藻和海胆')+'。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。';
+}
+$('sTide').addEventListener('input',e=>{setTideHr(+e.target.value/1000*12.42);TIDE.play=false;$('tidePlay').textContent='▶ 播放潮汐';});
+$('tidePlay').addEventListener('click',()=>{TIDE.play=!TIDE.play;$('tidePlay').textContent=TIDE.play?'❚❚ 暂停潮汐':'▶ 播放潮汐';});
+const TIDE_INFO={
+  tide_rock:['南麂列岛的岩礁海岸','“贝藻王国” · 浙江温州平阳','潮水每天涨落两次，岩石上同一个高度被淹没的时间是固定的，于是生物按高度排成一条条带子：最高处是黑色的蓝藻带和滨螺，往下是白花花的藤壶带，再往下是黑紫色的贻贝床，最低处是粉红的珊瑚藻和成片的马尾藻。南麂列岛已记录 422 种藻类、725 种贝类等软体动物，1998 年成为我国第一个加入联合国“人与生物圈”的海洋保护区。','南麂列岛国家级海洋自然保护区']
+};
+Object.assign(CHIM_INFO,TIDE_INFO);
+CAT.push(['tetraclita','鳞笠藤壶','Tetraclita','潮间带中高潮区'],['capitulum','龟足','Capitulum mitella','潮间带岩缝'],['mytilus','厚壳贻贝','Mytilus coruscus','潮间带中低潮区'],
+  ['littorina','短滨螺','Littorina brevicula','潮间带高潮区'],['sargassum','鼠尾藻与马尾藻','Sargassum','潮间带至潮下带'],['tanem','绿海葵','Actiniaria','潮间带低潮区'],['heliocidaris','紫海胆','Heliocidaris crassispina','低潮线以下岩礁']);
+CAT.slice(-7).forEach(c=>CATMAP[c[0]]=c);
+Object.assign(FACTS,{
+  tetraclita:'藤壶是甲壳动物，幼体漂流一阵后头朝下粘在岩石上，一辈子不再移动。涨潮时打开壳板、伸出羽毛似的蔓足扫食浮游生物；退潮时关紧壳板，把一点海水锁在里面熬过几个小时的日晒。',
+  capitulum:'也是一种藤壶，有一根肉质的柄，顶端一簇尖尖的壳板像乌龟的脚，因此叫“龟足”。成群挤在浪大的岩缝里。',
+  mytilus:'用足丝把自己牢牢粘在岩石上，层层叠叠铺成贻贝床，经得住大浪。它们滤食浮游生物，床缝里又住着许多小动物。',
+  littorina:'住在潮间带最高处，退潮时能在空气里待很久，靠刮食岩石上的微藻和蓝藻为生。',
+  sargassum:'鼠尾藻矮小粗壮，长在潮间带较高处；更低处的马尾藻能长得很高，靠小小的气囊让藻体在水里立起来。南麂列岛的潮下带上部几乎全被马尾藻覆盖。',
+  tanem:'退潮时缩成一团、身上粘着碎壳和沙粒防晒，涨潮后才张开触手。',
+  heliocidaris:'躲在低潮线以下的岩缝里啃食海藻，是我国东南沿海常见的食用海胆。'
+});
+SPECIES.push(['tetraclita','鳞笠藤壶'],['capitulum','龟足'],['mytilus','厚壳贻贝'],['littorina','短滨螺'],['sargassum','马尾藻'],['tanem','绿海葵'],['heliocidaris','紫海胆']);
+/* =========================================================
    14s. Free piloting: a tethered ROV (or a diver) under thrust and water drag.
    Thrust ~0.9 m/s², quadratic drag gives a top speed of ~1 m/s (typical small ROV / swimming diver).
    The water itself moves you: tidal/ambient current (log-law profile near the bottom) and wave surge (linear wave orbits).
@@ -4177,7 +4341,7 @@ $('pxReset').addEventListener('click',()=>{cancelAnimationFrame(PX.anim);PX.minV
    trenches are averaged shallower than they really are (Mariana: ~9,000 m here vs 10,935 m measured).
    ========================================================= */
 const MAP={W:1080,H:540,h:null,img:null,sel:[],prof:null};
-const SITE_LL={seamount:[35.72,-122.72],arctic:[72.9,-77.6],mangrove:[18.42,109.97],abyss:[12,-125],xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
+const SITE_LL={nanji:[27.45,121.05],seamount:[35.72,-122.72],arctic:[72.9,-77.6],mangrove:[18.42,109.97],abyss:[12,-125],xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
   eilat:[29.5,34.95],brine:[27.7,-91.3],vent:[-37.8,49.65],dvm:[22.75,-158],ice:[-77.8,166.6],rost:[67.5,9.4],truk:[7.4,151.8],dive:[13.4,144.7],replay:[11.37,142.59]};
 function mapDecode(){if(MAP.h)return;const b=atob(window.ETOPO_B64),n=b.length,h=new Float32Array(n);for(let i=0;i<n;i++)h[i]=b.charCodeAt(i)/255*15400-9100;MAP.h=h;}
 function mapH(lat,lon){const fr=Math.max(0,Math.min(MAP.H-1.001,(89.8333-lat)*3)),fc=(lon+179.8333)*3,r=Math.floor(fr),c=Math.floor(fc),tr=fr-r,tc=fc-c,W=MAP.W,cc=k=>((k%W)+W)%W,h=MAP.h;
@@ -4490,6 +4654,7 @@ $('vrXR').addEventListener('click',enterXR);
 const TOUR_STOPS=[
   {l:'xisha',n:'s01_xisha',d:20,t:'海洋覆盖地球 71% 的表面',s:'导览从南海西沙 10 m 深的珊瑚礁出发。珊瑚礁只占海底面积不到 1%，却养活了约四分之一的海洋物种。'},
   {l:'mangrove',n:'s01b_mangrove',d:20,t:'海草床与红树林',s:'海南陵水新村潟湖。红树林的支柱根是小鱼的育幼场，海草随波摆动。海草床只占海底约 0.2%，却储存了海洋约 10% 的碳。'},
+  {l:'nanji',n:'s01c_nanji',d:24,t:'南麂列岛：潮间带',s:'潮水每天两涨两落。岩石上的生物按高度排成带：滨螺、藤壶、龟足、贻贝和海藻。藤壶被淹没时会伸出蔓足捕食。'},
   {l:'monterey',n:'s02_monterey',d:18,t:'巨藻林：海底的森林',s:'加州蒙特雷湾的冷水上升流带来养分，巨藻长成十几米高的森林，随涌浪整片摆动。'},
   {l:'truk',n:'s03_truk',d:20,t:'沉船变成的鱼礁',s:'富士川丸 1944 年沉没，八十年后船身已被软珊瑚和鱼群占据。十几米深处，红光已被海水吸收，一切都偏蓝绿。'},
   {l:'ice',n:'s04_ice',d:20,t:'南极海冰之下',s:'水温 −1.9 °C，海水因为含盐而不结冰。头顶两米厚的海冰只透下百分之几的阳光，冰底的冰藻是南大洋食物链的起点。'},
@@ -4653,7 +4818,7 @@ function frame(now){
   for(const k in JELLY)stepJelly(JELLY[k],dt,t);
   stepMantas(dt,t);stepTurtles(dt,t);stepAnglers(dt,t);
   for(const k in DRIFT)stepDrift(DRIFT[k],dt,t);
-  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);stepArctic(dt,t);stepSeamount(dt,t);
+  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);stepArctic(dt,t);stepSeamount(dt,t);stepIntertidal(rdt,t);
   if(infoT>0){infoT-=rdt;if(infoT<=0)$('info').hidden=true;}
   discT+=rdt;if(discT>0.5){discT=0;checkDiscover();if(SPN.on){spawnNote();readouts();}}stepToast(rdt);
   FANS.forEach(m=>{if(!m.visible)return;const u=m.userData;m.rotation.set(0.12*(U.uFlow.value.x*Math.sin(u.yaw)+U.uFlow.value.y*Math.cos(u.yaw))*0.5+0.03*Math.sin(t*0.8+u.ph),u.yaw,0);});
@@ -4665,7 +4830,7 @@ function frame(now){
   expo+=(target-expo)*Math.min(1,rdt*2);renderer.toneMappingExposure=expo*0.9;
   if(wbPass){let g=[1,1,1];
     if(S.adapt&&!S.night&&z<200){const a=[0,1,2].map(i=>light(z,i)*Math.exp(-OPT.c[i]*3)),m=(a[0]+a[1]+a[2])/3;
-      g=a.map(v=>Math.min(5,Math.max(0.5,Math.pow(m/Math.max(v,1e-6),0.5))));const n=(g[0]*a[0]+g[1]*a[1]+g[2]*a[2])/(a[0]+a[1]+a[2]);g=g.map(v=>Math.min(2.4,v/n));if(MANG.on)g=g.map(v=>1+(v-1)*0.35);}   /* keep the lagoon's green cast, as the eye sees it */
+      g=a.map(v=>Math.min(5,Math.max(0.5,Math.pow(m/Math.max(v,1e-6),0.5))));const n=(g[0]*a[0]+g[1]*a[1]+g[2]*a[2])/(a[0]+a[1]+a[2]);g=g.map(v=>Math.min(2.4,v/n));if(MANG.on||TIDE.on)g=g.map(v=>1+(v-1)*0.35);}   /* keep the lagoon's green cast, as the eye sees it */
     if(S.torch==='blue'&&(S.night||z>=200))g=[1.15,1.1,0.22];
     {/* deep white lamps: the camera balances to its own lamps over ~2 m of water each way, as on an ROV (applied to lamp-lit light only, the water stays dark blue) */
       let tw=[1,1,1];if(S.torch==='white'&&z>=200){tw=[0,1,2].map(i=>Math.exp(OPT.c[i]*4.0));const n=0.3*tw[0]+0.59*tw[1]+0.11*tw[2];tw=tw.map(v=>Math.min(3.5,v/n));}

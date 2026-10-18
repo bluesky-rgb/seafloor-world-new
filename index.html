@@ -73,6 +73,7 @@
         <button type="button" data-l="xisha" aria-pressed="false">西沙 · 珊瑚礁</button>
         <button type="button" data-l="spawn" aria-pressed="false">三亚 · 珊瑚产卵之夜</button>
         <button type="button" data-l="mangrove" aria-pressed="false">陵水 · 海草床与红树林</button>
+        <button type="button" data-l="nanji" aria-pressed="false">南麂列岛 · 岩礁潮间带</button>
         <button type="button" data-l="ice" aria-pressed="false">南极 · 海冰之下</button>
         <button type="button" data-l="arctic" aria-pressed="false">北极 · 浮冰边缘</button>
         <button type="button" data-l="monterey" aria-pressed="false">蒙特雷 · 巨藻林</button>
@@ -105,6 +106,16 @@
       <p class="note" id="spNote"></p>
     </section>
 
+    <section id="tideSec" hidden>
+      <h2>潮汐：海水的涨落</h2>
+      <div class="ctl">
+        <label for="sTide">潮位 <b id="tideV">0.00 m</b></label>
+        <input id="sTide" type="range" min="0" max="1000" step="1">
+      </div>
+      <button id="tidePlay" type="button">❚❚ 暂停潮汐</button>
+      <p class="note" id="tideNote"></p>
+      <p class="note">半日潮：约 12 小时 25 分涨落一次。这里把潮差简化为 4 m，播放速度是 1 秒相当于 15 分钟。海面以上的部分不显示，就像潜水时只能看到水下的那一半。</p>
+    </section>
     <section id="wfSec" hidden>
       <h2>鲸落：沉到海底之后</h2>
       <div class="ctl">
@@ -330,8 +341,20 @@
             <li data-s="done">新生境：海南陵水新村潟湖的海草床与红树林</li>
             <li data-s="done">新生境：北极浮冰边缘（一角鲸、白鲸、冰藻）</li>
             <li data-s="done">新生境：海山（戴维森海山章鱼花园）</li>
-            <li data-s="next">新生境：潮间带</li>
-            <li>画质：更多生物重做（抹香鲸、大王乌贼、深海鱼）</li>
+            <li data-s="done">新生境：潮间带（南麂列岛，可播放的潮汐）</li>
+            <li data-s="next">画质：更多生物重做（抹香鲸、大王乌贼、深海鱼）</li>
+            <li>声音：真实的海洋录音</li>
+            <li>英文界面、手机性能模式</li>
+          </ul>
+        </div>
+        <div>
+          <h3>岩礁潮间带与潮汐<time>2026-10-18</time></h3>
+          <ul>
+            <li>新地点“南麂列岛 · 岩礁潮间带”：浙江温州平阳外海，1990 年成为我国首批海洋自然保护区之一，1998 年加入联合国“人与生物圈”网络，号称“贝藻王国”</li>
+            <li>潮汐可以播放：海面固定不动，整片岩岸随潮位升降，约 12 小时 25 分涨落一次（播放时 1 秒相当于 15 分钟），潮差简化为 4 m。也可以拖动“潮位”滑块停在任一时刻，面板会列出此刻哪些生物带淹在水下</li>
+            <li>生物按高度分带：黑色蓝藻带与短滨螺、白花花的鳞笠藤壶、岩缝里成簇的龟足、黑紫色的厚壳贻贝床、矮小的鼠尾藻、粉红的珊瑚藻和高大的马尾藻，再往下是绿海葵和紫海胆</li>
+            <li>藤壶只在被海水淹没时伸出蔓足捕食，露出水面就收回；海面以上的部分不显示，就像潜水时只能看到水下的那一半</li>
+            <li>新增“近海岛屿”水质（能见度约 10 m）；新生物 7 种（图鉴共 103 种）；展览模式在红树林之后加入这一站，配新的语音讲解</li>
           </ul>
         </div>
         <div>
@@ -580,6 +603,9 @@
         <div>
           <h3>资料来源</h3>
           <ul>
+            <li><a href="https://rsis.ramsar.org/ris/2517" target="_blank" rel="noopener">拉姆萨尔湿地信息表：南麂列岛 19,893 公顷，422 种藻类、725 种贝类等软体动物，1998 年加入人与生物圈</a></li>
+            <li><a href="https://html.rhhz.net/shhydxxb/20170602095.htm" target="_blank" rel="noopener">《上海海洋大学学报》（2017）：南麂列岛潮间带 125 种大型底栖生物，优势种为鳞笠藤壶、厚壳贻贝、隔贻贝、短滨螺</a></li>
+            <li><a href="https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2025.1563252/pdf" target="_blank" rel="noopener">Frontiers in Marine Science（2025）：鼠尾藻主导高潮区褐藻，潮下带上部几乎全是马尾藻</a></li>
             <li><a href="https://en.wikipedia.org/wiki/Davidson_Seamount" target="_blank" rel="noopener">戴维森海山：长 42 km、高约 2,280 m、山顶水深 1,250 m，237 种生物</a></li>
             <li><a href="https://www.aaas.org/news/deep-sea-hot-springs-may-be-vital-nesting-octopus" target="_blank" rel="noopener">AAAS（Barry 等，Science Advances 2023）：5,718 只章鱼、温泉最高 10.8 °C、孵卵约 1.8 年、水中的“抖动”</a></li>
             <li><a href="https://amp.cnn.com/cnn/2023/08/23/world/octopus-garden-deep-sea-mystery-solved-scn" target="_blank" rel="noopener">CNN：章鱼花园约 3,200 m，2018 年发现，可能多达两万只</a></li>
@@ -729,7 +755,7 @@
     <h3>拍明信片</h3>
     <p>左下角“拍明信片”会把当前画面做成一张带地点、深度、水温和气压的图片，可以保存下来分享。</p>
     <h3>展览模式</h3>
-    <p>左下角“展览模式”（或欢迎页的“看 7 分钟展览导览”）会自动带你走过 15 个真实地点：珊瑚礁、海草床与红树林、巨藻林、沉船、南极冰下、北极冰缘、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口、海山章鱼花园、深海平原，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
+    <p>左下角“展览模式”（或欢迎页的“看 7 分钟展览导览”）会自动带你走过 16 个真实地点：珊瑚礁、海草床与红树林、岩礁潮间带、巨藻林、沉船、南极冰下、北极冰缘、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口、海山章鱼花园、深海平原，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
     <h3>VR 模式</h3>
     <p>控制台“VR 模式”里点“手机分屏 VR”：把手机横过来，有纸盒 VR 眼镜就放进去。转动手机看四周（读不到陀螺仪时用手指拖动），轻点屏幕开始或停止游动，按“退出 VR”或 Esc 返回。用 VR 头显时，在头显自带的浏览器里打开本页，点“进入头显 VR”。</p>
     <h3>为了看得见而做的处理</h3>
@@ -745,7 +771,7 @@
     <h2 id="welT">欢迎来到海底物理世界</h2>
     <p class="lead">这里的每个场景都按真实地点和实测数据搭建，从 10 m 的珊瑚礁一直到 10,935 m 的海沟底。</p>
     <ul class="wl">
-      <li><b>先看导览</b>：“展览模式”会自动带你走过 15 个真实地点，从珊瑚礁一直下潜到海沟底，随时可以退出。</li>
+      <li><b>先看导览</b>：“展览模式”会自动带你走过 16 个真实地点，从珊瑚礁一直下潜到海沟底，随时可以退出。</li>
       <li><b>换地点</b>：在右侧（手机在下方）控制台的“真实地点”里挑一个，或点“开始下潜”一路潜到海沟。</li>
       <li><b>看和认</b>：拖动画面转视角，点击生物看它是谁。</li>
       <li><b>自己开</b>：点“自由驾驶”，用键盘或摇杆开着水下机器人四处探索。</li>
@@ -770,6 +796,6 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/seafloor.js?v=7be6f03e"></script>
+<script src="js/seafloor.js?v=9e2a660d"></script>
 </body>
 </html>

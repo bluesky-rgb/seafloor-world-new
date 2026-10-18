@@ -27,7 +27,8 @@ function paintFloor(hab){
     cwc:[[0.52,0.5,0.45],[0.44,0.42,0.38],[0.7,0.68,0.62]],
     abyss:[[0.56,0.47,0.36],[0.47,0.39,0.3],[0.16,0.13,0.1]],
     mangrove:[[0.48,0.43,0.35],[0.4,0.36,0.29],[0.3,0.26,0.2]],
-    seamount:[[0.3,0.28,0.25],[0.22,0.2,0.18],[0.12,0.11,0.1]]
+    seamount:[[0.3,0.28,0.25],[0.22,0.2,0.18],[0.12,0.11,0.1]],
+    intertidal:[[0.58,0.53,0.44],[0.5,0.46,0.38],[0.36,0.33,0.28]]
   }[hab];
   for(let i=0;i<p.count;i++){
     let col=mixc(pal[0],pal[1],FN1[i]);
@@ -60,8 +61,8 @@ for(let i=0;i<18;i++){
   m.userData.base=floorH(m.position.x,m.position.z)+sc*0.2;rocks.add(m);
 }
 function paintRocks(hab){
-  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25],abyss:[0.2,0.17,0.14],seamount:[0.16,0.15,0.14],mangrove:[0.3,0.27,0.22]}[hab];
-  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3],abyss:[0.3,0.26,0.2],seamount:[0.25,0.23,0.2],mangrove:[0.36,0.34,0.26]}[hab];
+  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25],abyss:[0.2,0.17,0.14],seamount:[0.16,0.15,0.14],intertidal:[0.4,0.38,0.35],mangrove:[0.3,0.27,0.22]}[hab];
+  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3],abyss:[0.3,0.26,0.2],seamount:[0.25,0.23,0.2],intertidal:[0.45,0.42,0.38],mangrove:[0.36,0.34,0.26]}[hab];
   rocks.children.forEach(m=>{
     const g=m.geometry,c=g.attributes.color,nr=g.attributes.normal,n=g.userData.n;
     for(let i=0;i<c.count;i++){
