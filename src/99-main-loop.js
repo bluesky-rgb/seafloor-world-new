@@ -34,7 +34,7 @@ function frame(now){
   for(const k in JELLY)stepJelly(JELLY[k],dt,t);
   stepMantas(dt,t);stepTurtles(dt,t);stepAnglers(dt,t);
   for(const k in DRIFT)stepDrift(DRIFT[k],dt,t);
-  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);stepArctic(dt,t);
+  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);stepArctic(dt,t);stepSeamount(dt,t);
   if(infoT>0){infoT-=rdt;if(infoT<=0)$('info').hidden=true;}
   discT+=rdt;if(discT>0.5){discT=0;checkDiscover();if(SPN.on){spawnNote();readouts();}}stepToast(rdt);
   FANS.forEach(m=>{if(!m.visible)return;const u=m.userData;m.rotation.set(0.12*(U.uFlow.value.x*Math.sin(u.yaw)+U.uFlow.value.y*Math.cos(u.yaw))*0.5+0.03*Math.sin(t*0.8+u.ph),u.yaw,0);});

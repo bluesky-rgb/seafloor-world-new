@@ -1,7 +1,10 @@
 # 资料来源
 
-页面中的物理参数、地点和生物资料引用自以下来源（共 62 条）。
+页面中的物理参数、地点和生物资料引用自以下来源（共 65 条）。
 
+- [戴维森海山：长 42 km、高约 2,280 m、山顶水深 1,250 m，237 种生物](https://en.wikipedia.org/wiki/Davidson_Seamount)
+- [AAAS（Barry 等，Science Advances 2023）：5,718 只章鱼、温泉最高 10.8 °C、孵卵约 1.8 年、水中的“抖动”](https://www.aaas.org/news/deep-sea-hot-springs-may-be-vital-nesting-octopus)
+- [CNN：章鱼花园约 3,200 m，2018 年发现，可能多达两万只](https://amp.cnn.com/cnn/2023/08/23/world/octopus-garden-deep-sea-mystery-solved-scn)
 - [Arctic Kingdom：什么是浮冰边缘；5 月底到 6 月底一角鲸、白鲸沿冰缘出现，冰厚约 2 m](https://resources.arctickingdom.com/what-is-the-floe-edge)
 - [冰藻：生活在冰底和卤水通道里，最弱能在约 0.02% 的水面光下光合作用；直链藻细丝可长到 1 m](https://en.wikipedia.org/wiki/Ice_algae)
 - [阿尔弗雷德·魏格纳研究所（Kohlbach 等）：北极鳕幼鱼 50–90% 的碳来自冰藻，主要吃冰下端足类](https://www.awi.de/en/about-us/service/press/single-view/when-the-sea-ice-melts-juvenile-polar-cod-may-go-hungry.html)

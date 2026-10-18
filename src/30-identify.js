@@ -81,7 +81,7 @@ const PICK=[];
 function regPick(o,key){o.userData.ck=key;PICK.push(o);}
 const raycaster=new THREE.Raycaster(),ndc=new THREE.Vector2();
 function chainVisible(o){for(let p=o;p;p=p.parent)if(!p.visible)return false;return true;}
-function resolveKey(k){if(k==='aby_floor')return inTrack(lastPick.x,lastPick.z)?'minetrack':'abysed';if((ICE.on&&(k==='star'||k==='urchinT'||k==='sponge'))||(ROST.on&&k==='fan'))return catKey(k);if(k==='fan')return S.D>200?'fanD':'fanS';if(k==='star')return S.temp>=18?'starT':'starC';return k;}
+function resolveKey(k){if(k==='smt_rock'&&SMT.seeps.some(s=>Math.hypot(s[0]-lastPick.x,s[1]-lastPick.z)<0.7))return'smt_seep';if(k==='aby_floor')return inTrack(lastPick.x,lastPick.z)?'minetrack':'abysed';if((ICE.on&&(k==='star'||k==='urchinT'||k==='sponge'))||(ROST.on&&k==='fan'))return catKey(k);if(k==='fan')return S.D>200?'fanD':'fanS';if(k==='star')return S.temp>=18?'starT':'starC';return k;}
 let infoT=0;
 function showInfo(k,dist){
   if(CHIM_INFO[k]){const c=CHIM_INFO[k];if(k==='brine_surf')brineRing(lastPick.x,lastPick.z,0.035);$('infoN').textContent=c[0];$('infoL').textContent=c[3]||'龙旂热液区';$('infoD').textContent=c[1]+(dist?' · 距离你约 '+dist.toFixed(1)+' m':'');$('infoF').textContent=c[2];$('info').hidden=false;infoT=14;return;}

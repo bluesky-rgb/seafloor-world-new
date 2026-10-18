@@ -14,7 +14,7 @@ function updateOptics(){
 const H={};let habKey='';
 function rebuild(){
   solveWave();CUR.x=Math.cos(S.dir*Math.PI/180);CUR.z=Math.sin(S.dir*Math.PI/180);updateOptics();
-  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);buildMangrove(S.loc==='mangrove'&&!DIVE.on);buildArctic(S.loc==='arctic'&&!DIVE.on);
+  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);buildMangrove(S.loc==='mangrove'&&!DIVE.on);buildArctic(S.loc==='arctic'&&!DIVE.on);buildSeamount(S.loc==='seamount'&&!DIVE.on);
   const F=-S.D,lf=light(S.D,1),day=!S.night;
   const sky=(day?1:0.02)*(ICE.on?ICE.T:1);U.uSky.value=sky;U.uDay.value=day?1:0;
   sunLight.intensity=1.5*sky;sunLight.color.setRGB(day?1:0.75,day?1:0.85,1);hemi.intensity=0.65*sky;
@@ -32,10 +32,10 @@ function rebuild(){
   H.star=S.D<=200&&!MANG.on&&!ARC.on;
   H.seep=S.seep&&S.D>=800;
 
-  const hab=MANG.on?'mangrove':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
+  const hab=MANG.on?'mangrove':SMT.on?'seamount':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
   const key=hab+(H.seep?'s':'');
   if(key!==habKey){habKey=key;paintFloor(hab);paintRocks(hab);}
-  floor.position.y=F-(ABY.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on;
+  floor.position.y=F-(ABY.on||SMT.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on&&!SMT.on;
 
   const um=floorOrbitalMax(),uc1=S.cur*curProfile(1);S.ripKind='';
   if(hab!=='deep'&&um>=uc1&&um>0.1){const d0=2*um/W.w;U.uRipL.value=d0<0.44?Math.max(0.62*d0,0.08):0.134;U.uRipAmp.value=Math.min(1,(um-0.1)/0.1);U.uRipDir.value.set(1,0);S.ripKind='wave';}
@@ -62,7 +62,7 @@ function zoneUpdate(){
       lantern:inz('lantern'),hatchet:inz('hatchet'),sperm:z<=2000,squid:z>=300&&z<=1000,siph:z>=300&&z<=1000,vampire:inz('vampire'),gulper:inz('gulper'),
       cucumber:inz('cucumber'),angler:z>=700&&z<=4000,dumbo:inz('dumbo'),snail:inz('snail'),amphi:S.D>=6000&&S.D-z<70,
       sardine:false,chromis:false,anthias:false,butterfly:false,snapper:false,parrot:false,clown:false,rockfish:false,hagfish:false,sleeper:false,osedax:false,crab:false,rimicaris:false,kiwa:false,scalyfoot:false,giga:false,ventmussel:false,barnacle:false,ventanem:false,krill:false,salp:false,childressi:false,acropora:false,icefish:false,borch:false,seal:false,pycno:false,icealgae:false,redfish:false,lophelia:false,geodia:false,acesta:false,dendro:false});
-    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema','enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea','narwhal','beluga','polarcod','apherusa','melosira'].forEach(k=>H[k]=false);
+    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema','enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea','narwhal','beluga','polarcod','apherusa','melosira','pearlocto','smanem','smsnail','smshrimp'].forEach(k=>H[k]=false);
     if(DIVE.dvm)dvmH();
     if(DIVE.bh)bhH();
   }else{
@@ -83,6 +83,7 @@ function zoneUpdate(){
     if(ICE.on){Object.assign(H,{sardine:false,rockfish:false,nettle:false,manta:false,turtle:false,hammer:false,whaleshark:false,moon:false,krill:true,icefish:true,borch:true,seal:!S.night,pycno:true,icealgae:true});}
     else Object.assign(H,{icefish:false,borch:false,seal:false,pycno:false,icealgae:false});
     ['narwhal','beluga','polarcod','apherusa','melosira'].forEach(k=>H[k]=ARC.on);
+    ['pearlocto','smanem','smsnail','smshrimp'].forEach(k=>H[k]=SMT.on);
     if(ARC.on)Object.assign(H,{icealgae:true,sardine:false,rockfish:false,nettle:false,moon:false,comb:false,lantern:false,hatchet:false,sperm:false,squid:false,siph:false,atolla:false});
     {const v=S.loc==='vent';['rimicaris','kiwa','scalyfoot','giga','ventmussel','barnacle','ventanem'].forEach(k=>H[k]=v);}
   }
@@ -122,7 +123,7 @@ function zoneUpdate(){
   setSchool(FISH.snail,H.snail,{cx:0,cy:F+2,cz:0,rx:8,ry:1.5,rz:8});
   const jb={cx:0,cy:Math.min(F+S.D*0.5,F+7),cz:0,rx:13,ry:Math.min(S.D*0.45,6),rz:13};
   for(const k in JELLY)setJelly(JELLY[k],!!H[k],jb);
-  for(const k in DRIFT)setDrift(DRIFT[k],!!H[k],k==='polarcod'?{cx:ARC.ex-3,cy:-ARC.h-0.5,cz:0,rx:6,ry:0.3,rz:8}:k==='apherusa'?{cx:ARC.ex-2,cy:-ARC.h-0.15,cz:0,rx:3,ry:0.05,rz:3}:ICE.on&&k==='krill'?{cx:0,cy:-ICE.h-1.3,cz:0,rx:6,ry:0.8,rz:6}:k==='borch'?{cx:ICE.hx,cy:-ICE.h-0.5,cz:ICE.hz,rx:7,ry:0.25,rz:7}:k==='icefish'?{cx:0,cy:floorY(0,0)+0.3,cz:0,rx:7,ry:0.2,rz:7}:k==='amphi'?{cx:0,cy:F+1.5,cz:0,rx:7,ry:1.4,rz:7}:k==='hagfish'?{cx:0,cy:floorY(0,0)+0.5,cz:0,rx:4,ry:0.45,rz:8}:{cx:0,cy:F+3,cz:0,rx:10,ry:2.5,rz:10});
+  for(const k in DRIFT)setDrift(DRIFT[k],!!H[k],k==='smshrimp'?{cx:0,cy:floorY(0,0)+0.15,cz:0,rx:5,ry:0.1,rz:5}:k==='polarcod'?{cx:ARC.ex-3,cy:-ARC.h-0.5,cz:0,rx:6,ry:0.3,rz:8}:k==='apherusa'?{cx:ARC.ex-2,cy:-ARC.h-0.15,cz:0,rx:3,ry:0.05,rz:3}:ICE.on&&k==='krill'?{cx:0,cy:-ICE.h-1.3,cz:0,rx:6,ry:0.8,rz:6}:k==='borch'?{cx:ICE.hx,cy:-ICE.h-0.5,cz:ICE.hz,rx:7,ry:0.25,rz:7}:k==='icefish'?{cx:0,cy:floorY(0,0)+0.3,cz:0,rx:7,ry:0.2,rz:7}:k==='amphi'?{cx:0,cy:F+1.5,cz:0,rx:7,ry:1.4,rz:7}:k==='hagfish'?{cx:0,cy:floorY(0,0)+0.5,cz:0,rx:4,ry:0.45,rz:8}:{cx:0,cy:F+3,cz:0,rx:10,ry:2.5,rz:10});
   }
   const z=zEff();
   diverOn=!dive&&(S.D<=60||ARC.on)&&!MANG.on;

@@ -24,6 +24,7 @@ const LOC={
   truk:    {name:'密克罗尼西亚特鲁克泻湖 · 富士川丸沉船',D:34,water:'clear',temp:28,H:0.5,T:6,cur:0.02,dir:90,sun:70,torch:'off'},
   rost:    {name:'挪威罗弗敦外海 · 勒斯特冷水珊瑚礁',D:320,water:'clear',temp:7,H:2,T:10,cur:0.15,dir:30,sun:40,torch:'white'},
   arctic:  {name:'加拿大北极庞德因莱特 · 浮冰边缘',D:300,water:'arctic',temp:-1.6,H:0.2,T:5,cur:0.04,dir:90,sun:35,torch:'off'},
+  seamount:{name:'加州戴维森海山 · 章鱼花园',D:3200,water:'clear',temp:1.6,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
   ice:     {name:'南极麦克默多湾 · 海冰之下',D:24,water:'clear',temp:-1.9,H:0,T:8,cur:0.02,dir:60,sun:25,torch:'off'},
   spawn:   {name:'海南三亚鹿回头珊瑚礁 · 产卵之夜',D:6,water:'ocean',temp:27,H:0.5,T:6,cur:0.05,dir:120,sun:70,torch:'white'},
   brine:   {name:'墨西哥湾 NR1 海底盐池',D:650,water:'clear',temp:6.5,H:1.5,T:8,cur:0.02,dir:60,sun:60,torch:'white'},
@@ -66,8 +67,8 @@ const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-
 const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
 function floorH(x,z){const f=Math.exp(-(x*x+z*z)/(2*70*70));return f*(0.7*Math.sin(x*0.13+1.3)*Math.cos(z*0.11)+0.35*Math.sin(x*0.37+z*0.29)+0.18*Math.sin(z*0.8-x*0.3));}
 const floorY0=(x,z)=>-S.D+floorH(x,z);
-let brineOn=false,mangOn=false;
-const floorY=(x,z)=>mangOn?mangFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
+let brineOn=false,mangOn=false,smtOn=false;
+const floorY=(x,z)=>mangOn?mangFloor(x,z):smtOn?smtFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
 const UP=new THREE.Vector3(0,1,0),ORIGIN=new THREE.Vector3();
 const _u={x:0,y:0,z:0},_m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3(),_d=new THREE.Vector3(),_e=new THREE.Euler();
 
