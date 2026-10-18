@@ -12,9 +12,10 @@ read = lambda p: open(os.path.join(ROOT, p), encoding='utf-8').read()
 html = read('index.html')
 html, n = re.subn(r'<link rel="stylesheet" href="css/style\.css(\?v=[0-9a-f]+)?">', lambda m: '<style>\n' + read('css/style.css') + '</style>', html)
 assert n == 1
-for p in ('data/etopo20.js', 'src/main.js'):
-    html, n = re.subn(r'<script src="%s(\?v=[0-9a-f]+)?"></script>' % re.escape(p), lambda m, p=p: '<script>\n' + read(p) + '</script>', html)
-    assert n == 1, p
+# the site loads data/etopo20.js on demand; the single file inlines it ahead of the app script
+html, n = re.subn(r'<script src="js/seafloor\.js(\?v=[0-9a-f]+)?"></script>',
+                  lambda m: '<script>\n' + read('data/etopo20.js') + '</script>\n<script>\n' + read('js/seafloor.js') + '</script>', html)
+assert n == 1
 # narration text for the browser-speech fallback (the single file has no audio/ folder next to it)
 narr = read('narration/tour.json')
 assert 'const NARR_INLINE=null;' in html

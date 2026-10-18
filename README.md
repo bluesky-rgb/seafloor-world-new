@@ -9,7 +9,8 @@ A real-time 3D ocean built from real sites and measured data, from a 10 m coral 
 ## 项目文档
 
 - [项目总结](docs/PROJECT.md)：目标、场景一览、物理模型、功能、技术结构、已知限制和下一步
-- [更新记录](docs/CHANGELOG.md)：23 次更新，逐项说明加了什么
+- [技术实现说明](docs/ARCHITECTURE.md)：代码结构、渲染与水下光学、主循环、各功能实现、语音讲解流程、性能、开发流程
+- [更新记录](docs/CHANGELOG.md)：24 次更新，逐项说明加了什么
 - [路线图](docs/ROADMAP.md)
 - [资料来源](docs/SOURCES.md)：41 条参考资料
 
@@ -21,7 +22,7 @@ A real-time 3D ocean built from real sites and measured data, from a 10 m coral 
 
 ## 在本地运行
 
-页面会加载 `data/` 和 `src/` 下的文件，所以要通过本地服务器打开，不能直接双击 `index.html`：
+页面会加载 `js/`、`data/`、`audio/` 下的文件，所以要通过本地服务器打开，不能直接双击 `index.html`：
 
 ```bash
 python3 -m http.server 8000
@@ -30,20 +31,36 @@ python3 -m http.server 8000
 
 ## 发布到 GitHub Pages
 
-仓库是纯静态文件，不需要构建。在 GitHub 仓库页面进入 **Settings → Pages**，“Build and deployment” 的 Source 选 **Deploy from a branch**，分支选 `main`、目录选 `/ (root)`，保存。一两分钟后网址会出现在同一页面顶部，通常是 `https://<用户名>.github.io/seafloor-world/`。
+仓库是纯静态文件。在 GitHub 仓库页面进入 **Settings → Pages**，“Build and deployment” 的 Source 选 **Deploy from a branch**，分支选 `main`、目录选 `/ (root)`，保存。推送到 `main` 后一两分钟网站自动更新。
 
 ## 目录结构
 
 ```
-index.html            页面结构与界面文字
+index.html            页面结构与全部界面文字
 css/style.css         样式
-src/main.js           三维场景、物理模型和全部交互（three.js r128）
-data/etopo20.js       全球地形数据（ETOPO 20 角分，8 位量化）
-tools/build_single.py 把以上文件合并成一个独立 HTML（用于发布到 Claude）
+src/NN-*.js           程序源码，按功能分成 38 个文件（渲染、水下光学、生物、各地点、实验、导览……）
+js/seafloor.js        由 src/ 拼接生成、页面实际加载的脚本（不要手改）
+data/etopo20.js       全球地形数据（ETOPO 20 角分，8 位量化），打开地图时才加载
 narration/tour.json   展览模式的语音讲解词
-tools/gen_tts.py      调用 MiniMax 生成讲解音频（由 GitHub Actions 运行）
-audio/tour/           生成好的讲解音频
+audio/tour/           MiniMax 生成的讲解音频
+assets/               分享预览图与网站图标
+tools/                构建、检查、配音生成、文档同步脚本
+docs/                 项目文档
+.github/workflows/    自动检查与配音生成
 ```
+
+## 修改代码
+
+改 `src/` 下的文件，然后：
+
+```bash
+python3 tools/build.py      # 生成 js/seafloor.js 并检查语法
+python3 tools/stamp.py      # 更新 index.html 里的版本标记，让浏览器取到新文件
+python3 tools/check.py      # 提交前总检查（推送后 GitHub 也会自动跑）
+python3 tools/smoke_test.py # 可选：用无头浏览器把主要功能点一遍（需安装 playwright）
+```
+
+代码是怎么组织的、每一帧做了什么、各个物理效果怎么实现、怎样加新地点和新生物，见 [技术实现说明](docs/ARCHITECTURE.md)。
 
 ## 数据与限制
 

@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>海底物理世界</title>
 <meta name="description" content="按真实地点和实测数据搭建的三维海底世界：从 10 m 的珊瑚礁一路下潜到 10,935 m 的马里亚纳海沟。">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#03121e">
+<meta property="og:type" content="website">
+<meta property="og:title" content="海底物理世界">
+<meta property="og:description" content="按真实地点和实测数据搭建的三维海底世界：从 10 m 的珊瑚礁一路下潜到 10,935 m 的马里亚纳海沟。有 6 分钟语音导览。">
+<meta property="og:url" content="https://4jt8jty9sk-cpu.github.io/seafloor-world/">
+<meta property="og:image" content="https://4jt8jty9sk-cpu.github.io/seafloor-world/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -312,6 +322,15 @@
             <li data-s="done">展示：展览模式（自动导览）</li>
             <li data-s="done">项目化：独立代码仓库与公开网站（不需要 Claude 账号也能打开）</li>
             <li data-s="next">画质：主角生物换成精细三维模型和游动动画</li>
+          </ul>
+        </div>
+        <div>
+          <h3>工程整理<time>2026-10-18</time></h3>
+          <ul>
+            <li>源码按功能拆成 38 个文件（渲染、水下光学、生物、各地点、实验、导览……），拼接后与拆分前完全一致</li>
+            <li>全球地形数据（约 0.8 MB）改为打开地图时才加载，首次打开页面要下载的内容少了一大半</li>
+            <li>分享链接时显示标题、简介和预览图；新增网站图标</li>
+            <li>每次更新自动检查：脚本与源码一致、语法正确、讲解词与音频对应、文档同步；新增技术实现说明文档</li>
           </ul>
         </div>
         <div>
@@ -666,7 +685,6 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="data/etopo20.js?v=0e07aadb"></script>
-<script src="src/main.js?v=5fb8532b"></script>
+<script src="js/seafloor.js?v=0dd63d62"></script>
 </body>
 </html>
