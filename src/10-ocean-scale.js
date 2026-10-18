@@ -33,12 +33,59 @@ Enc.prototype.start=function(){
 Enc.prototype.stop=function(){this.on=false;this.cool=R(this.cfg.cool[0],this.cfg.cool[1]);};
 Enc.prototype.yTarget=function(){const cf=this.cfg;let y=(cf.yAbs!==undefined?cf.yAbs:controls.target.y)+this.yOff;y=Math.max(y,floorY(this.pos.x,this.pos.z)+cf.minAb);return Math.min(y,-cf.minAb*0.5-0.6);};
 
-/* whale shark (Rhincodon typus) */
-const WSH=makeSwimmer('whaleshark',buildFishGeo({eye:0.005,h:0.12,w:0.15,tailH:0.24,dorsal:0.1,anal:0.03,
-  col:(x,y,z,f)=>{if(f)return[0.22,0.28,0.34];if(y<-0.025)return[0.86,0.87,0.86];
-    const sp=Math.sin(z*85)*Math.sin(Math.atan2(y,x)*14)>0.8,st=Math.abs(Math.sin(z*42))<0.06&&z<0.32;return(sp||st)?[0.86,0.88,0.9]:[0.2,0.26,0.33];},
-  extra:(acc,ex0)=>{addGeo(acc,new THREE.SphereGeometry(1,16,6),M4(0,-0.018,0.495,0,0,0,0.1,0.012,0.012),()=>[0.06,0.06,0.07],ex0);
-    for(const sg of[1,-1])addGeo(acc,triGeo([sg*0.12,-0.05,0.16, sg*0.34,-0.11,-0.02, sg*0.12,-0.05,0.02]),null,()=>[0.22,0.28,0.34],ex0);}}),
+/* whale shark (Rhincodon typus). Normalised length 1 (tail z=-0.5 .. snout z=+0.5).
+   Broad, flattened head with a wide terminal mouth; three ridges along each flank; large first dorsal,
+   crescent-shaped tail (upper lobe longer). Dark blue-grey back with the "checkerboard" of pale spots
+   between pale vertical stripes (spots smaller and denser on the head); white belly. */
+function whaleSharkGeo(){
+  const acc=Acc();
+  /* blunt, rounded snout (nose cap over the last 10%), thin caudal peduncle, head wider than tall */
+  const nose=a=>a>0.9?Math.sqrt(Math.max(0,1-Math.pow((a-0.9)/0.1,2))):1;
+  const W=a=>0.006+0.1*Math.pow(sstep(0,0.55,a),0.8)*nose(a)*(1+0.1*sstep(0.6,0.88,a));
+  const Hh=a=>0.006+0.085*Math.pow(sstep(0,0.5,a),0.8)*nose(a)*(1-0.4*sstep(0.62,0.95,a));
+  const body=loftGeo(140,56,(a,b)=>{
+    const phi=b*Math.PI*2,c=Math.cos(phi),sn=Math.sin(phi),z=-0.5+a;
+    let w=W(a),h=Hh(a);
+    /* flattened, slightly squared head; belly flatter than back */
+    const sq=sstep(0.6,0.95,a)*0.35;let x=w*Math.sign(c)*Math.pow(Math.abs(c),1-sq),y=h*Math.sign(sn)*Math.pow(Math.abs(sn),1-sq*0.5)*(sn<0?0.85:1);
+    /* three lateral ridges per side on the trunk */
+    const ridge=sstep(0.25,0.4,a)*sstep(0.85,0.7,a);
+    for(const ra of[0.35,0.75,1.15]){const d=Math.abs(Math.abs(Math.atan2(sn,Math.abs(c)))-ra);x+=Math.sign(c)*0.006*ridge*sstep(0.12,0,d);y+=Math.sign(sn)*0.004*ridge*sstep(0.12,0,d);}
+    let col;
+    const belly=sstep(-0.05,-0.35,sn);
+    if(belly>0.98)col=[0.88,0.89,0.88];
+    else{
+      const head=sstep(0.72,0.85,a);
+      const fz=z*(head>0.5?95:62),fa=Math.atan2(y,x)*(head>0.5?10:7);
+      const stripe=head<0.5&&Math.abs(Math.sin(z*Math.PI*30))<0.12&&a<0.8;                 /* pale vertical stripes */
+      const [d1]=cell2(fz,fa);const spot=d1<(head>0.5?0.22:0.26);                            /* pale spots between them */
+      col=(spot||stripe)?[0.8,0.83,0.84]:[0.17,0.22,0.28];
+      col=mixc(col,[0.88,0.89,0.88],belly);
+    }
+    /* the mouth: a wide dark slit across the front of the snout */
+    if(a>0.985&&sn<0.25&&sn>-0.55)col=[0.05,0.05,0.06];
+    return[x,y,z,...col];});
+  addColored(acc,body);
+  /* fins: thin lofted blades, coloured like the back above and pale below */
+  const fin=(pts,thk,o)=>{const n=pts.length-1;
+    return loftGeo(n,8,(a,b)=>{const k=Math.min(n,Math.round(a*n)),p=pts[k],phi=b*Math.PI*2;
+      const half=p[2]*0.5,t=thk*(1-0.8*a);
+      return o(p[0],p[1],half*Math.cos(phi),t*Math.sin(phi),Math.sin(phi));});};
+  const finCol=(x,y,z,s)=>{const[d1]=cell2(x*60,z*60);return(d1<0.2&&s>0)?[0.78,0.8,0.82]:[0.17,0.22,0.28];};
+  /* first dorsal (span upward, chord along z) */
+  addColored(acc,fin([[0,0,0.16],[0.04,0.01,0.13],[0.08,0.03,0.08],[0.115,0.055,0.03]],0.012,(s,dz,ch,t)=>{const z=-0.02+dz+ch,y=Hh(0.48)*0.95+s;return[t,y,z,...finCol(t,y,z,1)];}));
+  /* second dorsal */
+  addColored(acc,fin([[0,0,0.06],[0.03,0.01,0.03],[0.045,0.02,0.01]],0.006,(s,dz,ch,t)=>{const z=-0.24+dz+ch,y=Hh(0.26)*0.95+s;return[t,y,z,...finCol(t,y,z,1)];}));
+  /* caudal fin: upper lobe longer, lower lobe shorter, crescent */
+  addColored(acc,fin([[0,0,0.07],[0.06,-0.03,0.05],[0.13,-0.07,0.03],[0.2,-0.11,0.012]],0.01,(s,dz,ch,t)=>{const z=-0.5+dz+ch-0.02,y=s;return[t,y,z,...finCol(t,y,z,1)];}));
+  addColored(acc,fin([[0,0,0.06],[0.05,-0.02,0.035],[0.1,-0.04,0.012]],0.008,(s,dz,ch,t)=>{const z=-0.5+dz+ch-0.02,y=-s;return[t,y,z,...finCol(t,y,z,1)];}));
+  /* pectoral fins: large, swept back, slightly drooping */
+  for(const sg of[1,-1])addColored(acc,fin([[0,0,0.12],[0.06,-0.02,0.1],[0.13,-0.06,0.06],[0.2,-0.1,0.02]],0.012,(s,dz,ch,t)=>{const x=sg*(W(0.62)*0.9+s),y=-Hh(0.62)*0.55-s*0.28+t,z=0.13+dz+ch;return[x,y,z,...(t>0?[0.17,0.22,0.28]:[0.85,0.86,0.86])];}));
+  /* small eyes behind the mouth corners */
+  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.0055,8,6),M4(sg*W(0.94)*0.98,0.004,0.44),()=>[0.04,0.04,0.05]);
+  return finishGeo(acc);
+}
+const WSH=makeSwimmer('whaleshark',whaleSharkGeo(),
   {vBegin:'float bt=clamp(0.15-position.z,0.0,1.0); transformed.x+=sin(aPhase-position.z*4.0)*0.15*bt*bt;'});
 const encWS=new Enc({R0:34,fwd:[11,18],fwdDark:[7,10],y:[-1,3],cool:[22,40],spd:1.0,len:9.5,minAb:2.5});
 
