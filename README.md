@@ -4,6 +4,15 @@
 
 A real-time 3D ocean built from real sites and measured data, from a 10 m coral reef down to the 10,935 m Challenger Deep. Runs in any modern browser (WebGL); the interface is in Chinese.
 
+**在线体验：<https://4jt8jty9sk-cpu.github.io/seafloor-world/>**（第一次打开可以先点“看 6 分钟展览导览”）
+
+## 项目文档
+
+- [项目总结](docs/PROJECT.md)：目标、场景一览、物理模型、功能、技术结构、已知限制和下一步
+- [更新记录](docs/CHANGELOG.md)：22 次更新，逐项说明加了什么
+- [路线图](docs/ROADMAP.md)
+- [资料来源](docs/SOURCES.md)：41 条参考资料
+
 ## 能看什么
 
 - **十几个真实地点**：南海西沙珊瑚礁、蒙特雷巨藻林、特鲁克沉船、南极海冰之下、三亚珊瑚产卵之夜、挪威冷水珊瑚礁、海马冷泉、墨西哥湾海底盐池、蒙特雷峡谷鲸落、龙旂热液区、三沙永乐龙洞、北太平洋昼夜垂直迁移，以及关岛 → 马里亚纳海沟全程下潜和“重走 2012 深海挑战者号”。
