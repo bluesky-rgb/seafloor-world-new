@@ -40,6 +40,9 @@ css/style.css         样式
 src/main.js           三维场景、物理模型和全部交互（three.js r128）
 data/etopo20.js       全球地形数据（ETOPO 20 角分，8 位量化）
 tools/build_single.py 把以上文件合并成一个独立 HTML（用于发布到 Claude）
+narration/tour.json   展览模式的语音讲解词
+tools/gen_tts.py      调用 MiniMax 生成讲解音频（由 GitHub Actions 运行）
+audio/tour/           生成好的讲解音频
 ```
 
 ## 数据与限制
@@ -47,6 +50,21 @@ tools/build_single.py 把以上文件合并成一个独立 HTML（用于发布�
 - 全球地形来自 NOAA ETOPO（20 角分版本，取自 matplotlib/basemap 示例数据），网格约 37 km，所以地图上马里亚纳海沟只有约 9,000 m 深，真实最深处为 10,935 m。
 - 鱼群、水流等是简化模型；为了看得清，部分东西（气泡、珊瑚卵精束等）做了放大。所有放大和简化都在页面的规则说明里写明。
 - 在 Claude 里打开的版本有“所有访客共享的图鉴”；独立网站版本的图鉴和任务进度只保存在访问者自己的浏览器里。
+
+## 导览语音讲解（MiniMax）
+
+展览模式的讲解词在 `narration/tour.json`。配音由 GitHub Actions 调用 MiniMax 语音合成生成，存到 `audio/tour/`，网页只播放这些音频文件，**API 密钥不会出现在网页或仓库里**。还没有生成音频时，网页会用浏览器自带的朗读声音。
+
+第一次使用：
+
+1. 仓库 **Settings → Secrets and variables → Actions → Secrets**，新建 `MINIMAX_API_KEY`，填 MiniMax 的 API 密钥。
+2. （可选）同一页的 **Variables** 里可以设置：
+   - `MINIMAX_API_HOST`：国内账号用默认的 `https://api.minimax.cn`；国际账号（minimax.io）填 `https://api.minimax.io`
+   - `MINIMAX_VOICE_ID`：音色，默认 `Chinese (Mandarin)_Male_Announcer`
+   - `MINIMAX_MODEL`：默认 `speech-2.8-hd`；`MINIMAX_SPEED`：语速，默认 `0.95`
+3. **Actions → 生成导览配音 → Run workflow**。几分钟后音频会自动提交到仓库，网站随后更新。
+
+以后修改 `narration/tour.json` 并提交，会自动只重新生成改动过的句子。
 
 ## 第三方库
 

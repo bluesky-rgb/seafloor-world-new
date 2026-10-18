@@ -26,7 +26,7 @@
 <div id="toast" aria-live="polite"></div>
 <div id="info" hidden aria-live="polite"><button id="infoX" type="button" aria-label="关闭">×</button><div id="infoN"></div><div id="infoL"></div><div id="infoD"></div><p id="infoF"></p></div>
 <button id="tourBtn" type="button" aria-label="展览模式：自动导览整片海洋"><b>▶</b> 展览模式</button>
-<div id="tourBar" hidden><div class="tr"><span class="tn"><i id="tourI"></i><span id="tourN"></span></span><button id="tourPrev" type="button">上一站</button><button id="tourPause" type="button">暂停</button><button id="tourNext" type="button">下一站</button><button id="tourX" type="button" class="x">退出（Esc）</button></div><div class="tp"><div id="tourP"></div></div><p class="th">镜头会自动环绕，你也可以随时拖动画面。每站约 20 秒，最后一站一路下潜到海沟底。</p></div>
+<div id="tourBar" hidden><div class="tr"><span class="tn"><i id="tourI"></i><span id="tourN"></span></span><button id="tourPrev" type="button">上一站</button><button id="tourVoice" type="button" hidden aria-pressed="true">语音讲解：开</button><button id="tourPause" type="button">暂停</button><button id="tourNext" type="button">下一站</button><button id="tourX" type="button" class="x">退出（Esc）</button></div><div class="tp"><div id="tourP"></div></div><p class="th">镜头会自动环绕，你也可以随时拖动画面。每站约 20 秒，配有语音讲解（可关闭），最后一站一路下潜到海沟底。</p></div>
 <button id="cardBtn" type="button" aria-label="把当前画面做成明信片">拍明信片</button>
 <button id="pilotBtn" type="button">自由驾驶</button>
 <div id="pilotBar" hidden><div class="row"><b>自由驾驶</b><span id="pilotInfo"></span><button id="pilotX" type="button">退出驾驶（Esc）</button></div><div class="keys">W/S 前进后退 · A/D 左右平移 · Q/E 下潜上浮 · ←/→ 转向 · 拖动画面转头 · 点击生物仍可识别</div><div class="mkeys">左下摇杆移动 · 右侧按钮上浮/下潜 · 拖动画面转头</div></div>
@@ -312,6 +312,15 @@
             <li data-s="done">展示：展览模式（自动导览）</li>
             <li data-s="done">项目化：独立代码仓库与公开网站（不需要 Claude 账号也能打开）</li>
             <li data-s="next">画质：主角生物换成精细三维模型和游动动画</li>
+          </ul>
+        </div>
+        <div>
+          <h3>导览语音讲解<time>2026-10-18</time></h3>
+          <ul>
+            <li>展览模式加入语音讲解：每站一段，下潜途中在暮光层、午夜层、深渊层、超深渊层和“珠峰高度”处各有一句，到底和结束时各一段</li>
+            <li>配音由 MiniMax 语音合成预先生成，存成音频文件；还没生成时，改用浏览器自带的朗读声音</li>
+            <li>底部新增“语音讲解”开关；暂停导览时讲解同时暂停；有讲解时，每站停留到讲完为止</li>
+            <li>更正：删去下潜终点“到过这里的人比登上月球的人还少”一句，这个说法已经过时</li>
           </ul>
         </div>
         <div>
@@ -615,7 +624,7 @@
     <h3>拍明信片</h3>
     <p>左下角“拍明信片”会把当前画面做成一张带地点、深度、水温和气压的图片，可以保存下来分享。</p>
     <h3>展览模式</h3>
-    <p>左下角“展览模式”（或欢迎页的“看 6 分钟展览导览”）会自动带你走过 11 个真实地点：珊瑚礁、巨藻林、沉船、南极冰下、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕讲解；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
+    <p>左下角“展览模式”（或欢迎页的“看 6 分钟展览导览”）会自动带你走过 11 个真实地点：珊瑚礁、巨藻林、沉船、南极冰下、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
     <h3>VR 模式</h3>
     <p>控制台“VR 模式”里点“手机分屏 VR”：把手机横过来，有纸盒 VR 眼镜就放进去。转动手机看四周（读不到陀螺仪时用手指拖动），轻点屏幕开始或停止游动，按“退出 VR”或 Esc 返回。用 VR 头显时，在头显自带的浏览器里打开本页，点“进入头显 VR”。</p>
     <h3>为了看得见而做的处理</h3>
