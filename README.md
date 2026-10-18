@@ -53,7 +53,7 @@ audio/tour/           生成好的讲解音频
 
 ## 导览语音讲解（MiniMax）
 
-展览模式的讲解词在 `narration/tour.json`。配音由 GitHub Actions 调用 MiniMax 语音合成生成，存到 `audio/tour/`，网页只播放这些音频文件，**API 密钥不会出现在网页或仓库里**。还没有生成音频时，网页会用浏览器自带的朗读声音。
+展览模式的讲解词在 `narration/tour.json`。配音由 GitHub Actions 调用 MiniMax 语音合成生成，存到 `audio/tour/`，网页只播放这些音频文件，**API 密钥不会出现在网页或仓库里**。还没有生成音频时，导览只显示字幕，不会用机器朗读代替。
 
 第一次使用：
 

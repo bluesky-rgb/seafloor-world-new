@@ -3546,27 +3546,51 @@ const TOUR_STOPS=[
   {l:'dive',n:'s11_dive',d:112,dive:true,t:'最后一站：马里亚纳海沟',s:'从关岛礁壁出发，一路下潜到地球海洋最深处。光、水温和生物会随深度一层层改变；左侧剖面显示你的位置。'}
 ];
 const TOUR={on:false,i:0,t:0,paused:false,prevSpeed:0.35,pend:null,prevZ:0};
-/* ---- voice-over: MiniMax clips from audio/tour/ (made by tools/gen_tts.py), else the browser's own speech ---- */
+/* ---- voice-over: MiniMax clips from audio/tour/ (made by tools/gen_tts.py) ----
+   Played through Web Audio: the AudioContext is unlocked by the click that starts the tour,
+   after which later clips can start from the timer without another tap (mobile autoplay rules).
+   No robotic browser-speech fallback: if the clips are unavailable the tour simply runs with captions. */
 const NARR_INLINE=null; /* tools/build_single.py inlines narration/tour.json here */
-const NARR={on:true,clips:null,lines:null,audio:null};
-(async()=>{
-  const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
+const NARR={on:true,clips:null,lines:null,ctx:null,buf:{},src:null,playing:false,tok:0,state:'loading'};
+NARR.ready=(async()=>{
+  const get=u=>fetch(u,{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null);
   const [m,l]=await Promise.all([get('audio/tour/manifest.json'),NARR_INLINE||get('narration/tour.json')]);
-  NARR.clips=m&&Object.keys(m).length?m:null;NARR.lines=l&&l.lines?l.lines:null;tourShow();
+  NARR.clips=m&&Object.keys(m).length?m:null;NARR.lines=l&&l.lines?l.lines:null;
+  NARR.state=NARR.clips&&(window.AudioContext||window.webkitAudioContext)?'ok':'none';tourShow();
 })();
-const narrLine=id=>NARR.lines&&NARR.lines.find(x=>x.id===id);
-function narrLen(id){if(!NARR.on)return 0;if(NARR.clips&&NARR.clips[id]&&NARR.clips[id].ms)return NARR.clips[id].ms/1000;const l=narrLine(id);return l&&window.speechSynthesis?l.text.length/4.2:0;}
-function narrSpeak(id){const l=narrLine(id),ss=window.speechSynthesis;if(!l||!ss)return;
-  const u=new SpeechSynthesisUtterance(l.text);u.lang='zh-CN';u.rate=1;
-  const v=ss.getVoices().find(v=>/^zh[-_](CN|Hans)/i.test(v.lang))||ss.getVoices().find(v=>/^zh/i.test(v.lang));if(v)u.voice=v;ss.speak(u);}
-function narrStop(){if(NARR.audio)NARR.audio.pause();try{window.speechSynthesis&&speechSynthesis.cancel();}catch(e){}}
-function narrPlay(id){
-  if(!NARR.on||!id)return;narrStop();TOUR.pend=null;
-  if(NARR.clips&&NARR.clips[id]){const a=NARR.audio||(NARR.audio=new Audio());a.src='audio/tour/'+id+'.mp3';a.play().catch(()=>narrSpeak(id));}
-  else narrSpeak(id);
+function narrUnlock(){
+  const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+  if(!NARR.ctx){try{NARR.ctx=new C();}catch(e){return;}}
+  if(NARR.ctx.state==='suspended'&&!TOUR.paused)NARR.ctx.resume().catch(()=>{});
+  /* a silent one-sample buffer started inside the gesture fully unlocks iOS Safari */
+  try{const b=NARR.ctx.createBuffer(1,1,22050),s=NARR.ctx.createBufferSource();s.buffer=b;s.connect(NARR.ctx.destination);s.start(0);}catch(e){}
 }
-function narrBusy(){return(NARR.audio&&!NARR.audio.paused&&!NARR.audio.ended)||(window.speechSynthesis&&speechSynthesis.speaking);}
-function narrPause(p){try{if(p){if(NARR.audio)NARR.audio.pause();window.speechSynthesis&&speechSynthesis.pause();}else{if(NARR.audio&&NARR.audio.currentTime>0&&!NARR.audio.ended)NARR.audio.play().catch(()=>{});window.speechSynthesis&&speechSynthesis.resume();}}catch(e){}}
+function narrLoad(id){
+  if(NARR.buf[id])return NARR.buf[id];
+  NARR.buf[id]=fetch('audio/tour/'+id+'.mp3').then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+    .then(ab=>new Promise((res,rej)=>NARR.ctx.decodeAudioData(ab,res,rej)))
+    .catch(e=>{NARR.buf[id]=null;throw e;});
+  return NARR.buf[id];
+}
+const narrLine=id=>NARR.lines&&NARR.lines.find(x=>x.id===id);
+function narrLen(id){return NARR.on&&NARR.state==='ok'&&NARR.clips[id]&&NARR.clips[id].ms?NARR.clips[id].ms/1000:0;}
+function narrStop(){NARR.tok++;NARR.playing=false;if(NARR.src){try{NARR.src.onended=null;NARR.src.stop();}catch(e){}NARR.src=null;}}
+async function narrPlay(id){
+  if(!NARR.on||!id)return;narrStop();TOUR.pend=null;const tok=NARR.tok;
+  if(NARR.state==='loading'){NARR.playing=true;await NARR.ready;if(tok!==NARR.tok)return;NARR.playing=false;}
+  if(NARR.state!=='ok'||!NARR.clips[id]||!NARR.ctx)return;
+  NARR.playing=true;
+  let buf;try{buf=await narrLoad(id);}catch(e){NARR.playing=false;NARR.state='fail';tourShow();return;}
+  if(tok!==NARR.tok)return;
+  const s=NARR.ctx.createBufferSource();s.buffer=buf;s.connect(NARR.ctx.destination);
+  s.onended=()=>{if(NARR.src===s){NARR.src=null;NARR.playing=false;}};
+  NARR.src=s;s.start(0);
+  /* fetch what comes next so it starts without a gap */
+  const nx=TOUR_STOPS[TOUR.i+1];if(nx)narrLoad(nx.n).catch(()=>{});
+  if(TOUR_STOPS[TOUR.i].dive&&NARR.lines)NARR.lines.forEach(l=>{if(l.depth||l.id==='bottom'||l.id==='end')narrLoad(l.id).catch(()=>{});});
+}
+function narrBusy(){return NARR.playing;}
+function narrPause(p){if(!NARR.ctx)return;(p?NARR.ctx.suspend():NARR.ctx.resume()).catch(()=>{});}
 const stopDur=st=>Math.max(st.d,st.dive?0:narrLen(st.n)+4);
 const tourTotal=()=>TOUR_STOPS.reduce((a,b)=>a+stopDur(b),0);
 function tourShow(){
@@ -3574,9 +3598,9 @@ function tourShow(){
   $('tourI').textContent=(TOUR.i+1)+' / '+TOUR_STOPS.length;$('tourN').textContent=LOC[st.l].name;
   $('tourPause').textContent=TOUR.paused?'继续':'暂停';$('tourPrev').disabled=TOUR.i===0;
   $('tourNext').textContent=TOUR.i===TOUR_STOPS.length-1?'结束':'下一站';
-  const has=!!(NARR.clips||(NARR.lines&&window.speechSynthesis));$('tourVoice').hidden=!has;
-  $('tourVoice').textContent='语音讲解：'+(NARR.on?'开':'关');$('tourVoice').setAttribute('aria-pressed',String(NARR.on));
-  $('tourVoice').title=NARR.clips?'MiniMax 配音':'使用浏览器自带的朗读声音';
+  $('tourVoice').hidden=NARR.state==='none';
+  $('tourVoice').textContent=NARR.state==='fail'?'语音讲解：加载失败':'语音讲解：'+(NARR.on?'开':'关');
+  $('tourVoice').setAttribute('aria-pressed',String(NARR.on));$('tourVoice').title='MiniMax 语音合成的讲解配音';
 }
 function goStop(i){
   TOUR.i=Math.max(0,Math.min(TOUR_STOPS.length-1,i));TOUR.t=0;
@@ -3591,6 +3615,7 @@ function goStop(i){
 function startTour(){
   if(VR.on)exitVR();if(PILOT.on)exitPilot();
   for(const id of['help','sofar','welcome','press','mapOv','card'])$(id).hidden=true;
+  narrUnlock();
   TOUR.on=true;TOUR.paused=false;TOUR.prevSpeed=controls.autoRotateSpeed;controls.autoRotateSpeed=0.9;lastTouch=-1e9;
   document.body.classList.add('tour');$('tourBar').hidden=false;
   if(S.night&&!SPN.on){S.night=false;}
@@ -3628,7 +3653,8 @@ $('tourBtn').addEventListener('click',startTour);
 $('welTour').addEventListener('click',startTour);
 $('tourX').addEventListener('click',()=>exitTour());
 $('tourPause').addEventListener('click',()=>{TOUR.paused=!TOUR.paused;narrPause(TOUR.paused);tourShow();});
-$('tourVoice').addEventListener('click',()=>{NARR.on=!NARR.on;if(NARR.on)narrPlay(TOUR_STOPS[TOUR.i].n);else narrStop();tourShow();});
+$('tourBar').addEventListener('pointerdown',()=>{if(NARR.ctx&&NARR.ctx.state==='suspended'&&!TOUR.paused)NARR.ctx.resume().catch(()=>{});});
+$('tourVoice').addEventListener('click',()=>{narrUnlock();if(NARR.state==='fail'){NARR.state='ok';NARR.on=true;}else NARR.on=!NARR.on;if(NARR.on)narrPlay(TOUR_STOPS[TOUR.i].n);else narrStop();tourShow();});
 $('tourPrev').addEventListener('click',()=>{TOUR.bottom=false;goStop(TOUR.i-1);});
 $('tourNext').addEventListener('click',()=>{if(TOUR.i===TOUR_STOPS.length-1)exitTour();else{TOUR.bottom=false;goStop(TOUR.i+1);}});
 

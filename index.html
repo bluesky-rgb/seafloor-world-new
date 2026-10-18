@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=d3981398">
 </head>
 <body>
 <canvas id="gl" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放"></canvas>
@@ -318,7 +318,8 @@
           <h3>导览语音讲解<time>2026-10-18</time></h3>
           <ul>
             <li>展览模式加入语音讲解：每站一段，下潜途中在暮光层、午夜层、深渊层、超深渊层和“珠峰高度”处各有一句，到底和结束时各一段</li>
-            <li>配音由 MiniMax 语音合成预先生成，存成音频文件；还没生成时，改用浏览器自带的朗读声音</li>
+            <li>配音由 MiniMax 语音合成预先生成，存成音频文件，网页只负责播放</li>
+            <li>修正：之前音频没加载好或被浏览器拦下时，会改用浏览器自带的机器朗读，听起来很生硬。现在去掉了机器朗读，改用更可靠的播放方式，手机上换站时也能接着播放</li>
             <li>底部新增“语音讲解”开关；暂停导览时讲解同时暂停；有讲解时，每站停留到讲完为止</li>
             <li>更正：删去下潜终点“到过这里的人比登上月球的人还少”一句，这个说法已经过时</li>
           </ul>
@@ -665,7 +666,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="data/etopo20.js"></script>
-<script src="src/main.js"></script>
+<script src="data/etopo20.js?v=0e07aadb"></script>
+<script src="src/main.js?v=5fb8532b"></script>
 </body>
 </html>
