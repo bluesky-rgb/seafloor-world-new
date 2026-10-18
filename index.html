@@ -82,6 +82,7 @@
         <button type="button" data-l="whalefall" aria-pressed="false">蒙特雷峡谷 · 鲸落 1800 m</button>
         <button type="button" data-l="brine" aria-pressed="false">墨西哥湾 · 海底盐池 650 m</button>
         <button type="button" data-l="vent" aria-pressed="false">西南印度洋 · 龙旂热液区 2800 m</button>
+        <button type="button" data-l="abyss" aria-pressed="false">太平洋 · 深海平原 4100 m</button>
       </div>
       <div id="siteCard"><b id="siteT"></b><p id="siteD"></p><p id="siteTip"></p></div>
     </section>
@@ -322,8 +323,20 @@
             <li data-s="done">展示：展览模式（自动导览）</li>
             <li data-s="done">项目化：独立代码仓库与公开网站（不需要 Claude 账号也能打开）</li>
             <li data-s="done">画质：主角生物（绿海龟、蝠鲼、鲸鲨）重做造型、花纹和游动</li>
-            <li data-s="next">画质：更多生物重做（抹香鲸、大王乌贼、深海鱼）</li>
-            <li>新生境：红树林与海草床、北极、深海平原锰结核、海山</li>
+            <li data-s="done">新生境：太平洋深海平原（锰结核、1979 年采矿车辙）</li>
+            <li data-s="next">新生境：红树林与海草床</li>
+            <li>新生境：北极冰下、海山、潮间带</li>
+            <li>画质：更多生物重做（抹香鲸、大王乌贼、深海鱼）</li>
+          </ul>
+        </div>
+        <div>
+          <h3>深海平原<time>2026-10-18</time></h3>
+          <ul>
+            <li>新地点“太平洋 · 深海平原 4100 m”：克拉里昂-克利珀顿区，约 600 万平方公里的深海平原，水温约 1.5 °C</li>
+            <li>海底铺满半埋在软泥里的锰结核（每一百万年只长 1–10 cm）；海参爬过留下弯弯曲曲的取食痕迹，小黑点是穴居动物的洞口</li>
+            <li>按 2025 年《自然》论文的描述，画出了 1979 年采矿试验留下的车辙：约 8 m 宽、没有结核，两道深沟带着履带印；里面只有巨型单细胞生物和会移动的小动物回来了。点击车辙可以看说明</li>
+            <li>新生物 6 种（图鉴共 80 种）：长尾蝶参、海猪、三脚架鱼、深海长尾鳕、深海蛇尾、有柄玻璃海绵；巨型单细胞生物也会出现在这里</li>
+            <li>展览模式在热液喷口之后加入这一站，配新的语音讲解；全球地形图上新增这个地点</li>
           </ul>
         </div>
         <div>
@@ -530,6 +543,12 @@
         <div>
           <h3>资料来源</h3>
           <ul>
+            <li><a href="https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2021.656899/full" target="_blank" rel="noopener">Bonifácio 等 (2021)：克拉里昂-克利珀顿区范围与水深</a></li>
+            <li><a href="https://worldoceanreview.com/en/wor-3/mineral-resources/manganese-nodules/" target="_blank" rel="noopener">World Ocean Review：锰结核的形成、大小、生长速度与丰度</a></li>
+            <li><a href="https://obis.org/2023/09/12/species-largest-mineral/" target="_blank" rel="noopener">Rabone 等 (2023)：克拉里昂-克利珀顿区记录到 5,578 种动物，约九成未被描述</a></li>
+            <li><a href="https://nhm.ac.uk/press-office/press-releases/new-study-reveals-long-term-impacts-of-deep-sea-mining-and-first3.html" target="_blank" rel="noopener">Jones 等 (2025, Nature)：1979 年采矿试验车辙 44 年后的状况</a></li>
+            <li><a href="https://www.sciencedaily.com/releases/2016/12/161219134510.htm" target="_blank" rel="noopener">Purser 等 (2016)：把卵产在结核上海绵柄上的幽灵章鱼</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/Bathypterois_grallator" target="_blank" rel="noopener">三脚架鱼（大鳍深海狗母鱼）的分布深度与习性</a></li>
             <li><a href="https://doi.org/10.1117/12.529999" target="_blank" rel="noopener">Dodgson (2004)：人类瞳距的分布（成人平均约 63 mm）</a></li>
             <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API" target="_blank" rel="noopener">MDN：WebXR Device API</a></li>
             <li><a href="https://www.ncei.noaa.gov/products/etopo-global-relief-model" target="_blank" rel="noopener">NOAA：ETOPO 全球地形模型</a></li>
@@ -655,7 +674,7 @@
     <h3>拍明信片</h3>
     <p>左下角“拍明信片”会把当前画面做成一张带地点、深度、水温和气压的图片，可以保存下来分享。</p>
     <h3>展览模式</h3>
-    <p>左下角“展览模式”（或欢迎页的“看 6 分钟展览导览”）会自动带你走过 11 个真实地点：珊瑚礁、巨藻林、沉船、南极冰下、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
+    <p>左下角“展览模式”（或欢迎页的“看 6 分钟展览导览”）会自动带你走过 12 个真实地点：珊瑚礁、巨藻林、沉船、南极冰下、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口、深海平原，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
     <h3>VR 模式</h3>
     <p>控制台“VR 模式”里点“手机分屏 VR”：把手机横过来，有纸盒 VR 眼镜就放进去。转动手机看四周（读不到陀螺仪时用手指拖动），轻点屏幕开始或停止游动，按“退出 VR”或 Esc 返回。用 VR 头显时，在头显自带的浏览器里打开本页，点“进入头显 VR”。</p>
     <h3>为了看得见而做的处理</h3>
@@ -671,7 +690,7 @@
     <h2 id="welT">欢迎来到海底物理世界</h2>
     <p class="lead">这里的每个场景都按真实地点和实测数据搭建，从 10 m 的珊瑚礁一直到 10,935 m 的海沟底。</p>
     <ul class="wl">
-      <li><b>先看导览</b>：“展览模式”会自动带你走过 11 个真实地点，从珊瑚礁一直下潜到海沟底，随时可以退出。</li>
+      <li><b>先看导览</b>：“展览模式”会自动带你走过 12 个真实地点，从珊瑚礁一直下潜到海沟底，随时可以退出。</li>
       <li><b>换地点</b>：在右侧（手机在下方）控制台的“真实地点”里挑一个，或点“开始下潜”一路潜到海沟。</li>
       <li><b>看和认</b>：拖动画面转视角，点击生物看它是谁。</li>
       <li><b>自己开</b>：点“自由驾驶”，用键盘或摇杆开着水下机器人四处探索。</li>
@@ -696,6 +715,6 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/seafloor.js?v=d542a174"></script>
+<script src="js/seafloor.js?v=e70e8cfd"></script>
 </body>
 </html>

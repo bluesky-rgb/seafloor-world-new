@@ -20,6 +20,7 @@ const LOC={
   eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
   slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
   deep:    {name:'南海海马冷泉',D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
+  abyss:   {name:'太平洋克拉里昂-克利珀顿区 · 深海平原',D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
   vent:    {name:'西南印度洋龙旂热液区',D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
   whalefall:{name:'蒙特雷峡谷鲸落',D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
   bluehole:{name:'三沙永乐龙洞',D:300.9,water:'clear',temp:30,H:0.6,T:6,cur:0.01,dir:60,sun:70,torch:'off'},
@@ -277,7 +278,8 @@ function paintFloor(hab){
     vent:[[0.26,0.24,0.21],[0.34,0.29,0.24],[0.55,0.33,0.16]],
     anox:[[0.2,0.19,0.18],[0.15,0.14,0.13],[0.42,0.4,0.33]],
     ant:[[0.78,0.76,0.7],[0.6,0.58,0.54],[0.24,0.23,0.22]],
-    cwc:[[0.52,0.5,0.45],[0.44,0.42,0.38],[0.7,0.68,0.62]]
+    cwc:[[0.52,0.5,0.45],[0.44,0.42,0.38],[0.7,0.68,0.62]],
+    abyss:[[0.56,0.47,0.36],[0.47,0.39,0.3],[0.16,0.13,0.1]]
   }[hab];
   for(let i=0;i<p.count;i++){
     let col=mixc(pal[0],pal[1],FN1[i]);
@@ -310,8 +312,8 @@ for(let i=0;i<18;i++){
   m.userData.base=floorH(m.position.x,m.position.z)+sc*0.2;rocks.add(m);
 }
 function paintRocks(hab){
-  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25]}[hab];
-  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3]}[hab];
+  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25],abyss:[0.2,0.17,0.14]}[hab];
+  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3],abyss:[0.3,0.26,0.2]}[hab];
   rocks.children.forEach(m=>{
     const g=m.geometry,c=g.attributes.color,nr=g.attributes.normal,n=g.userData.n;
     for(let i=0;i<c.count;i++){
@@ -2766,7 +2768,7 @@ const PICK=[];
 function regPick(o,key){o.userData.ck=key;PICK.push(o);}
 const raycaster=new THREE.Raycaster(),ndc=new THREE.Vector2();
 function chainVisible(o){for(let p=o;p;p=p.parent)if(!p.visible)return false;return true;}
-function resolveKey(k){if((ICE.on&&(k==='star'||k==='urchinT'||k==='sponge'))||(ROST.on&&k==='fan'))return catKey(k);if(k==='fan')return S.D>200?'fanD':'fanS';if(k==='star')return S.temp>=18?'starT':'starC';return k;}
+function resolveKey(k){if(k==='aby_floor')return inTrack(lastPick.x,lastPick.z)?'minetrack':'abysed';if((ICE.on&&(k==='star'||k==='urchinT'||k==='sponge'))||(ROST.on&&k==='fan'))return catKey(k);if(k==='fan')return S.D>200?'fanD':'fanS';if(k==='star')return S.temp>=18?'starT':'starC';return k;}
 let infoT=0;
 function showInfo(k,dist){
   if(CHIM_INFO[k]){const c=CHIM_INFO[k];if(k==='brine_surf')brineRing(lastPick.x,lastPick.z,0.035);$('infoN').textContent=c[0];$('infoL').textContent=c[3]||'龙旂热液区';$('infoD').textContent=c[1]+(dist?' · 距离你约 '+dist.toFixed(1)+' m':'');$('infoF').textContent=c[2];$('info').hidden=false;infoT=14;return;}
@@ -2827,7 +2829,7 @@ function updateOptics(){
 const H={};let habKey='';
 function rebuild(){
   solveWave();CUR.x=Math.cos(S.dir*Math.PI/180);CUR.z=Math.sin(S.dir*Math.PI/180);updateOptics();
-  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);
+  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);
   const F=-S.D,lf=light(S.D,1),day=!S.night;
   const sky=(day?1:0.02)*(ICE.on?ICE.T:1);U.uSky.value=sky;U.uDay.value=day?1:0;
   sunLight.intensity=1.5*sky;sunLight.color.setRGB(day?1:0.75,day?1:0.85,1);hemi.intensity=0.65*sky;
@@ -2838,17 +2840,17 @@ function rebuild(){
   H.anem=H.coral&&S.temp>=20&&S.D<=40&&lf>=0.1;
   H.clam=H.coral&&S.temp>=22&&S.D<=20&&lf>=0.2;
   H.fan=S.cur>=0.03&&S.D>=3;
-  H.sponge=(S.D>=400&&S.D<=7000&&!brineOn)||ICE.on;
-  H.holo=S.D>=6000&&!DIVE.replay;H.xeno=H.holo;
+  H.sponge=(S.D>=400&&S.D<=7000&&!brineOn&&!ABY.on)||ICE.on;
+  H.holo=S.D>=6000&&!DIVE.replay;H.xeno=H.holo||ABY.on;
   H.urchinT=S.temp<18&&S.D<=200;
   H.urchinD=S.temp>=18&&S.D<=70;
   H.star=S.D<=200;
   H.seep=S.seep&&S.D>=800;
 
-  const hab=ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
+  const hab=ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
   const key=hab+(H.seep?'s':'');
   if(key!==habKey){habKey=key;paintFloor(hab);paintRocks(hab);}
-  floor.position.y=F;rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay;
+  floor.position.y=F-(ABY.on?0.3:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on;
 
   const um=floorOrbitalMax(),uc1=S.cur*curProfile(1);S.ripKind='';
   if(hab!=='deep'&&um>=uc1&&um>0.1){const d0=2*um/W.w;U.uRipL.value=d0<0.44?Math.max(0.62*d0,0.08):0.134;U.uRipAmp.value=Math.min(1,(um-0.1)/0.1);U.uRipDir.value.set(1,0);S.ripKind='wave';}
@@ -2875,6 +2877,7 @@ function zoneUpdate(){
       lantern:inz('lantern'),hatchet:inz('hatchet'),sperm:z<=2000,squid:z>=300&&z<=1000,siph:z>=300&&z<=1000,vampire:inz('vampire'),gulper:inz('gulper'),
       cucumber:inz('cucumber'),angler:z>=700&&z<=4000,dumbo:inz('dumbo'),snail:inz('snail'),amphi:S.D>=6000&&S.D-z<70,
       sardine:false,chromis:false,anthias:false,butterfly:false,snapper:false,parrot:false,clown:false,rockfish:false,hagfish:false,sleeper:false,osedax:false,crab:false,rimicaris:false,kiwa:false,scalyfoot:false,giga:false,ventmussel:false,barnacle:false,ventanem:false,krill:false,salp:false,childressi:false,acropora:false,icefish:false,borch:false,seal:false,pycno:false,icealgae:false,redfish:false,lophelia:false,geodia:false,acesta:false,dendro:false});
+    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema'].forEach(k=>H[k]=false);
     if(DIVE.dvm)dvmH();
     if(DIVE.bh)bhH();
   }else{
@@ -2889,6 +2892,7 @@ function zoneUpdate(){
     H.snail=S.D>=6000&&S.D<=8200;H.amphi=S.D>=6000;
     {const st=wfStages(WF.t),w=S.loc==='whalefall';H.hagfish=w&&st.scav>0.05;H.sleeper=w&&st.scav>0.3;H.osedax=w&&st.enrich>0.1;H.crab=w;}
     H.dendro=TRUK.on;H.baitfish=TRUK.on;H.jack=TRUK.on;H.lionfish=TRUK.on;if(TRUK.on){H.manta=false;H.whaleshark=false;H.hammer=false;}
+    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema'].forEach(k=>H[k]=ABY.on);
     H.redfish=ROST.on;H.lophelia=ROST.on;H.geodia=ROST.on;H.acesta=ROST.on;
     if(ICE.on){Object.assign(H,{sardine:false,rockfish:false,nettle:false,manta:false,turtle:false,hammer:false,whaleshark:false,moon:false,krill:true,icefish:true,borch:true,seal:!S.night,pycno:true,icealgae:true});}
     else Object.assign(H,{icefish:false,borch:false,seal:false,pycno:false,icealgae:false});
@@ -3016,6 +3020,7 @@ function readouts(){
   if(S.D>200)h+='<p><span class="tag">深海</span>这里没有阳光。看到的光点都是生物发光：灯笼鱼的发光器、冠水母的报警光环、'+(H.angler?'鮟鱇的诱饵、':'')+'被扰动的浮游生物。</p>';
   if(ventOn)h+='<p><span class="tag">热液</span>这里的生命不靠阳光：细菌把热液里硫化氢等物质的化学能转化成养分（化能合成），整个群落都建立在它们之上。龙旂已记录 21 类大型动物，其中 7 种是新种。</p>';
   if(TRUK.on)h+='<p><span class="tag">沉船鱼礁</span>1944 年 2 月的“冰雹行动”在这片泻湖里击沉了 45 艘以上的舰船。八十多年后，钢铁船体成了珊瑚、海绵和海鞘附着的基底：软珊瑚挂满高处的桅杆和吊杆，因为那里水流最好；甲板上结着成群的小鱼，船尾住着蓑鲉。</p>';
+  if(ABY.on)h+='<p><span class="tag">深海平原</span>深海平原占地球表面一半以上，是地球上面积最大的生境。这里的食物几乎全靠上方几千米飘落的“海洋雪”，动物都长得慢、活得久。克拉里昂-克利珀顿区已记录到 5,578 种动物，约九成还没有被科学描述，而它也是全球最大的深海采矿勘探区。</p>';
   if(ROST.on)h+='<p><span class="tag">冷水珊瑚</span>这里没有阳光，珊瑚也没有共生藻，全靠洋流送来的浮游生物为生，所以冷水珊瑚礁总长在水流强的陆坡和海脊上。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁，2002 年才被发现，同年周围约 300 km² 海域禁止底拖网。</p>';
   if(ICE.on)h+='<p><span class="tag">冰下</span>头顶约 2 m 厚的海冰挡住了大部分阳光，只有冰洞里照下一道光柱。冬天之后的海水几乎没有浮游生物，清澈得能看到很远；水温 −1.9 °C，是海水的冰点。你呼出的气泡会贴在冰底聚成一片片“水银”。</p><p><span class="tag">抗冻</span>这里的鱼血液里有抗冻糖蛋白，冰鱼甚至连血红蛋白都没有，血几乎是透明的。</p>';
   if(SPN.on)h+='<p><span class="tag">产卵</span>珊瑚不能移动，只好把繁殖押在“同时”上：整片礁在同一夜、同一小时释放配子，让卵和精子在水里相遇的机会最大，也让捕食者一时吃不完。1981 年科学家在大堡礁第一次记录到这种集体产卵，当时有 32 种珊瑚同时排放。</p>';
@@ -3037,6 +3042,7 @@ function frameCamera(){
   const F=-S.D,deep=S.D>200,dist=deep?7:9.5;
   if(S.loc==='monterey'){controls.target.set(0,F+1.2,0);camera.position.set(4,F+2.4,7);return;}
   if(S.loc==='truk'){const D=TRUK.Hh,b0=floorY0(0,0)-1.5;const tw=(x,y,z)=>{const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return new THREE.Vector3(x*c+z*s,b0+y,-x*s+z*c);};controls.target.copy(tw(36,D+2.5,0));camera.position.copy(tw(22,D+8,16));return;}
+  if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
   if(S.loc==='ice'){controls.target.set(ICE.hx,-5.5,ICE.hz);camera.position.set(ICE.hx+7,-9,ICE.hz+9.5);return;}
   if(S.loc==='spawn'){const b=BOMMIE[0],y=floorY(b[0],b[1]),tg=new THREE.Vector3(b[0],y+1.6,b[1]);let best=null,bs=-1;
@@ -3076,6 +3082,7 @@ const SITE={
   truk:['密克罗尼西亚特鲁克泻湖 · 富士川丸','一艘 133 m 长的二战日本飞机运输舰，1944 年在“冰雹行动”中被击沉，至今直立着坐在约 34 m 深的沙底上，后桅几乎伸出水面。','十几米深处红光已被海水吸收，软珊瑚看上去发暗；打开白光手电，它们才显出粉红、橙红的本色。从舱口往 2 号货舱里看，还能找到拆解的战斗机。'],
   rost:['挪威罗弗敦外海 · 勒斯特冷水珊瑚礁 · 320 m','已知最大的冷水珊瑚礁，全长三四十公里。白色和橙色的深水石珊瑚长成一丛丛灌木，下面是层层堆积的死珊瑚骨架和碎屑；红色的泡泡糖珊瑚顺着海流张开，大眼的挪威平鲉悬停在礁上。','点击珊瑚看它每年只长几毫米；关掉手电，这片礁就完全沉入黑暗。'],
   ice:['南极麦克默多湾 · 海冰之下','头顶是约 2 m 厚的海冰，阳光只透下百分之几，冰底被冰藻染成褐色，冰洞里照下一道光柱。水温 −1.9 °C，海底有红海星、南极海胆、玻璃海绵和巨型海蜘蛛，威德尔海豹不时从冰下游过。','抬头看冰底的片状冰和贴在冰下的气泡；在海底找一找趴着不动、几乎透明的冰鱼。'],
+  abyss:['太平洋克拉里昂-克利珀顿区 · 深海平原 · 4,100 m','夏威夷与墨西哥之间一片约 600 万平方公里的深海平原，水深 4,000–6,000 m，水温约 1.5 °C。海底铺满土豆大小的锰结核，每一百万年只长 1–10 cm。这里已记录到 5,578 种动物，约九成从未被科学描述。','在手电光里找沿着自己的取食痕迹爬行的长尾蝶参、成群的海猪、用鳍条“站”在海底的三脚架鱼。右边那条没有结核的宽带是 1979 年采矿试验留下的车辙，点击它看 44 年后的样子。'],
   spawn:['海南三亚鹿回头 · 珊瑚产卵之夜','春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。','把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。'],
   monterey:['加州蒙特雷湾巨藻林 · 12 m','冷水上升流养出的海底森林。巨藻随涌浪整片摆动，水温约 12 °C，对造礁珊瑚来说太冷了。','在“环境参数”里调大有效波高或波周期，看巨藻和海底沙纹怎样变化。'],
   eilat:['红海埃拉特中光层礁 · 55 m','红海的海水极清，55 m 深处仍有几个百分点的阳光。光越弱，珊瑚越长成扁平的盘状，好接住更多光。','看面板里的“此处剩余阳光”：红光几乎为零，所以这里的一切都是蓝绿色。'],
@@ -3134,6 +3141,200 @@ function resize(){
 }
 window.addEventListener('resize',resize);
 
+/* =========================================================
+   14zc. Abyssal plain, Clarion-Clipperton Zone (central Pacific), ~4,100 m, ~1.5 °C.
+   - CCZ: ~6 million km² between the Clarion and Clipperton fracture zones, 4,000–6,000 m deep (Bonifácio et al. 2021).
+   - Polymetallic nodules: potato- to lettuce-sized, grow ~10–100 mm per million years, ~15 kg/m² on average
+     in the CCZ (World Ocean Review 3). They are the only hard substrate, so many sessile animals live on them.
+   - 5,578 species recorded, ~88–92 % undescribed (Rabone et al. 2023, Current Biology).
+   - 1979 mining test: an ~100 t collector cleared an ~8 m wide strip of nodules and left two furrows; in 2023,
+     44 years later, the tracks looked almost unchanged, xenophyophores and small mobile fauna had partly returned,
+     large sessile animals had barely recovered (Jones et al. 2025, Nature). The track here is drawn after that description.
+   - Fauna: elasipodid holothurians leaving feeding trails (Psychropotes longicauda, Scotoplanes), tripod fish
+     (Bathypterois) standing on fin rays facing the current, abyssal grenadier (Coryphaenoides armatus) swimming head-down,
+     brittle stars, stalked glass sponges on nodules, xenophyophores.
+   ========================================================= */
+const ABY={on:false,size:40,seg:250,ang:0.32,u0:6.5,hw:4};
+/* track coordinates: u across the mining track, v along it */
+const abyUV=(x,z)=>[x*Math.cos(ABY.ang)+z*Math.sin(ABY.ang),-x*Math.sin(ABY.ang)+z*Math.cos(ABY.ang)];
+function abyDisp(x,z){
+  const[u,v]=abyUV(x,z),d=Math.abs(u-ABY.u0);
+  if(d>ABY.hw+0.9)return 0;
+  let y=0;
+  if(d<ABY.hw)y-=0.03;                                                        /* scraped strip */
+  const fr=sstep(ABY.hw-1.5,ABY.hw-1.25,d)*sstep(ABY.hw,ABY.hw-0.2,d);        /* the two furrows along the edges */
+  y-=fr*(0.09+0.025*Math.sin(v*2*Math.PI/0.5));                               /* with tread marks */
+  y+=sstep(ABY.hw,ABY.hw+0.25,d)*sstep(ABY.hw+0.9,ABY.hw+0.45,d)*0.06;         /* spoil berm pushed out to the sides */
+  return y;
+}
+const abySurf=(x,z)=>floorY(x,z)+0.015+abyDisp(x,z);
+const inTrack=(x,z)=>Math.abs(abyUV(x,z)[0]-ABY.u0)<ABY.hw;
+/* sea-cucumber feeding trails: meandering random walks; each animal sits at the end of its own trail */
+const abyTrails=[];
+(function(){for(let i=0;i<5;i++){const a0=rnd()*6.28,r0=R(1.5,9);let x=Math.cos(a0)*r0,z=Math.sin(a0)*r0,h=rnd()*6.28;const pts=[[x,z]];
+  const n=Math.floor(R(60,110));for(let k=0;k<n;k++){h+=R(-0.35,0.35)+0.12*Math.sin(k*0.15+i);x+=Math.cos(h)*0.08;z+=Math.sin(h)*0.08;pts.push([x,z]);}
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;pts.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1]);});
+  abyTrails.push({pts,bb:[x0-0.2,x1+0.2,z0-0.2,z1+0.2],head:h});}})();
+function trailDist(x,z){let best=9;for(const t of abyTrails){const b=t.bb;if(x<b[0]||x>b[1]||z<b[2]||z>b[3])continue;
+  const P=t.pts;for(let k=1;k<P.length;k++){const ax=P[k-1][0],az=P[k-1][1],bx=P[k][0]-ax,bz=P[k][1]-az,l2=bx*bx+bz*bz;
+    const s=Math.max(0,Math.min(1,((x-ax)*bx+(z-az)*bz)/l2)),d=Math.hypot(x-ax-bx*s,z-az-bz*s);if(d<best)best=d;}}return best;}
+/* the high-resolution sediment patch */
+const abyGeo=new THREE.PlaneGeometry(ABY.size,ABY.size,ABY.seg,ABY.seg);abyGeo.rotateX(-Math.PI/2);
+abyGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(abyGeo.attributes.position.count*3),3));
+const abyFloor=new THREE.Mesh(abyGeo,waterify(lambert(),'abyFloor'));abyFloor.visible=false;scene.add(abyFloor);
+function paintAby(){
+  const p=abyGeo.attributes.position,c=abyGeo.attributes.color;
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i),z=p.getZ(i);p.setY(i,abySurf(x,z));
+    const n=0.5+0.25*Math.sin(x*1.3+Math.sin(z*0.7))*Math.cos(z*1.1)+0.25*Math.sin(x*7.1+z*5.3)*Math.sin(z*6.7);
+    let col=mixc([0.46,0.38,0.29],[0.37,0.31,0.24],n);
+    const tr=inTrack(x,z);
+    const far=sstep(9.5,11,Math.hypot(x,z));                                                    /* beyond the modelled nodules, a faint mottling stands in for them */
+    if(!tr){const[d1]=cell2(x*3,z*3);col=mixc(col,[0.2,0.17,0.13],sstep(0.35,0.2,d1)*0.55*far);}
+    else col=mixc(col,[0.52,0.45,0.35],0.35);
+    const dsp=abyDisp(x,z);if(dsp<-0.05)col=mixc(col,[0.3,0.25,0.19],0.5);
+    const td=trailDist(x,z);if(td<0.06){col=mixc(col,[0.53,0.46,0.36],0.65*sstep(0.06,0.03,td));                 /* a fresh feeding trail */
+      col=mixc(col,[0.4,0.33,0.25],0.4*sstep(0.02,0.0,Math.abs(td-0.035)));}
+    const[h1]=cell2(x*2.3+40,z*2.3);if(h1<0.03)col=mixc(col,[0.2,0.17,0.13],0.8);                                /* burrow openings */
+    c.setXYZ(i,col[0],col[1],col[2]);}
+  p.needsUpdate=true;abyGeo.computeVertexNormals();
+  /* only the lamp lights this depth, and lamp shading hardly depends on slope, so bake a little relief shading into the colour:
+     furrow floors and walls darker, berm crests lighter */
+  const nr=abyGeo.attributes.normal;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),d=abyDisp(x,z);if(d===0)continue;
+    const k=(0.55+0.45*Math.pow(Math.max(0,nr.getY(i)),6))*(d<-0.05?0.8:1)*(d>0.02?1.12:1);c.setXYZ(i,c.getX(i)*k,c.getY(i)*k,c.getZ(i)*k);}
+  c.needsUpdate=true;
+}
+/* polymetallic nodules: knobbly, half-buried */
+const noduleGeo=(()=>{const g=new THREE.SphereGeometry(1,9,6,0,Math.PI*2,0,Math.PI*0.62),P=g.attributes.position;
+  for(let i=0;i<P.count;i++){const x=P.getX(i),y=P.getY(i),z=P.getZ(i),k=1+0.13*Math.sin(x*5+z*3)*Math.sin(y*6+x*2)+0.06*Math.sin(z*11);P.setXYZ(i,x*k*1.15,y*k*0.75,z*k);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,(x,y,z)=>mixc([0.1,0.085,0.07],[0.2,0.16,0.12],sstep(0.3,0.8,y)*0.6+0.4*sstep(0.6,1,Math.sin(x*9)*Math.sin(z*8))));return finishGeo(acc);})();
+const nodules=new THREE.InstancedMesh(noduleGeo,urchinMat,2600);nodules.frustumCulled=false;nodules.count=0;scene.add(nodules);
+/* xenophyophores: giant single-celled protists with fragile, lumpy agglutinated tests */
+const xenoAGeo=(()=>{const acc=Acc();for(let k=0;k<6;k++){const a=k*1.05;addGeo(acc,new THREE.SphereGeometry(1,8,6),M4(Math.cos(a)*0.35*(k%2+0.5),0.25+0.2*(k%3),Math.sin(a)*0.35,0,a,0.4,0.42,0.3,0.42),()=>[0.52,0.47,0.39]);}return finishGeo(acc);})();
+const xenoA=new THREE.InstancedMesh(xenoAGeo,urchinMat,50);xenoA.frustumCulled=false;xenoA.count=0;scene.add(xenoA);
+/* brittle stars: small disc, five long thin arms */
+const ophGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.12,0.12,0.04,10),M4(0,0.02,0),()=>[0.58,0.53,0.47]);
+  for(let k=0;k<5;k++){const a=k/5*6.283+0.3;for(let s=0;s<6;s++){const r=0.15+s*0.13,b=a+0.25*Math.sin(s*0.9+k);addGeo(acc,new THREE.CylinderGeometry(0.022*(1-s/7),0.028*(1-s/7),0.14,4),
+    M4(Math.cos(b)*r,0.015,Math.sin(b)*r,Math.PI/2,0,-b+Math.PI/2),()=>[0.55,0.5,0.44]);}}return finishGeo(acc);})();
+const ophs=new THREE.InstancedMesh(ophGeo,urchinMat,60);ophs.frustumCulled=false;ophs.count=0;scene.add(ophs);
+/* stalked glass sponges (Hyalonema-like): a tuft of glassy anchor spicules, an ovoid body on top; attached to nodules */
+const hyaloGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.012,0.02,1,6),M4(0,0.5,0),()=>[0.62,0.62,0.6]);
+  addColored(acc,loftGeo(16,14,(a,b)=>{const t=a,ph=b*6.283,r=0.11*Math.pow(Math.sin(Math.PI*Math.min(1,t*1.05)),0.8)+0.01;const y=1+0.24*t;
+    const lip=t>0.85?0.6:1;return[r*Math.cos(ph),y,r*Math.sin(ph)*lip,...mixc([0.68,0.68,0.65],[0.55,0.55,0.52],0.5+0.5*Math.sin(ph*6+t*10))];}));
+  return finishGeo(acc);})();
+const hyalos=new THREE.InstancedMesh(hyaloGeo,urchinMat,12);hyalos.frustumCulled=false;hyalos.count=0;scene.add(hyalos);
+/* Psychropotes longicauda: translucent, yellowish, with a tall dorsal sail at the rear; ~40 cm (normalised length 1) */
+const psychroMat=waterify(lambert({side:THREE.DoubleSide}),'psychro',{uniforms:{uCrawl:{value:0}},vHead:'uniform float uCrawl;',
+  vBegin:'{ float w=sin(uCrawl*1.3-position.z*9.0); transformed.y+=0.012*w*smoothstep(0.0,0.08,position.y+0.1); transformed.x*=1.0+0.04*w; }'});
+const psychroGeo=(()=>{const acc=Acc();
+  addColored(acc,loftGeo(40,24,(a,b)=>{const z=-0.5+a,ph=b*6.283,w=0.16*Math.pow(Math.sin(Math.PI*Math.min(1,0.03+a*0.97)),0.55),h=0.1*Math.pow(Math.sin(Math.PI*Math.min(1,0.03+a*0.97)),0.6);
+    const s=Math.sin(ph),x=w*Math.cos(ph)*(s<0?1.15:1),y=s>=0?h*s:-0.02*Math.pow(-s,0.5);
+    const col=mixc([0.5,0.38,0.21],[0.38,0.27,0.18],0.5+0.5*Math.sin(z*30)*Math.cos(x*40));return[x,y+0.03,z,...col];}));
+  /* the dorsal sail (a fused pair of papillae), rising from the rear */
+  addColored(acc,loftGeo(16,10,(a,b)=>{const ph=b*6.283,t=a;const y=0.1+0.42*t,z=-0.28+0.06*t-0.12*t*t,half=0.13*(1-0.55*t)+0.02,th=0.014*(1-0.6*t);
+    return[th*Math.sin(ph),y,z+half*Math.cos(ph),...mixc([0.46,0.35,0.21],[0.34,0.24,0.17],t)];}));
+  for(let k=0;k<12;k++){const s=k%2?1:-1,z=0.35-Math.floor(k/2)*0.12;addGeo(acc,new THREE.SphereGeometry(0.02,6,4),M4(s*0.17,0.0,z,0,0,0,1,0.6,1.4),()=>[0.55,0.43,0.28]);}  /* brim of tube feet */
+  return finishGeo(acc);})();
+const psychros=[];
+/* Scotoplanes (sea pig): ~12 cm, pinkish, plump; several pairs of leg-like tube feet and two pairs of dorsal papillae */
+const seapigGeo=(()=>{const acc=Acc();
+  addColored(acc,loftGeo(24,20,(a,b)=>{const z=-0.5+a,ph=b*6.283,r=0.22*Math.pow(Math.sin(Math.PI*Math.min(1,0.04+a*0.96)),0.5);
+    const s=Math.sin(ph);return[r*Math.cos(ph)*1.05,(s>=0?r*s*1.05:r*s*0.55)+0.2,z,...mixc([0.68,0.46,0.46],[0.58,0.34,0.36],0.5+0.5*s)];}));
+  for(let k=0;k<12;k++){const s=k%2?1:-1,z=0.3-Math.floor(k/2)*0.12;addGeo(acc,new THREE.CylinderGeometry(0.025,0.035,0.14,6),M4(s*0.15,0.07,z,0,0,s*0.3),()=>[0.62,0.42,0.42]);}
+  for(const s of[1,-1]){addGeo(acc,new THREE.CylinderGeometry(0.012,0.03,0.28,6),M4(s*0.06,0.5,0.32,0.35,0,s*0.25),()=>[0.64,0.44,0.44]);
+    addGeo(acc,new THREE.CylinderGeometry(0.01,0.025,0.18,6),M4(s*0.07,0.46,0.18,0.1,0,s*0.3),()=>[0.64,0.44,0.44]);}
+  return finishGeo(acc);})();
+const seapigMat=waterify(lambert(),'seapig');
+const seapigs=[];
+/* tripod fish (Bathypterois): stands on elongated pelvic and caudal fin rays, faces into the current */
+const tripodGeo=(()=>{const acc=Acc();
+  addColored(acc,loftGeo(30,16,(a,b)=>{const z=-0.5+a,ph=b*6.283,w=0.06*Math.pow(Math.sin(Math.PI*Math.min(1,0.05+a*0.95)),0.7),h=0.075*Math.pow(Math.sin(Math.PI*Math.min(1,0.05+a*0.95)),0.7);
+    return[w*Math.cos(ph),h*Math.sin(ph),z,...mixc([0.22,0.2,0.2],[0.12,0.11,0.11],0.5+0.5*Math.sin(ph))];}));
+  const ray=(x0,y0,z0,x1,y1,z1)=>{const a=new THREE.Vector3(x0,y0,z0),b=new THREE.Vector3(x1,y1,z1),d=b.clone().sub(a),L=d.length();
+    addGeo(acc,new THREE.CylinderGeometry(0.004,0.006,L,4),new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5),new THREE.Quaternion().setFromUnitVectors(UP,d.normalize()),new THREE.Vector3(1,1,1)),()=>[0.18,0.17,0.17]);};
+  for(const s of[1,-1]){ray(s*0.03,-0.06,0.05,s*0.12,-0.62,0.28);ray(s*0.04,0.02,0.22,s*0.32,0.28,-0.25);ray(s*0.04,0.02,0.22,s*0.3,0.32,-0.15);}   /* pelvic stilts; pectoral feelers held up and back */
+  ray(0,-0.02,-0.5,0,-0.62,-0.85);                                                                                                                    /* caudal stilt */
+  addGeo(acc,triGeo([0,0.02,-0.45, 0,0.12,-0.62, 0,-0.08,-0.62]),null,()=>[0.16,0.15,0.15]);
+  for(const s of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.008,6,4),M4(s*0.04,0.03,0.4),()=>[0.05,0.05,0.05]);
+  return finishGeo(acc);})();
+const tripodMat=waterify(lambert({side:THREE.DoubleSide}),'tripod');
+const tripods=[];
+/* abyssal grenadier (Coryphaenoides armatus): big head, tapering "rat tail", swims slowly head-down near the bottom */
+const rattailGeo=(()=>{const acc=Acc();
+  addColored(acc,loftGeo(40,16,(a,b)=>{const z=-0.5+a,ph=b*6.283,e=Math.pow(sstep(0,0.75,a),1.4)*(a>0.93?Math.sqrt(Math.max(0,1-Math.pow((a-0.93)/0.07,2))):1);
+    const w=0.006+0.07*e,h=0.006+0.09*e;return[w*Math.cos(ph),h*Math.sin(ph),z,...mixc([0.3,0.28,0.27],[0.2,0.19,0.18],0.5+0.5*Math.sin(ph))];}));
+  addGeo(acc,triGeo([0,0.08,0.25, 0,0.2,0.18, 0,0.08,0.1]),null,()=>[0.3,0.28,0.27]);
+  addGeo(acc,triGeo([0,0.06,0.08, 0,0.09,-0.4, 0,0.006,-0.5]),null,()=>[0.32,0.3,0.28]);
+  addGeo(acc,triGeo([0,-0.07,0.06, 0,-0.09,-0.4, 0,-0.006,-0.5]),null,()=>[0.32,0.3,0.28]);
+  for(const s of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.022,8,6),M4(s*0.045,0.035,0.4),()=>[0.08,0.08,0.1]);
+  addGeo(acc,new THREE.CylinderGeometry(0.002,0.003,0.06,4),M4(0,-0.08,0.44,0.4),()=>[0.4,0.38,0.36]);
+  return finishGeo(acc);})();
+const rattailMat=waterify(lambert({side:THREE.DoubleSide}),'rattail',{uniforms:{uSwim:{value:0}},vHead:'uniform float uSwim;',
+  vBegin:'{ float bt=clamp(0.25-position.z,0.0,1.0); transformed.x+=sin(uSwim-position.z*7.0)*0.08*bt*bt; }'});
+const rattails=[];
+function abyMesh(geo,mat,key,s){const m=new THREE.Mesh(geo,mat);m.scale.setScalar(s);m.visible=false;scene.add(m);regPick(m,key);return m;}
+for(let i=0;i<abyTrails.length;i++)psychros.push(abyMesh(psychroGeo,psychroMat,'psychro',R(0.32,0.45)));
+for(let i=0;i<6;i++)seapigs.push(abyMesh(seapigGeo,seapigMat,'seapig',R(0.1,0.14)));
+for(let i=0;i<3;i++)tripods.push(abyMesh(tripodGeo,tripodMat,'tripod',R(0.32,0.38)));
+for(let i=0;i<2;i++)rattails.push(abyMesh(rattailGeo,rattailMat,'rattail',R(0.7,0.9)));
+regPick(nodules,'nodule');regPick(xenoA,'xeno');regPick(ophs,'ophiuroid');regPick(hyalos,'hyalonema');regPick(abyFloor,'aby_floor');
+const abyAll=[...psychros,...seapigs,...tripods,...rattails];
+function abyPlace(mesh,i,x,z,s,yOff,tilt){_q.setFromEuler(_e.set(tilt?R(-tilt,tilt):0,rnd()*6.28,tilt?R(-tilt,tilt):0));_s.setScalar(s);_p.set(x,abySurf(x,z)+(yOff||0),z);_m.compose(_p,_q,_s);mesh.setMatrixAt(i,_m);}
+function buildAbyss(on){
+  ABY.on=on;abyFloor.visible=on;abyAll.forEach(m=>m.visible=on);
+  if(!on){nodules.count=xenoA.count=ophs.count=hyalos.count=0;return;}
+  paintAby();abyFloor.position.y=0;
+  const keep=[];let k=0;
+  for(let n=0;n<8000&&k<2600;n++){const a=rnd()*6.28,r=Math.sqrt(rnd())*10.5,x=Math.cos(a)*r,z=Math.sin(a)*r;
+    if(inTrack(x,z)&&rnd()>0.02)continue;const s=R(0.02,0.06)*(rnd()<0.1?1.6:1);abyPlace(nodules,k++,x,z,s,-s*0.3,0.3);keep.push([x,z,s]);}
+  nodules.count=k;nodules.instanceMatrix.needsUpdate=true;
+  k=0;for(let i=0;i<50;i++){const a=rnd()*6.28,r=R(0.8,12),x=Math.cos(a)*r,z=Math.sin(a)*r;abyPlace(xenoA,k++,x,z,R(0.05,0.11),0,0.1);}xenoA.count=k;xenoA.instanceMatrix.needsUpdate=true;
+  k=0;for(let i=0;i<60;i++){const a=rnd()*6.28,r=R(0.5,11),x=Math.cos(a)*r,z=Math.sin(a)*r;abyPlace(ophs,k++,x,z,R(0.05,0.08),0.004,0.05);}ophs.count=k;ophs.instanceMatrix.needsUpdate=true;
+  /* glass sponges only on nodules outside the track (sessile megafauna has barely returned to it) */
+  k=0;for(const nd of keep){if(k>=12)break;if(nd[2]<0.045||Math.hypot(nd[0],nd[1])<1.5||rnd()<0.6)continue;abyPlace(hyalos,k++,nd[0],nd[1],R(0.28,0.5),nd[2]*0.3,0.12);}hyalos.count=k;hyalos.instanceMatrix.needsUpdate=true;
+  psychros.forEach((m,i)=>{const t=abyTrails[i],P=t.pts[t.pts.length-1];m.userData={x:P[0],z:P[1],h:t.head,ph:rnd()*6};});
+  const g0=[-2.2,2.4];seapigs.forEach((m,i)=>{m.userData={x:g0[0]+R(-0.7,0.7),z:g0[1]+R(-0.7,0.7),ph:rnd()*6};});
+  [[-4,-3],[1.8,-5],[-6.5,1.5]].forEach((p,i)=>{tripods[i].userData={x:p[0],z:p[1],ph:rnd()*6};});
+  rattails.forEach((m,i)=>{m.userData={R:R(3.5,6),th:rnd()*6.28,w:(i?-1:1)*R(0.05,0.07),h:R(0.5,1.1),ph:rnd()*6};});
+  stepAbyss(0,0);
+}
+const ABY_INFO={
+  nodule:['锰结核（多金属结核）','直径约 4–12 cm · 每百万年只长 1–10 cm','以鲨鱼牙齿、贝壳碎片等为核心，从海水和沉积物孔隙水里一层层析出锰、铁的氧化物，并富集镍、钴、铜。克拉里昂-克利珀顿区平均每平方米约有 15 kg。在一片软泥里，结核是难得的硬底，海绵、珊瑚、海葵等很多固着动物只能长在它们上面。','克拉里昂-克利珀顿区 · 约 4,100 m'],
+  minetrack:['1979 年采矿试验的车辙','宽约 8 m · 44 年后几乎没有变化','1979 年，一台约 100 吨重的集矿机在这一海区做了太平洋最早的工业深海采矿试验：清走一条约 8 m 宽的结核，压出两道深沟。2023 年科学家重访，车辙看起来和刚压出时差不多；巨型单细胞生物和小型活动动物已部分回来，但很多动物数量仍然偏少，固着在海底的大型动物几乎没有恢复（Jones 等，Nature，2025）。画面中的车辙按论文描述示意。','克拉里昂-克利珀顿区 · 约 4,100 m']
+};
+ABY_INFO.abysed=['深海软泥','沉积物积累得极慢 · 水温约 1.5 °C','深海平原铺着细软的软泥，主要是从上方几千米慢慢飘落的“海洋雪”和微小的浮游生物骨骼。海参等动物一边爬一边吞食它，身后留下取食痕迹；那些小黑点是穴居动物的洞口。','克拉里昂-克利珀顿区 · 约 4,100 m'];
+Object.assign(CHIM_INFO,ABY_INFO);
+function stepAbyss(dt,t){
+  if(!ABY.on)return;
+  if(psychroMat.userData.u)psychroMat.userData.u.value=t;
+  if(rattailMat.userData.u)rattailMat.userData.u.value=t*2*Math.PI/1.8;
+  /* sea cucumbers creep forward a few millimetres a second (sped up ~10× so the motion is visible) */
+  psychros.forEach(m=>{const u=m.userData;u.x+=Math.cos(u.h)*0.004*dt;u.z+=Math.sin(u.h)*0.004*dt;u.h+=0.02*Math.sin(t*0.05+u.ph)*dt;
+    m.position.set(u.x,abySurf(u.x,u.z),u.z);m.rotation.set(0,Math.atan2(Math.cos(u.h),Math.sin(u.h)),0);});
+  /* sea pigs face into the current, where food-laden water comes from */
+  const hc=Math.atan2(-CUR.x,-CUR.z);
+  seapigs.forEach(m=>{const u=m.userData;u.x-=CUR.x*0.002*dt;u.z-=CUR.z*0.002*dt;m.position.set(u.x,abySurf(u.x,u.z)+0.005*Math.abs(Math.sin(t*1.2+u.ph)),u.z);m.rotation.set(0,hc+0.3*Math.sin(u.ph),0.04*Math.sin(t*1.2+u.ph));});
+  tripods.forEach(m=>{const u=m.userData;m.position.set(u.x,abySurf(u.x,u.z)+0.62*m.scale.x,u.z);m.rotation.set(0.02*Math.sin(t*0.4+u.ph),hc,0.015*Math.sin(t*0.3+u.ph));});
+  rattails.forEach(m=>{const u=m.userData;u.th+=u.w*dt;const x=Math.cos(u.th)*u.R,z=Math.sin(u.th)*u.R;
+    m.position.set(x,abySurf(x,z)+u.h+0.1*Math.sin(t*0.3+u.ph),z);const hx=-Math.sin(u.th)*Math.sign(u.w),hz=Math.cos(u.th)*Math.sign(u.w);
+    m.rotation.set(0.5,Math.atan2(hx,hz),0,'YXZ');});      /* head-down posture */
+}
+[psychroMat,rattailMat].forEach(mt=>{const o=mt.onBeforeCompile;mt.onBeforeCompile=sh=>{o(sh);mt.userData.u=sh.uniforms.uCrawl||sh.uniforms.uSwim;};});
+/* field guide entries, facts, species list */
+CAT.push(['psychro','长尾蝶参','Psychropotes longicauda','深海平原 · 深渊层'],['seapig','海猪','Scotoplanes','深海平原 · 深渊层'],
+  ['tripod','三脚架鱼（深海狗母鱼）','Bathypterois','约 900–4,700 m'],['rattail','深海长尾鳕','Coryphaenoides armatus','约 2,000–4,700 m'],
+  ['ophiuroid','深海蛇尾','Ophiuroidea','深海平原'],['hyalonema','有柄玻璃海绵','Hyalonema 等','深海平原 · 长在结核上']);
+CAT.slice(-6).forEach(c=>CATMAP[c[0]]=c);
+Object.assign(FACTS,{
+  psychro:'身体半透明，背后竖着一面高高的“尾帆”，外号“橡皮软糖松鼠”。它一边在海底爬一边吞食沉积物，身后留下长长的取食痕迹：海底那些弯弯曲曲的浅色带子就是这样来的。',
+  seapig:'用几对鼓胀的管足在海底“行走”，常常成群出现，面朝水流吃沉积物里的有机碎屑。',
+  tripod:'用两根腹鳍鳍条和一根尾鳍鳍条把身体撑离海底，面朝水流一动不动，等着漂来的小动物。它雌雄同体，找不到配偶时可以自体受精。',
+  rattail:'深海里最常见的鱼之一：大头、细长的“鼠尾”，常头朝下贴着海底慢慢游，靠嗅觉寻找落到海底的动物尸体。',
+  ophiuroid:'深海平原上数量最多的大型动物之一，靠五条细长的腕划动着移动。',
+  hyalonema:'用一束长长的玻璃质骨针固定在锰结核上。2016 年科学家在夏威夷外海 4,000 多米处发现一种幽灵般的白色章鱼，把卵产在死去海绵的柄上，而这些海绵只能长在结核这样的硬底上。'
+});
+SPECIES.push(['psychro','长尾蝶参'],['seapig','海猪'],['tripod','三脚架鱼'],['rattail','深海长尾鳕'],['ophiuroid','深海蛇尾'],['hyalonema','有柄玻璃海绵']);
 /* =========================================================
    14s. Free piloting: a tethered ROV (or a diver) under thrust and water drag.
    Thrust ~0.9 m/s², quadratic drag gives a top speed of ~1 m/s (typical small ROV / swimming diver).
@@ -3398,7 +3599,7 @@ $('pxReset').addEventListener('click',()=>{cancelAnimationFrame(PX.anim);PX.minV
    trenches are averaged shallower than they really are (Mariana: ~9,000 m here vs 10,935 m measured).
    ========================================================= */
 const MAP={W:1080,H:540,h:null,img:null,sel:[],prof:null};
-const SITE_LL={xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
+const SITE_LL={abyss:[12,-125],xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
   eilat:[29.5,34.95],brine:[27.7,-91.3],vent:[-37.8,49.65],dvm:[22.75,-158],ice:[-77.8,166.6],rost:[67.5,9.4],truk:[7.4,151.8],dive:[13.4,144.7],replay:[11.37,142.59]};
 function mapDecode(){if(MAP.h)return;const b=atob(window.ETOPO_B64),n=b.length,h=new Float32Array(n);for(let i=0;i<n;i++)h[i]=b.charCodeAt(i)/255*15400-9100;MAP.h=h;}
 function mapH(lat,lon){const fr=Math.max(0,Math.min(MAP.H-1.001,(89.8333-lat)*3)),fc=(lon+179.8333)*3,r=Math.floor(fr),c=Math.floor(fc),tr=fr-r,tc=fc-c,W=MAP.W,cc=k=>((k%W)+W)%W,h=MAP.h;
@@ -3719,6 +3920,7 @@ const TOUR_STOPS=[
   {l:'brine',n:'s08_brine',d:18,t:'650 m：海底的湖',s:'比海水重得多的卤水在海底积成湖，有湖面也有湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。'},
   {l:'whalefall',n:'s09_whalefall',d:18,t:'1,800 m：鲸落',s:'一头鲸沉到深海，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物。'},
   {l:'vent',n:'s10_vent',d:20,t:'2,800 m：热液喷口',s:'300 多摄氏度的热液从黑烟囱喷出。周围的盲虾和雪人蟹完全不靠阳光，靠细菌把化学能变成养分。'},
+  {l:'abyss',n:'s10b_abyss',d:20,t:'4,100 m：深海平原',s:'海底铺满土豆大小的锰结核，一百万年只长 1–10 cm。这片海区已记录到五千多种动物，约九成从未被科学描述；那条没有结核的宽带，是 1979 年采矿试验留下的车辙。'},
   {l:'dive',n:'s11_dive',d:112,dive:true,t:'最后一站：马里亚纳海沟',s:'从关岛礁壁出发，一路下潜到地球海洋最深处。光、水温和生物会随深度一层层改变；左侧剖面显示你的位置。'}
 ];
 const TOUR={on:false,i:0,t:0,paused:false,prevSpeed:0.35,pend:null,prevZ:0};
@@ -3870,7 +4072,7 @@ function frame(now){
   for(const k in JELLY)stepJelly(JELLY[k],dt,t);
   stepMantas(dt,t);stepTurtles(dt,t);stepAnglers(dt,t);
   for(const k in DRIFT)stepDrift(DRIFT[k],dt,t);
-  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);
+  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);
   if(infoT>0){infoT-=rdt;if(infoT<=0)$('info').hidden=true;}
   discT+=rdt;if(discT>0.5){discT=0;checkDiscover();if(SPN.on){spawnNote();readouts();}}stepToast(rdt);
   FANS.forEach(m=>{if(!m.visible)return;const u=m.userData;m.rotation.set(0.12*(U.uFlow.value.x*Math.sin(u.yaw)+U.uFlow.value.y*Math.cos(u.yaw))*0.5+0.03*Math.sin(t*0.8+u.ph),u.yaw,0);});

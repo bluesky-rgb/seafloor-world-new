@@ -14,6 +14,7 @@ const LOC={
   eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
   slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
   deep:    {name:'南海海马冷泉',D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
+  abyss:   {name:'太平洋克拉里昂-克利珀顿区 · 深海平原',D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
   vent:    {name:'西南印度洋龙旂热液区',D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
   whalefall:{name:'蒙特雷峡谷鲸落',D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
   bluehole:{name:'三沙永乐龙洞',D:300.9,water:'clear',temp:30,H:0.6,T:6,cur:0.01,dir:60,sun:70,torch:'off'},

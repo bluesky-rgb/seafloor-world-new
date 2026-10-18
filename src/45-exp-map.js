@@ -4,7 +4,7 @@
    trenches are averaged shallower than they really are (Mariana: ~9,000 m here vs 10,935 m measured).
    ========================================================= */
 const MAP={W:1080,H:540,h:null,img:null,sel:[],prof:null};
-const SITE_LL={xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
+const SITE_LL={abyss:[12,-125],xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
   eilat:[29.5,34.95],brine:[27.7,-91.3],vent:[-37.8,49.65],dvm:[22.75,-158],ice:[-77.8,166.6],rost:[67.5,9.4],truk:[7.4,151.8],dive:[13.4,144.7],replay:[11.37,142.59]};
 function mapDecode(){if(MAP.h)return;const b=atob(window.ETOPO_B64),n=b.length,h=new Float32Array(n);for(let i=0;i<n;i++)h[i]=b.charCodeAt(i)/255*15400-9100;MAP.h=h;}
 function mapH(lat,lon){const fr=Math.max(0,Math.min(MAP.H-1.001,(89.8333-lat)*3)),fc=(lon+179.8333)*3,r=Math.floor(fr),c=Math.floor(fc),tr=fr-r,tc=fc-c,W=MAP.W,cc=k=>((k%W)+W)%W,h=MAP.h;

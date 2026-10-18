@@ -1,7 +1,13 @@
 # 资料来源
 
-页面中的物理参数、地点和生物资料引用自以下来源（共 41 条）。
+页面中的物理参数、地点和生物资料引用自以下来源（共 47 条）。
 
+- [Bonifácio 等 (2021)：克拉里昂-克利珀顿区范围与水深](https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2021.656899/full)
+- [World Ocean Review：锰结核的形成、大小、生长速度与丰度](https://worldoceanreview.com/en/wor-3/mineral-resources/manganese-nodules/)
+- [Rabone 等 (2023)：克拉里昂-克利珀顿区记录到 5,578 种动物，约九成未被描述](https://obis.org/2023/09/12/species-largest-mineral/)
+- [Jones 等 (2025, Nature)：1979 年采矿试验车辙 44 年后的状况](https://nhm.ac.uk/press-office/press-releases/new-study-reveals-long-term-impacts-of-deep-sea-mining-and-first3.html)
+- [Purser 等 (2016)：把卵产在结核上海绵柄上的幽灵章鱼](https://www.sciencedaily.com/releases/2016/12/161219134510.htm)
+- [三脚架鱼（大鳍深海狗母鱼）的分布深度与习性](https://en.wikipedia.org/wiki/Bathypterois_grallator)
 - [Dodgson (2004)：人类瞳距的分布（成人平均约 63 mm）](https://doi.org/10.1117/12.529999)
 - [MDN：WebXR Device API](https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API)
 - [NOAA：ETOPO 全球地形模型](https://www.ncei.noaa.gov/products/etopo-global-relief-model)
