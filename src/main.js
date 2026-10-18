@@ -1,0 +1,3666 @@
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+if(!window.THREE||!THREE.OrbitControls){$('err').hidden=false;return;}
+
+/* =========================================================
+   1. Physical constants, sites, state
+   ========================================================= */
+const RHO=1025, G=9.81, PATM=101325, N_WATER=1.34;
+const WATER={
+  clear:    {a:[0.345,0.060,0.018], b:[0.03,0.035,0.045]},
+  ocean:    {a:[0.360,0.075,0.050], b:[0.15,0.18,0.20]},
+  temperate:{a:[0.370,0.085,0.120], b:[0.17,0.19,0.22]},
+  coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]}
+};
+const LOC={
+  xisha:   {name:'南海西沙群岛珊瑚礁',D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
+  monterey:{name:'加州蒙特雷湾巨藻林',D:12,water:'temperate',temp:12,H:1.6,T:12,cur:0.08,dir:30,sun:55,torch:'off'},
+  eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
+  slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
+  deep:    {name:'南海海马冷泉',D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
+  vent:    {name:'西南印度洋龙旂热液区',D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
+  whalefall:{name:'蒙特雷峡谷鲸落',D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
+  bluehole:{name:'三沙永乐龙洞',D:300.9,water:'clear',temp:30,H:0.6,T:6,cur:0.01,dir:60,sun:70,torch:'off'},
+  truk:    {name:'密克罗尼西亚特鲁克泻湖 · 富士川丸沉船',D:34,water:'clear',temp:28,H:0.5,T:6,cur:0.02,dir:90,sun:70,torch:'off'},
+  rost:    {name:'挪威罗弗敦外海 · 勒斯特冷水珊瑚礁',D:320,water:'clear',temp:7,H:2,T:10,cur:0.15,dir:30,sun:40,torch:'white'},
+  ice:     {name:'南极麦克默多湾 · 海冰之下',D:24,water:'clear',temp:-1.9,H:0,T:8,cur:0.02,dir:60,sun:25,torch:'off'},
+  spawn:   {name:'海南三亚鹿回头珊瑚礁 · 产卵之夜',D:6,water:'ocean',temp:27,H:0.5,T:6,cur:0.05,dir:120,sun:70,torch:'white'},
+  brine:   {name:'墨西哥湾 NR1 海底盐池',D:650,water:'clear',temp:6.5,H:1.5,T:8,cur:0.02,dir:60,sun:60,torch:'white'},
+  dvm:     {name:'北太平洋副热带开阔大洋',D:4800,water:'clear',temp:26,H:1.2,T:8,cur:0.05,dir:90,sun:60,torch:'off'},
+  replay:  {name:'重走 2012 · 深海挑战者号',D:10898,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'},
+  dive:    {name:'关岛礁壁 → 马里亚纳海沟',D:10935,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'}
+};
+const S={D:10,H:0.8,T:6,sun:75,water:'clear',adapt:true,temp:28,cur:0.15,dir:120,loc:null,seep:false,night:false,torch:'off',tour:true};
+const W={k:0,w:0,L:0};
+const OPT={K:[0,0,0],c:[0,0,0],mu0:1,zenW:0,sunDir:new THREE.Vector3(0,1,0)};
+const CUR={x:1,z:0};
+const Z0=0.003;
+const pressure=z=>PATM+RHO*G*Math.max(z,0);
+function curProfile(zab){const h=Math.max(S.D,0.05);return Math.max(0,Math.log(Math.max(zab,Z0*1.2)/Z0)/(Math.log(h/Z0)-1));}
+const MU_T=[[0,1.88],[5,1.61],[10,1.39],[15,1.22],[20,1.08],[25,0.96],[30,0.87],[35,0.80]];
+function viscosity(T){for(let i=1;i<MU_T.length;i++){if(T<=MU_T[i][0]){const[t0,m0]=MU_T[i-1],[t1,m1]=MU_T[i];return(m0+(m1-m0)*(T-t0)/(t1-t0))*1e-3;}}return 0.8e-3;}
+function solveWave(){W.w=2*Math.PI/S.T;let k=W.w*W.w/G;for(let i=0;i<40;i++)k=W.w*W.w/(G*Math.tanh(Math.min(k*S.D,30)));W.k=k;W.L=2*Math.PI/k;}
+function orbital(x,y,t,out){
+  const h=S.D,z=Math.min(Math.max(-y,0),h),k=W.k,A=S.H/2*W.w;let fu,fw;
+  if(k*h>15){fu=Math.exp(-k*z);fw=fu;}else{const sh=Math.sinh(k*h);fu=Math.cosh(k*(h-z))/sh;fw=Math.sinh(k*(h-z))/sh;}
+  const ph=k*x-W.w*t;
+  out.x=A*fu*Math.cos(ph);out.y=A*fw*Math.sin(ph);out.z=0;
+  if(S.cur>0){const f=S.cur*curProfile(y+S.D);out.x+=f*CUR.x;out.z+=f*CUR.z;}
+  return out;
+}
+function floorOrbitalMax(){const kh=W.k*S.D;return kh>15?0:(S.H/2*W.w)/Math.sinh(kh);}
+function riseSpeed(r){
+  const mu=viscosity(S.temp),vs=rr=>2*RHO*G*rr*rr/(9*mu);
+  if(r<1e-4)return vs(r);
+  if(r<7e-4){const v1=vs(1e-4),t=Math.log(r/1e-4)/Math.log(7);return v1*Math.pow(0.22/v1,t);}
+  if(r<5e-3)return 0.22;
+  return 0.711*Math.sqrt(G*2*r);
+}
+const light=(z,i)=>Math.exp(-OPT.K[i]*Math.max(z,0));
+
+/* helpers */
+let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646;};
+const R=(a,b)=>a+(b-a)*rnd();
+const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
+const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+function floorH(x,z){const f=Math.exp(-(x*x+z*z)/(2*70*70));return f*(0.7*Math.sin(x*0.13+1.3)*Math.cos(z*0.11)+0.35*Math.sin(x*0.37+z*0.29)+0.18*Math.sin(z*0.8-x*0.3));}
+const floorY0=(x,z)=>-S.D+floorH(x,z);
+let brineOn=false;
+const floorY=(x,z)=>brineOn?brineFloor(x,z):floorY0(x,z);
+const UP=new THREE.Vector3(0,1,0),ORIGIN=new THREE.Vector3();
+const _u={x:0,y:0,z:0},_m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3(),_d=new THREE.Vector3(),_e=new THREE.Euler();
+
+/* geometry builder: merges parts into one non-indexed geometry with colours */
+function Acc(){return{pos:[],nor:[],col:[],ex:{}};}
+function addGeo(acc,g0,m,colFn,extra){
+  const g=g0.index?g0.toNonIndexed():g0.clone();
+  if(m)g.applyMatrix4(m);
+  const p=g.attributes.position.array,n=g.attributes.normal.array;
+  for(let i=0;i<p.length;i+=3){
+    acc.pos.push(p[i],p[i+1],p[i+2]);acc.nor.push(n[i],n[i+1],n[i+2]);
+    const c=colFn?colFn(p[i],p[i+1],p[i+2]):[1,1,1];acc.col.push(c[0],c[1],c[2]);
+    if(extra)for(const k in extra)(acc.ex[k]=acc.ex[k]||[]).push(extra[k](p[i],p[i+1],p[i+2]));
+  }
+}
+function finishGeo(acc){
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(acc.pos,3));
+  g.setAttribute('normal',new THREE.Float32BufferAttribute(acc.nor,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(acc.col,3));
+  for(const k in acc.ex)g.setAttribute(k,new THREE.Float32BufferAttribute(acc.ex[k],1));
+  return g;
+}
+function triGeo(pts,ny){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(pts.map((_,k)=>(ny?k%3===1:k%3===0)?1:0),3));return g;}
+function latheZ(profile,seg){const g=new THREE.LatheGeometry(profile.map(([r,z])=>new THREE.Vector2(Math.max(r,0.0005),z)),seg||16);g.rotateX(Math.PI/2);return g;}
+const M4=(x,y,z,rx,ry,rz,sx,sy,sz)=>new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0)),new THREE.Vector3(sx||1,sy==null?(sx||1):sy,sz==null?(sx||1):sz));
+
+/* =========================================================
+   2. Renderer, post-processing
+   ========================================================= */
+const canvas=$('gl');
+let renderer;
+try{renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});}catch(e){$('err').hidden=false;return;}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(60,1,0.05,1500);
+scene.add(camera);
+const controls=new THREE.OrbitControls(camera,canvas);
+controls.enableDamping=true;controls.minDistance=1.2;controls.maxDistance=40;controls.enablePan=false;controls.autoRotateSpeed=0.35;
+
+let composer=null,bloom=null,wbPass=null;const WB=new THREE.Vector3(1,1,1);
+if(THREE.EffectComposer&&THREE.UnrealBloomPass&&THREE.ShaderPass){
+  try{
+    const rt=new THREE.WebGLRenderTarget(4,4,{type:renderer.capabilities.isWebGL2?THREE.HalfFloatType:THREE.UnsignedByteType});
+    composer=new THREE.EffectComposer(renderer,rt);
+    composer.addPass(new THREE.RenderPass(scene,camera));
+    bloom=new THREE.UnrealBloomPass(new THREE.Vector2(256,256),0.4,0.5,0.8);
+    composer.addPass(bloom);
+    wbPass=new THREE.ShaderPass({uniforms:{tDiffuse:{value:null},uWB:{value:new THREE.Vector3(1,1,1)},uVig:{value:0},uHaze:{value:new THREE.Vector3()}},
+      vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+      fragmentShader:'uniform sampler2D tDiffuse;uniform vec3 uWB;uniform float uVig;uniform vec3 uHaze;varying vec2 vUv;void main(){vec4 c=texture2D(tDiffuse,vUv);c.rgb+=uHaze*smoothstep(0.75,0.0,length((vUv-vec2(0.5,0.47))*vec2(1.0,0.75)));c.rgb=min(c.rgb*uWB,vec3(1.0));float v=smoothstep(0.95,0.3,length((vUv-0.5)*vec2(1.0,0.8))*1.45);c.rgb*=mix(1.0,v,uVig);gl_FragColor=LinearTosRGB(c);}'});
+    composer.addPass(wbPass);
+  }catch(e){composer=null;bloom=null;}
+}
+
+/* =========================================================
+   3. Shared water-optics shader code
+   ========================================================= */
+const U={
+  uK:{value:new THREE.Vector3()},uC:{value:new THREE.Vector3()},uWater:{value:new THREE.Vector3()},
+  uCamDepth:{value:5},uTime:{value:0},uCaustAmp:{value:1},uRipAmp:{value:0},uRipL:{value:0.3},uRipDir:{value:new THREE.Vector2(1,0)},
+  uSunDir:{value:new THREE.Vector3(0,1,0)},uScale:{value:800},uSky:{value:1},uDay:{value:1},
+  uTorch:{value:0},uTorchCol:{value:new THREE.Vector3(1,0.95,0.85)},uTorchWB:{value:new THREE.Vector3(1,1,1)},uCamDir:{value:new THREE.Vector3(0,0,-1)},
+  uFlow:{value:new THREE.Vector2()},uCamPos:{value:new THREE.Vector3()},uShaft:{value:0},uDeepFan:{value:0}
+};
+const WATER_PARS=`
+uniform vec3 uCamPos;
+#define cameraPosition uCamPos
+varying vec3 vWPos;
+uniform vec3 uK; uniform vec3 uC; uniform vec3 uWater; uniform float uCamDepth; uniform float uTime;
+uniform float uCaustAmp; uniform float uRipAmp; uniform float uRipL; uniform vec2 uRipDir;
+uniform float uSky; uniform float uDay; uniform float uTorch; uniform vec3 uTorchCol; uniform vec3 uTorchWB; uniform vec3 uCamDir; uniform vec3 uSunDir;
+vec3 lightAt(float d){ return exp(-uK*max(d,0.0)); }
+float angF(float mu){ return mix(0.35,1.6,smoothstep(-0.6,1.0,mu)); }
+vec3 bgCol(vec3 dir){ return uWater*lightAt(uCamDepth)*angF(dir.y)*uSky; }
+vec3 waterPath(vec3 col, vec3 wp){
+  vec3 v=wp-cameraPosition; float dist=length(v); vec3 T=exp(-uC*dist);
+  return col*lightAt(-wp.y)*T + bgCol(v/max(dist,1e-4))*(1.0-T);
+}
+vec3 torchAt(vec3 wp, float ndl){
+  vec3 v=wp-cameraPosition; float d=max(length(v),1e-3);
+  float cs=dot(v/d,uCamDir);
+  float cone=smoothstep(0.82,0.96,cs)+0.25*smoothstep(0.6,0.86,cs);
+  return uTorchWB*uTorchCol*(uTorch*cone*(0.25+0.75*ndl)*0.9/(1.0+0.04*d*d))*exp(-uC*d);
+}
+vec3 hsv2rgb(vec3 c){ vec3 p=abs(fract(c.xxx+vec3(0.0,2.0/3.0,1.0/3.0))*6.0-3.0); return c.z*mix(vec3(1.0),clamp(p-1.0,0.0,1.0),c.y); }
+float caustic(vec2 uv, float time){
+  vec2 p=mod(uv*6.28318,6.28318)-250.0; vec2 i=p; float c=1.0; float inten=0.005;
+  for(int n=0;n<4;n++){ float t=time*(1.0-(3.5/float(n+1)));
+    i=p+vec2(cos(t-i.x)+sin(t+i.y), sin(t-i.y)+cos(t+i.x));
+    c+=1.0/length(vec2(p.x/(sin(i.x+t)/inten), p.y/(cos(i.y+t)/inten))); }
+  c/=4.0; c=1.17-pow(c,1.4); return clamp(pow(abs(c),8.0),0.0,1.0);
+}
+`;
+const WATER_FRAG=(lit,emit)=>`
+{
+#ifdef CAUSTICS
+  { float dO=max(-vWPos.y,0.0); float ca=caustic(vWPos.xz/2.2,uTime*0.55);
+    gl_FragColor.rgb*=1.0+uCaustAmp*uDay*exp(-dO/7.0)*ca*2.2*smoothstep(0.0,0.6,vWNrm.y); }
+#endif
+#ifdef RIPPLES
+  { float rs=dot(vWPos.xz,uRipDir); float rq=dot(vWPos.xz,vec2(-uRipDir.y,uRipDir.x));
+    float ph=6.2831853*(rs+0.25*sin(rq*0.9)+0.12*sin(rq*2.3+rs*0.5))/uRipL;
+    float fw=fwidth(ph); float rp=sin(ph)*clamp(1.0-fw*0.5,0.0,1.0);
+    gl_FragColor.rgb*=1.0+uRipAmp*0.13*rp; }
+#endif
+  vec3 nrmW=normalize(vWNrm);
+  vec3 vdir=normalize(vWPos-cameraPosition);
+  ${lit||''}
+  vec3 tE=torchAt(vWPos,abs(dot(nrmW,vdir)));
+  vec3 emit=vec3(0.0);
+#ifdef FLUO
+  emit+=vFluo*(tE.b*1.4+0.05*lightAt(-vWPos.y).b*uSky);
+#endif
+  ${emit||''}
+  float dd=length(vWPos-cameraPosition);
+  gl_FragColor.rgb=waterPath(gl_FragColor.rgb,vWPos)+(diffuseColor.rgb*tE+emit)*exp(-uC*dd);
+}
+#include <tonemapping_fragment>`;
+
+function waterify(mat,key,o){
+  o=o||{};
+  mat.defines=Object.assign({},mat.defines||{},o.defines||{});
+  if(o.ext)mat.extensions={derivatives:true};
+  const fluo=!!(o.defines&&('FLUO' in o.defines));
+  mat.onBeforeCompile=sh=>{
+    Object.assign(sh.uniforms,U,o.uniforms||{});
+    sh.vertexShader=sh.vertexShader
+      .replace('#include <common>','#include <common>\nvarying vec3 vWPos; varying vec3 vWNrm; varying vec3 vLocal;\nuniform float uTime; uniform vec2 uFlow;\n'+(fluo?'attribute vec3 aFluo; varying vec3 vFluo;\n':'')+(o.vHead||''))
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvLocal=position;\n'+(fluo?'vFluo=aFluo;\n':'')+(o.vBegin||''))
+      .replace('#include <project_vertex>',`#include <project_vertex>
+        { vec4 wp4=vec4(transformed,1.0); vec3 wn=objectNormal;
+        #ifdef USE_INSTANCING
+          wp4=instanceMatrix*wp4; wn=mat3(instanceMatrix)*wn;
+        #endif
+          vWPos=(modelMatrix*wp4).xyz; vWNrm=normalize(mat3(modelMatrix)*wn); }`);
+    sh.fragmentShader=sh.fragmentShader
+      .replace('#include <common>','#include <common>\nvarying vec3 vWNrm; varying vec3 vLocal;\n'+(fluo?'varying vec3 vFluo;\n':'')+WATER_PARS+(o.fHead||''))
+      .replace('#include <color_fragment>','#include <color_fragment>\n'+(o.fColor||''))
+      .replace('#include <tonemapping_fragment>',WATER_FRAG(o.lit,o.emit));
+  };
+  mat.customProgramCacheKey=()=>key;
+  return mat;
+}
+const lambert=(opts)=>new THREE.MeshLambertMaterial(Object.assign({vertexColors:true},opts||{}));
+
+/* lights (scaled by sky brightness each rebuild) */
+const sunLight=new THREE.DirectionalLight(0xffffff,1.5);scene.add(sunLight);
+const hemi=new THREE.HemisphereLight(0xdfefff,0x3a3a30,0.65);scene.add(hemi);
+
+/* =========================================================
+   4. Water volume: sky / Snell's window
+   ========================================================= */
+const sky=new THREE.Mesh(new THREE.SphereGeometry(700,48,24),new THREE.ShaderMaterial({
+  uniforms:U,side:THREE.BackSide,depthWrite:false,
+  vertexShader:'varying vec3 vDir; varying vec3 vWPos; void main(){ vDir=position; vWPos=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader:WATER_PARS+`
+    varying vec3 vDir;
+    void main(){
+      vec3 d=normalize(vDir); float mu=d.y; float dc=max(uCamDepth,0.0);
+      vec3 bg=bgCol(d); vec3 col=bg;
+      if(mu>0.001){
+        float s=dc/mu; vec3 T=exp(-uC*s);
+        vec2 sp=cameraPosition.xz+d.xz*s;
+        float rip=0.5+0.5*sin(sp.x*0.8+uTime*1.4)*sin(sp.y*0.63-uTime*1.1);
+        float edge=smoothstep(0.64,0.70,mu+(rip-0.5)*0.05*uCaustAmp);
+        float sd=max(dot(d,uSunDir),0.0);
+        vec3 daySky=vec3(0.45,0.68,1.0)*0.75*(0.8+0.4*rip*uCaustAmp)+vec3(1.0,0.96,0.88)*(pow(sd,600.0)*30.0+pow(sd,30.0)*1.2);
+        vec3 nightSky=vec3(0.05,0.08,0.16)+vec3(0.85,0.9,1.0)*(pow(sd,1500.0)*60.0+pow(sd,60.0)*1.2);
+        vec3 skyc=mix(nightSky,daySky,uDay)*uSky;
+        vec3 win=mix(uWater*0.4*uSky,skyc,edge);
+        col=win*T+bg*(1.0-T);
+      }
+      gl_FragColor=vec4(col,1.0);
+      #include <tonemapping_fragment>
+      #include <encodings_fragment>
+    }`
+}));
+sky.renderOrder=-1;scene.add(sky);
+
+/* =========================================================
+   5. Seafloor, rocks
+   ========================================================= */
+const floorGeo=new THREE.PlaneGeometry(400,400,160,160);floorGeo.rotateX(-Math.PI/2);
+const FN1=new Float32Array(floorGeo.attributes.position.count),FN2=new Float32Array(FN1.length);
+{const p=floorGeo.attributes.position;
+ for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,floorH(x,z));
+   FN1[i]=0.5+0.25*Math.sin(x*1.7+Math.sin(z*1.3))+0.25*Math.sin(z*2.3-x*0.7);
+   FN2[i]=0.5+0.5*Math.sin(x*0.45+2.0*Math.sin(z*0.33))*Math.sin(z*0.5+1.7*Math.sin(x*0.29));}
+ floorGeo.computeVertexNormals();
+ floorGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(p.count*3),3));}
+const floorMat=waterify(lambert(),'floor',{defines:{CAUSTICS:'',RIPPLES:''},ext:true});
+const floor=new THREE.Mesh(floorGeo,floorMat);scene.add(floor);
+
+const SEEP={x:-2.5,z:-3};
+function paintFloor(hab){
+  const p=floorGeo.attributes.position,c=floorGeo.attributes.color;
+  const pal={
+    reef:[[0.86,0.83,0.75],[0.77,0.73,0.64],[0.6,0.55,0.46]],
+    temperate:[[0.64,0.6,0.52],[0.52,0.48,0.42],[0.42,0.38,0.33]],
+    warm:[[0.8,0.74,0.6],[0.7,0.64,0.52],[0.55,0.5,0.42]],
+    deep:[[0.5,0.48,0.44],[0.42,0.41,0.38],[0.34,0.33,0.31]],
+    hadal:[[0.62,0.58,0.5],[0.54,0.5,0.43],[0.46,0.43,0.37]],
+    vent:[[0.26,0.24,0.21],[0.34,0.29,0.24],[0.55,0.33,0.16]],
+    anox:[[0.2,0.19,0.18],[0.15,0.14,0.13],[0.42,0.4,0.33]],
+    ant:[[0.78,0.76,0.7],[0.6,0.58,0.54],[0.24,0.23,0.22]],
+    cwc:[[0.52,0.5,0.45],[0.44,0.42,0.38],[0.7,0.68,0.62]]
+  }[hab];
+  for(let i=0;i<p.count;i++){
+    let col=mixc(pal[0],pal[1],FN1[i]);
+    col=mixc(col,pal[2],sstep(0.72,0.95,FN2[i])*0.8);
+    if(wfOn){const st=wfStages(WF.t),x=p.getX(i),z=p.getZ(i),e=Math.hypot(x/3.2,z/8);
+      col=mixc(col,[0.3,0.26,0.22],sstep(1.4,0.4,e)*st.scav*0.6);
+      col=mixc(col,[0.16,0.15,0.13],sstep(1.7,0.6,e)*st.sulfo*0.55);
+      col=mixc(col,[0.96,0.95,0.88],sstep(1.15,0.45,e)*st.sulfo*sstep(0.3,0.7,FN1[i]+0.25*Math.sin(x*3)*Math.cos(z*2.4)));}
+    if(S.seep){
+      const dx=p.getX(i)-SEEP.x,dz=p.getZ(i)-SEEP.z,r=Math.hypot(dx,dz);
+      const mat=sstep(4.5,2.0,r)*sstep(0.35,0.7,FN1[i]+0.25*Math.sin(dx*3)*Math.cos(dz*2.6));
+      col=mixc(col,[0.16,0.15,0.14],sstep(5,1.5,r)*0.7);
+      col=mixc(col,[0.96,0.96,0.93],mat);
+    }
+    c.setXYZ(i,col[0],col[1],col[2]);
+  }
+  c.needsUpdate=true;
+}
+
+const rocks=new THREE.Group();scene.add(rocks);
+const rockMat=waterify(lambert(),'rock',{defines:{CAUSTICS:''}});
+for(let i=0;i<18;i++){
+  const g=new THREE.DodecahedronGeometry(1,1);const p=g.attributes.position;
+  for(let j=0;j<p.count;j++){const s=0.75+rnd()*0.4;p.setXYZ(j,p.getX(j)*s,p.getY(j)*s*0.7,p.getZ(j)*s);}
+  g.computeVertexNormals();
+  g.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(p.count*3),3));
+  g.userData.n=Array.from({length:p.count},()=>rnd());
+  const m=new THREE.Mesh(g,rockMat);const a=rnd()*6.28,r=4+rnd()*16,sc=0.3+rnd()*1.3;
+  m.position.set(Math.cos(a)*r,0,Math.sin(a)*r);m.scale.setScalar(sc);m.rotation.y=rnd()*6;
+  m.userData.base=floorH(m.position.x,m.position.z)+sc*0.2;rocks.add(m);
+}
+function paintRocks(hab){
+  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25]}[hab];
+  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3]}[hab];
+  rocks.children.forEach(m=>{
+    const g=m.geometry,c=g.attributes.color,nr=g.attributes.normal,n=g.userData.n;
+    for(let i=0;i<c.count;i++){
+      const up=sstep(0.15,0.8,nr.getY(i));let col=mixc(base,top,up*(0.6+0.4*n[i]));
+      const k=0.8+0.35*n[i];c.setXYZ(i,col[0]*k,col[1]*k,col[2]*k);
+    }
+    c.needsUpdate=true;
+  });
+}
+
+/* =========================================================
+   6. Kelp (buoyant chains in wave/current flow)
+   ========================================================= */
+const KN=16,NK=180,KBLADES=NK*(KN-1);
+const kelpMat=waterify(lambert({side:THREE.DoubleSide}),'kelp',{
+  lit:'gl_FragColor.rgb+=diffuseColor.rgb*vec3(1.0,0.8,0.38)*uDay*(0.6+2.6*pow(max(dot(vdir,uSunDir),0.0),2.0));'});
+const bladeGeo=(()=>{const g=new THREE.PlaneGeometry(1,1,1,7);g.translate(0,0.5,0);const p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),w=Math.pow(Math.sin(Math.PI*Math.min(1,y*1.05+0.04)),0.6);p.setX(i,x*w);p.setZ(i,0.05*Math.sin(y*26)*Math.abs(x)*2);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,(x,y)=>mixc([0.55,0.4,0.12],[0.72,0.55,0.18],y));
+  addGeo(acc,new THREE.SphereGeometry(0.09,6,4),M4(0,-0.02,0,0,0,0,1,1.5,1),()=>[0.75,0.62,0.25]);return finishGeo(acc);})();
+const stipeGeo=(()=>{const c=new THREE.CylinderGeometry(0.012,0.016,1,5,1,true);c.translate(0,0.5,0);const acc=Acc();addGeo(acc,c,null,()=>[0.45,0.33,0.1]);return finishGeo(acc);})();
+const kelp=new THREE.InstancedMesh(bladeGeo,kelpMat,KBLADES);kelp.frustumCulled=false;scene.add(kelp);kelp.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+const stipes=new THREE.InstancedMesh(stipeGeo,kelpMat,NK*(KN-1));stipes.frustumCulled=false;scene.add(stipes);stipes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+const kRoot=[];for(let s=0;s<NK;s+=3){const a=rnd()*6.28,r=1.8+Math.sqrt(rnd())*12;for(let k=0;k<3&&s+k<NK;k++)kRoot.push({x:Math.cos(a)*r+R(-0.15,0.15),z:Math.sin(a)*r+R(-0.15,0.15),tw:rnd()*6.28});}
+const kP=new Float32Array(NK*KN*3),kQ=new Float32Array(NK*KN*3);
+let kSeg=1,kelpOn=false;
+function buildKelp(on){
+  kelpOn=on;kelp.visible=on;stipes.visible=on;if(!on)return;
+  const L=Math.min(S.D*1.2,40);kSeg=L/(KN-1);
+  for(let s=0;s<NK;s++){
+    const Rt=kRoot[s];let x=Rt.x,y=floorY(Rt.x,Rt.z),z=Rt.z;const dx=Math.cos(Rt.tw),dz=Math.sin(Rt.tw);
+    for(let i=0;i<KN;i++){
+      if(i>0){if(y+kSeg<-0.06)y+=kSeg;else{x+=dx*kSeg;z+=dz*kSeg;}}
+      const o=(s*KN+i)*3;kP[o]=kQ[o]=x;kP[o+1]=kQ[o+1]=y;kP[o+2]=kQ[o+2]=z;
+    }
+  }
+  for(let i=0;i<200;i++)stepKelp(1/60,i/60);
+}
+function stepKelp(dt,t){
+  if(!kelpOn)return;const fy=-S.D;
+  for(let s=0;s<NK;s++){
+    for(let i=1;i<KN;i++){
+      const o=(s*KN+i)*3,px=kP[o],py=kP[o+1],pz=kP[o+2];
+      const vx=(px-kQ[o])/dt,vy=(py-kQ[o+1])/dt,vz=(pz-kQ[o+2])/dt;
+      orbital(px,py,t,_u);
+      const rx=_u.x-vx,ry=_u.y-vy,rz=_u.z-vz,m=Math.hypot(rx,ry,rz);
+      const ax=9*rx*m,ay=1.3*(i/(KN-1)*0.6+0.4)+9*ry*m,az=9*rz*m;
+      kQ[o]=px;kQ[o+1]=py;kQ[o+2]=pz;
+      kP[o]=px+vx*dt*0.985+ax*dt*dt;kP[o+1]=py+vy*dt*0.985+ay*dt*dt;kP[o+2]=pz+vz*dt*0.985+az*dt*dt;
+    }
+    for(let it=0;it<6;it++){
+      for(let i=1;i<KN;i++){
+        const a=(s*KN+i-1)*3,b=(s*KN+i)*3;
+        const dx=kP[b]-kP[a],dy=kP[b+1]-kP[a+1],dz=kP[b+2]-kP[a+2];
+        const len=Math.hypot(dx,dy,dz)||1e-6,df=(len-kSeg)/len;
+        if(i===1){kP[b]-=dx*df;kP[b+1]-=dy*df;kP[b+2]-=dz*df;}
+        else{const h=df*0.5;kP[a]+=dx*h;kP[a+1]+=dy*h;kP[a+2]+=dz*h;kP[b]-=dx*h;kP[b+1]-=dy*h;kP[b+2]-=dz*h;}
+      }
+      for(let i=1;i<KN;i++){const o=(s*KN+i)*3;if(kP[o+1]>-0.06)kP[o+1]=-0.06;if(kP[o+1]<fy+0.02)kP[o+1]=fy+0.02;}
+    }
+  }
+}
+const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_qt=new THREE.Quaternion();
+const _kside=new THREE.Vector3(),_bd=new THREE.Vector3(),_tmp=new THREE.Vector3();
+function drawKelp(t){
+  if(!kelpOn)return;let n=0,m=0;
+  for(let s=0;s<NK;s++)for(let i=1;i<KN;i++){
+    const a=(s*KN+i-1)*3,b=(s*KN+i)*3;
+    _a.set(kP[a],kP[a+1],kP[a+2]);_b.set(kP[b],kP[b+1],kP[b+2]);
+    _d.subVectors(_b,_a);const len=_d.length();_d.divideScalar(len||1);
+    _q.setFromUnitVectors(UP,_d);_s.set(1,len,1);_m.compose(_a,_q,_s);stipes.setMatrixAt(m++,_m);
+    orbital(_b.x,_b.y,t,_u);
+    for(let j=(i&1);j<(i&1)+1;j++){
+      const ang=kRoot[s].tw+i*2.1+j*Math.PI;
+      _tmp.set(Math.cos(ang),0,Math.sin(ang));_kside.crossVectors(_d,_tmp).cross(_d).normalize().negate();
+      _bd.copy(_d).multiplyScalar(0.7).addScaledVector(_kside,0.75);_bd.x+=_u.x*1.5;_bd.z+=_u.z*1.5;_bd.normalize();
+      _q.setFromUnitVectors(UP,_bd);_qt.setFromAxisAngle(UP,ang);_q.multiply(_qt);
+      const L=0.45+0.25*((s*7+i*3+j)%5)/4;_s.set(0.16,L,0.16);
+      _m.compose(_b,_q,_s);kelp.setMatrixAt(n++,_m);
+    }
+  }
+  kelp.instanceMatrix.needsUpdate=true;stipes.instanceMatrix.needsUpdate=true;
+}
+
+/* =========================================================
+   7. Corals: branching, massive, plate, soft (light- and temperature-limited)
+   ========================================================= */
+function branchCoralGeo(){
+  const acc=Acc();const cyl=new THREE.CylinderGeometry(0.018,0.026,1,5,1,true);cyl.translate(0,0.5,0);
+  function grow(base,dir,len,depth){
+    const q=new THREE.Quaternion().setFromUnitVectors(UP,dir),w=1-depth*0.14;
+    addGeo(acc,cyl,new THREE.Matrix4().compose(base,q,new THREE.Vector3(w,len,w)),depth>=4?()=>[1.35,1.3,1.4]:null);
+    const end=base.clone().addScaledVector(dir,len);
+    if(depth>=4)return;
+    const n=rnd()<0.65?2:3;
+    for(let i=0;i<n;i++){const d=dir.clone().add(new THREE.Vector3((rnd()-.5)*1.2,0.3+rnd()*0.35,(rnd()-.5)*1.2)).normalize();grow(end,d,len*(0.72+rnd()*0.14),depth+1);}
+  }
+  for(let i=0;i<5;i++){const a=i/5*6.28+rnd();grow(new THREE.Vector3(Math.cos(a)*0.06,0,Math.sin(a)*0.06),new THREE.Vector3(Math.cos(a)*0.5,1,Math.sin(a)*0.5).normalize(),0.22,0);}
+  return finishGeo(acc);
+}
+function massiveCoralGeo(){
+  const g=new THREE.SphereGeometry(1,40,20,0,Math.PI*2,0,Math.PI/2),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    const groove=Math.sin(Math.atan2(x,z)*14+y*9+Math.sin(y*12+x*6)*1.5),s=1+0.035*groove;p.setXYZ(i,x*s,y*s*0.62,z*s);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null);return finishGeo(acc);
+}
+function plateCoralGeo(){
+  const plate=new THREE.CylinderGeometry(1,0.9,0.05,32,1),pp=plate.attributes.position;
+  for(let i=0;i<pp.count;i++){const x=pp.getX(i),z=pp.getZ(i);pp.setY(i,pp.getY(i)+0.06*Math.sin(Math.atan2(x,z)*5)*Math.hypot(x,z));}
+  plate.computeVertexNormals();
+  const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.07,0.12,0.4,8,1),M4(0,0.2,0));addGeo(acc,plate,M4(0,0.42,0));return finishGeo(acc);
+}
+function softCoralGeo(){
+  const acc=Acc();const cyl=new THREE.CylinderGeometry(0.035,0.05,1,6,1,true);cyl.translate(0,0.5,0);
+  const bud=new THREE.IcosahedronGeometry(0.06,0);
+  function grow(base,dir,len,depth){
+    addGeo(acc,cyl,new THREE.Matrix4().compose(base,new THREE.Quaternion().setFromUnitVectors(UP,dir),new THREE.Vector3(1-depth*0.2,len,1-depth*0.2)),()=>[1,1,1]);
+    const end=base.clone().addScaledVector(dir,len);
+    if(depth>=3){for(let k=0;k<5;k++)addGeo(acc,bud,M4(end.x+R(-.06,.06),end.y+R(-.03,.06),end.z+R(-.06,.06),R(0,3),R(0,3),0,R(0.7,1.2)),()=>[1.25,1.25,1.25]);return;}
+    for(let i=0;i<3;i++){const d=dir.clone().add(new THREE.Vector3((rnd()-.5)*1.4,0.3,(rnd()-.5)*1.4)).normalize();grow(end,d,len*0.72,depth+1);}
+  }
+  grow(new THREE.Vector3(),UP.clone(),0.32,0);
+  return finishGeo(acc);
+}
+const coralMat=waterify(lambert(),'coral',{defines:{CAUSTICS:'',FLUO:''}});
+const NCOR=120;
+const BOMMIE=[[0.3,0.4],[2,-1],[-4,2],[5,4],[-2,-6],[7,-4],[-7,-3],[0,6],[-6,7]];
+const CORAL={
+  branch:{geo:branchCoralGeo(),s:[0.7,1.5],pal:[[0.72,0.56,0.4],[0.6,0.42,0.66],[0.86,0.55,0.6],[0.48,0.6,0.8],[0.8,0.66,0.42]],fluo:[[0.2,1,0.35],[0.1,0.9,0.8],[1,0.35,0.3],[0.3,1,0.5]]},
+  massive:{geo:massiveCoralGeo(),s:[0.35,1.1],pal:[[0.7,0.56,0.37],[0.5,0.36,0.24],[0.53,0.64,0.38],[0.78,0.7,0.36],[0.63,0.47,0.31]],fluo:[[0.3,1,0.3],[1,0.45,0.15],[1,0.3,0.45]]},
+  plate:{geo:plateCoralGeo(),s:[0.5,1.3],pal:[[0.55,0.42,0.27],[0.69,0.56,0.41],[0.48,0.56,0.35],[0.42,0.35,0.28]],fluo:[[0.25,1,0.4],[1,0.35,0.2],[0.2,0.85,1]]},
+  soft:{geo:softCoralGeo(),s:[0.8,1.6],pal:[[0.95,0.4,0.62],[0.75,0.35,0.85],[1,0.55,0.35],[0.95,0.85,0.9]],fluo:[[1,0.3,0.25],[0.2,0.9,0.4]]}
+};
+for(const k in CORAL){
+  const c=CORAL[k],fl=new Float32Array(NCOR*3);
+  const mesh=new THREE.InstancedMesh(c.geo,coralMat,NCOR);mesh.frustumCulled=false;
+  const col=new THREE.Color();c.spots=[];
+  for(let i=0;i<NCOR;i++){
+    let x,z;if(rnd()<0.72){const b=BOMMIE[Math.floor(rnd()*BOMMIE.length)];x=b[0]+R(-1,1)*R(0,2.6);z=b[1]+R(-1,1)*R(0,2.6);}
+    else{const a=rnd()*6.28,r=3+Math.sqrt(rnd())*16;x=Math.cos(a)*r;z=Math.sin(a)*r;}
+    if(Math.hypot(x-6,z-11)<2.5){x-=4;}
+    c.spots.push({x,z,s:R(c.s[0],c.s[1]),rot:rnd()*6.28,tilt:(rnd()-0.5)*0.25});
+    const pc=c.pal[Math.floor(rnd()*c.pal.length)];mesh.setColorAt(i,col.setRGB(pc[0],pc[1],pc[2]));
+    const f=c.fluo[Math.floor(rnd()*c.fluo.length)],fk=R(0.5,1);fl[i*3]=f[0]*fk;fl[i*3+1]=f[1]*fk;fl[i*3+2]=f[2]*fk;
+  }
+  c.geo.setAttribute('aFluo',new THREE.InstancedBufferAttribute(fl,3));
+  mesh.count=0;scene.add(mesh);c.mesh=mesh;
+}
+let coralForm='';
+function buildCoral(on,lf){
+  let n={branch:0,massive:0,plate:0,soft:0};coralForm='';
+  if(on){
+    if(lf>=0.15){n={branch:100,massive:60,plate:18,soft:26};coralForm='枝状、块状珊瑚为主，夹杂软珊瑚';}
+    else if(lf>=0.03){n={branch:24,massive:50,plate:56,soft:48};coralForm='块状、盘状珊瑚混生，软珊瑚增多';}
+    else{n={branch:0,massive:16,plate:70,soft:50};coralForm='以盘状珊瑚和软珊瑚为主';}
+  }
+  for(const k in CORAL){
+    const c=CORAL[k];c.mesh.count=n[k];
+    for(let i=0;i<n[k];i++){const s=c.spots[i];
+      const flat=(k==='plate'&&lf<0.03)?1.35:1;
+      _e.set(s.tilt,s.rot,s.tilt*0.5);_q.setFromEuler(_e);
+      _s.set(s.s*flat,s.s*(k==='plate'?1/flat:1),s.s*flat);_p.set(s.x,floorY(s.x,s.z)-0.03,s.z);
+      _m.compose(_p,_q,_s);c.mesh.setMatrixAt(i,_m);}
+    c.mesh.instanceMatrix.needsUpdate=true;
+  }
+}
+
+/* =========================================================
+   8. Anemones (Heteractis magnifica) and giant clams (Tridacna maxima)
+   ========================================================= */
+const ANEM=[{x:2.6,z:1.8,c:[0.75,0.15,0.55]},{x:-3.2,z:-0.8,c:[0.45,0.2,0.75]},{x:4.8,z:-4.2,c:[0.85,0.25,0.25]},{x:-1.4,z:4.6,c:[0.3,0.45,0.85]}];
+const NT=170;
+const anemBaseGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.24,0.3,0.16,22),M4(0,0.08,0));addGeo(acc,new THREE.CircleGeometry(0.25,22),M4(0,0.161,0,-Math.PI/2),()=>[0.75,0.65,0.45]);return finishGeo(acc);})();
+const anemBaseMat=waterify(lambert(),'anembase',{defines:{CAUSTICS:''}});
+const anemBases=ANEM.map(a=>{const m=new THREE.Mesh(anemBaseGeo,anemBaseMat.clone());m.material.color.setRGB(a.c[0],a.c[1],a.c[2]);m.visible=false;scene.add(m);return m;});
+anemBases.forEach(m=>{m.material.onBeforeCompile=anemBaseMat.onBeforeCompile;m.material.customProgramCacheKey=anemBaseMat.customProgramCacheKey;});
+const tentGeo=(()=>{const acc=Acc();const c=new THREE.CylinderGeometry(0.006,0.011,1,5,1,true);c.translate(0,0.5,0);
+  addGeo(acc,c,null,(x,y)=>mixc([0.55,0.5,0.28],[0.8,0.85,0.5],y));addGeo(acc,new THREE.SphereGeometry(0.012,6,4),M4(0,1,0),()=>[0.95,0.8,0.75]);return finishGeo(acc);})();
+const tentPh=new Float32Array(ANEM.length*NT);for(let i=0;i<tentPh.length;i++)tentPh[i]=rnd()*6.28;
+tentGeo.setAttribute('aPhase',new THREE.InstancedBufferAttribute(tentPh,1));
+const tentMat=waterify(lambert(),'tent',{
+  vHead:'attribute float aPhase;',
+  vBegin:`float h=clamp(position.y,0.0,1.0);
+    vec2 sw=uFlow*0.9+0.22*vec2(sin(uTime*1.6+aPhase),cos(uTime*1.25+aPhase*1.7));
+    transformed.xz+=sw*h*h*0.35;`,
+  emit:'emit+=vec3(0.25,1.0,0.35)*smoothstep(0.55,1.0,vLocal.y)*(tE.b*2.0+0.03*lightAt(-vWPos.y).b*uSky);'
+});
+const tents=new THREE.InstancedMesh(tentGeo,tentMat,ANEM.length*NT);tents.frustumCulled=false;tents.visible=false;scene.add(tents);
+let anemOn=false;
+function buildAnem(on){
+  anemOn=on;tents.visible=on;anemBases.forEach(b=>b.visible=on);if(!on)return;
+  ANEM.forEach((a,k)=>{
+    const y=floorY(a.x,a.z);anemBases[k].position.set(a.x,y-0.02,a.z);
+    for(let i=0;i<NT;i++){
+      const r=0.3*Math.sqrt(rnd()),th=rnd()*6.28,tilt=0.15+1.0*(r/0.3);
+      _e.set(Math.sin(th)*tilt*-1,0,Math.cos(th)*tilt*-1,'XYZ');
+      _q.setFromEuler(new THREE.Euler(-Math.sin(th)*tilt,0,Math.cos(th)*tilt*-1));
+      _s.set(1,R(0.07,0.11),1);_p.set(a.x+Math.cos(th)*r,y+0.14,a.z+Math.sin(th)*r);
+      _m.compose(_p,_q,_s);tents.setMatrixAt(k*NT+i,_m);
+    }
+  });
+  tents.instanceMatrix.needsUpdate=true;
+}
+
+/* giant clams */
+const CLAMS=[{x:1.2,z:-2.6},{x:-4.5,z:2.2},{x:6.2,z:1.0},{x:-2.0,z:-5.5},{x:3.6,z:5.2},{x:-6.4,z:-2.8}];
+const CLAM_PAL=[[0.1,0.45,1.0],[0.08,0.8,0.75],[0.3,0.85,0.25],[0.55,0.25,0.9],[0.15,0.6,1.0],[0.75,0.6,0.2]];
+const shellGeo=(()=>{const g=new THREE.SphereGeometry(1,36,12,0,Math.PI*2,Math.PI/2,Math.PI/2),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),a=Math.atan2(z,x);const s=1+0.07*Math.abs(Math.sin(a*7));p.setXYZ(i,x*s,y*s,z*s);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,M4(0,0,0,0,0,0,0.5,0.24,0.22),(x,y)=>mixc([0.92,0.9,0.84],[0.62,0.6,0.55],sstep(0,-0.2,y)));return finishGeo(acc);})();
+const mantleGeoBase=(()=>{const g=new THREE.CircleGeometry(1,48,0,Math.PI*2);g.rotateX(-Math.PI/2);const p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),r=Math.hypot(x,z),a=Math.atan2(z,x);p.setY(i,0.06*r*Math.sin(a*9)+0.05*(1-r*r));}
+  g.computeVertexNormals();return g;})();
+const shellMat=waterify(lambert(),'shell',{defines:{CAUSTICS:''}});
+const mantleMat=waterify(lambert(),'mantle',{
+  fColor:`{ float sp=smoothstep(0.55,0.8,sin(vLocal.x*38.0+sin(vLocal.z*20.0)*2.0)*sin(vLocal.z*30.0+vLocal.x*9.0));
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.02,0.12,0.35)+diffuseColor.rgb*0.3,sp*0.8);
+    float slit=smoothstep(0.08,0.03,length(vLocal.xz*vec2(1.0,2.6)));
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.05),slit); }`,
+  lit:'gl_FragColor.rgb*=0.75+0.9*pow(1.0-abs(dot(nrmW,vdir)),2.0);'
+});
+const clamObjs=CLAMS.map((c,i)=>{
+  const grp=new THREE.Group();const sh=new THREE.Mesh(shellGeo,shellMat);grp.add(sh);
+  const acc=Acc();const pal=CLAM_PAL[i%CLAM_PAL.length];
+  addGeo(acc,mantleGeoBase,M4(0,0.005,0,0,0,0,0.47,1,0.2),(x,y,z)=>{const r=Math.hypot(x/0.47,z/0.2);return mixc(pal,[0.85,0.8,0.5],sstep(0.85,1.0,r)*0.6);});
+  const mm=new THREE.Mesh(finishGeo(acc),mantleMat);grp.add(mm);
+  grp.rotation.set(R(-0.15,0.15),rnd()*6.28,R(-0.15,0.15));grp.scale.setScalar(R(0.5,0.75));grp.visible=false;scene.add(grp);return grp;
+});
+let clamOn=false;
+function buildClams(on){clamOn=on;clamObjs.forEach((g,i)=>{g.visible=on;if(on){const c=CLAMS[i];g.position.set(c.x,floorY(c.x,c.z)+0.04,c.z);}});}
+
+/* =========================================================
+   9. Sea fans (gorgonians / deep-sea bamboo coral), sponges, urchins, stars
+   ========================================================= */
+function fanGeo(H){
+  const acc=Acc();const cyl=new THREE.CylinderGeometry(1,1,1,5,1,true);cyl.translate(0,0.5,0);
+  function br(x,y,ang,len,r,depth){
+    const x1=x+Math.sin(ang)*len,y1=y+Math.cos(ang)*len;
+    const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),-ang);
+    addGeo(acc,cyl,new THREE.Matrix4().compose(new THREE.Vector3(x,y,0),q,new THREE.Vector3(r,len,r)),null,{aT:()=>depth/7});
+    if(depth>=7||len<0.02)return;
+    const sp=0.3+rnd()*0.3;
+    br(x1,y1,Math.max(-1.25,ang-sp),len*R(0.72,0.86),r*0.78,depth+1);
+    br(x1,y1,Math.min(1.25,ang+sp),len*R(0.72,0.86),r*0.78,depth+1);
+    if(rnd()<0.25)br(x1,y1,ang,len*0.7,r*0.7,depth+1);
+  }
+  br(0,0,0,H*0.18,0.02,0);
+  return finishGeo(acc);
+}
+const FANHIT={uFanHit:{value:new THREE.Vector4(0,0,0,-99)}};
+const fanMat=waterify(lambert({side:THREE.DoubleSide}),'fan',{uniforms:FANHIT,
+  vHead:'attribute float aT; varying float vT;',vBegin:'vT=aT;',fHead:'varying float vT; uniform float uDeepFan; uniform vec4 uFanHit;',
+  emit:`{ float w=fract(uTime*0.11+vWPos.x*0.07+vWPos.z*0.05); float band=smoothstep(0.1,0.0,abs(vT-w*1.6+0.3));
+        emit+=uDeepFan*vec3(0.15,0.55,1.0)*band*0.8*step(0.55,fract(uTime*0.031+vWPos.x*0.13));
+        float age=uTime-uFanHit.w, dd=length(vWPos-uFanHit.xyz);
+        emit+=uDeepFan*vec3(0.15,0.55,1.0)*2.5*smoothstep(0.1,0.0,abs(dd-age*0.2))*exp(-age/3.0)*step(0.0,age)*step(dd,2.0); }`
+});
+const FANS=[];
+for(let i=0;i<9;i++){
+  const H=R(0.7,1.7),g=fanGeo(H);const m=new THREE.Mesh(g,fanMat.clone());
+  m.material.onBeforeCompile=fanMat.onBeforeCompile;m.material.customProgramCacheKey=fanMat.customProgramCacheKey;
+  const a=rnd()*6.28,r=R(5,16);m.userData={x:Math.cos(a)*r,z:Math.sin(a)*r,ph:rnd()*6.28};m.visible=false;scene.add(m);FANS.push(m);
+}
+let fanOn=false;
+function buildFans(on){
+  fanOn=on;const deep=S.D>200,trop=S.temp>=18;
+  const pal=ROST.on?[[0.92,0.2,0.22],[0.98,0.45,0.5],[0.95,0.9,0.85]]:deep?[[0.94,0.92,0.86],[0.95,0.78,0.78],[0.9,0.88,0.8]]:trop?[[0.85,0.18,0.15],[0.55,0.2,0.65],[0.95,0.72,0.2]]:[[0.95,0.35,0.15],[0.9,0.45,0.2],[0.95,0.6,0.25]];
+  U.uDeepFan.value=deep&&!ROST.on?1:0;
+  FANS.forEach((m,i)=>{m.visible=on;if(!on)return;const u=m.userData;
+    m.position.set(u.x,floorY(u.x,u.z)-0.02,u.z);const c=pal[i%pal.length];m.material.color.setRGB(c[0],c[1],c[2]);
+    u.yaw=Math.atan2(CUR.x,CUR.z)+Math.PI/2;m.rotation.set(0,u.yaw,0);});
+}
+/* glass sponges (Euplectella-type lattice vases) */
+const spongeGeo=(()=>{const pts=[];for(let i=0;i<=16;i++){const t=i/16;pts.push(new THREE.Vector2(0.12+0.1*Math.sin(t*2.6)+0.06*t,t));}
+  const g=new THREE.LatheGeometry(pts,28);const acc=Acc();addGeo(acc,g,null,()=>[0.92,0.9,0.8]);return finishGeo(acc);})();
+const spongeMat=waterify(lambert({side:THREE.DoubleSide}),'sponge',{fColor:`{ vec2 g=vec2(atan(vLocal.z,vLocal.x)*4.4563,vLocal.y*14.0);
+  vec2 f=abs(fract(g)-0.5); float lat=min(f.x,f.y); float dg=abs(fract((g.x+g.y)*0.5)-0.5); float dg2=abs(fract((g.x-g.y)*0.5)-0.5);
+  if(lat>0.09&&dg>0.07&&dg2>0.07&&vLocal.y<0.97) discard; }`});
+const sponges=new THREE.InstancedMesh(spongeGeo,spongeMat,10);sponges.frustumCulled=false;sponges.count=0;scene.add(sponges);
+function buildSponges(on){sponges.count=on?10:0;if(!on)return;
+  for(let i=0;i<10;i++){const a=i*2.4+0.7,r=3+i*1.3;const x=Math.cos(a)*r,z=Math.sin(a)*r;_q.setFromEuler(_e.set(R(-0.1,0.1),rnd()*6,R(-0.1,0.1)));const h=R(0.3,0.9);_s.set(h*0.9,h,h*0.9);_p.set(x,floorY(x,z)-0.02,z);_m.compose(_p,_q,_s);sponges.setMatrixAt(i,_m);}
+  sponges.instanceMatrix.needsUpdate=true;}
+
+function urchinGeo(spine,col){
+  const acc=Acc();addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0,0,0,0,0,1,0.75,1),()=>col);
+  const cone=new THREE.ConeGeometry(0.05,1,4);cone.translate(0,0.5,0);
+  const N=110;for(let i=0;i<N;i++){const y=1-2*(i+0.5)/N;if(y<-0.3)continue;const r=Math.sqrt(1-y*y),th=i*2.39996;
+    const d=new THREE.Vector3(Math.cos(th)*r,y*0.75,Math.sin(th)*r).normalize();
+    addGeo(acc,cone,new THREE.Matrix4().compose(d.clone().multiplyScalar(0.8),new THREE.Quaternion().setFromUnitVectors(UP,d),new THREE.Vector3(spine/8,spine,spine/8)),()=>col);}
+  return finishGeo(acc);
+}
+const urchinMat=waterify(lambert(),'urchin',{defines:{CAUSTICS:''}});
+const urchinT=new THREE.InstancedMesh(urchinGeo(1.2,[0.42,0.12,0.5]),urchinMat,48);
+const urchinD=new THREE.InstancedMesh(urchinGeo(4.2,[0.06,0.05,0.07]),urchinMat,16);
+[urchinT,urchinD].forEach(m=>{m.frustumCulled=false;m.count=0;scene.add(m);});
+function placeOnFloor(mesh,n,spread,sc,cluster){
+  mesh.count=n;for(let i=0;i<n;i++){let x,z;
+    if(cluster){const r0=rocks.children[i%rocks.children.length];x=r0.position.x+R(-1.4,1.4);z=r0.position.z+R(-1.4,1.4);}
+    else{const a=rnd()*6.28,r=R(1.5,spread);x=Math.cos(a)*r;z=Math.sin(a)*r;}
+    _q.setFromEuler(_e.set(0,rnd()*6.28,0));_s.setScalar(R(sc[0],sc[1]));_p.set(x,floorY(x,z)+0.01,z);_m.compose(_p,_q,_s);mesh.setMatrixAt(i,_m);}
+  mesh.instanceMatrix.needsUpdate=true;
+}
+const starGeo=(()=>{const sh=new THREE.Shape();for(let i=0;i<=40;i++){const a=i/40*Math.PI*2,r=0.38+0.62*Math.pow(Math.abs(Math.cos(a*2.5)),1.6);const x=Math.cos(a)*r,y=Math.sin(a)*r;if(i===0)sh.moveTo(x,y);else sh.lineTo(x,y);}
+  const g=new THREE.ExtrudeGeometry(sh,{depth:0.1,bevelEnabled:true,bevelThickness:0.08,bevelSize:0.08,bevelSegments:2,curveSegments:4});g.rotateX(-Math.PI/2);g.computeVertexNormals();
+  const acc=Acc();addGeo(acc,g,null);return finishGeo(acc);})();
+const starMat=waterify(lambert(),'star',{defines:{CAUSTICS:''}});
+const stars=new THREE.InstancedMesh(starGeo,starMat,24);stars.frustumCulled=false;stars.count=0;scene.add(stars);
+let starPalKey='';
+function buildStars(on){
+  if(!on){stars.count=0;return;}
+  const trop=S.temp>=18,key=ICE.on?'a':trop?'t':'c';
+  if(key!==starPalKey){starPalKey=key;const c=new THREE.Color();
+    const pal=ICE.on?[[0.92,0.12,0.1],[0.85,0.2,0.12],[0.95,0.3,0.15]]:trop?[[0.15,0.4,0.95],[0.15,0.4,0.95],[0.9,0.25,0.15]]:[[0.95,0.4,0.15],[0.85,0.2,0.18],[0.55,0.25,0.6],[0.95,0.6,0.2]];
+    stars.count=24;for(let i=0;i<24;i++){const p=pal[i%pal.length];stars.setColorAt(i,c.setRGB(p[0],p[1],p[2]));}stars.instanceColor.needsUpdate=true;}
+  placeOnFloor(stars,trop?10:22,15,trop?[0.1,0.14]:[0.07,0.11],false);
+}
+stars.setColorAt(0,new THREE.Color(1,1,1));
+
+/* cold-seep community: mussel bed, tubeworms */
+const musselGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0,0,0,0,0,0,0.5,0.22,1),(x,y)=>mixc([0.3,0.22,0.12],[0.12,0.08,0.05],sstep(-0.1,0.2,y)));return finishGeo(acc);})();
+const mussels=new THREE.InstancedMesh(musselGeo,urchinMat,160);mussels.frustumCulled=false;mussels.count=0;scene.add(mussels);
+const tubeGeo=(()=>{const acc=Acc();const c=new THREE.CylinderGeometry(0.012,0.016,1,6,1,true);c.translate(0,0.5,0);addGeo(acc,c,null,(x,y)=>mixc([0.75,0.7,0.6],[0.9,0.88,0.8],y));
+  addGeo(acc,new THREE.ConeGeometry(0.03,0.07,8,1,true),M4(0,1.03,0,Math.PI),()=>[0.9,0.12,0.1]);return finishGeo(acc);})();
+const tubes=new THREE.InstancedMesh(tubeGeo,urchinMat,70);tubes.frustumCulled=false;tubes.count=0;scene.add(tubes);
+function buildSeep(on){
+  mussels.count=on?160:0;tubes.count=on?70:0;if(!on)return;
+  for(let i=0;i<160;i++){const a=rnd()*6.28,r=Math.sqrt(rnd())*2.6;const x=SEEP.x+Math.cos(a)*r,z=SEEP.z+Math.sin(a)*r;
+    _q.setFromEuler(_e.set(R(-0.6,0.6),rnd()*6.28,R(-0.6,0.6)));_s.setScalar(R(0.07,0.12));_p.set(x,floorY(x,z)+0.03,z);_m.compose(_p,_q,_s);mussels.setMatrixAt(i,_m);}
+  for(let i=0;i<70;i++){const cx=SEEP.x+(i<35?2.8:-2.2),cz=SEEP.z+(i<35?1.2:2.0);const x=cx+R(-0.4,0.4),z=cz+R(-0.4,0.4);
+    _q.setFromEuler(_e.set(R(-0.35,0.35),0,R(-0.35,0.35)));_s.set(1,R(0.4,1.0),1);_p.set(x,floorY(x,z),z);_m.compose(_p,_q,_s);tubes.setMatrixAt(i,_m);}
+  mussels.instanceMatrix.needsUpdate=true;tubes.instanceMatrix.needsUpdate=true;
+}
+
+/* =========================================================
+   10. Fish (one InstancedMesh per species, Boids schooling)
+   ========================================================= */
+function buildFishGeo(p){
+  const acc=Acc();
+  const b=new THREE.SphereGeometry(1,22,14);b.rotateX(Math.PI/2);const P=b.attributes.position;
+  for(let i=0;i<P.count;i++){let x=P.getX(i)*p.w,y=P.getY(i)*p.h,z=P.getZ(i)*0.5;
+    if(z<-0.1){const t=Math.min(1,(-z-0.1)/0.36);x*=1-0.82*t;y*=1-0.62*t;}
+    if(z>0.25){const t=(z-0.25)/0.25;y*=1-0.35*t*t;x*=1-0.2*t*t;}
+    P.setXYZ(i,x,y,z);}
+  b.computeVertexNormals();
+  const ex=p.glow?{aGlow:(x,y,z)=>p.glow(x,y,z)}:null,ex0=p.glow?{aGlow:()=>0}:null;
+  addGeo(acc,b,null,(x,y,z)=>p.col(x,y,z,0),ex);
+  const tri=(pts)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+    g.setAttribute('normal',new THREE.Float32BufferAttribute(pts.map((_,k)=>k%3===0?1:0),3));addGeo(acc,g,null,(x,y,z)=>p.col(x,y,z,1),ex0);};
+  const th=p.tailH,h=p.h;
+  tri([0,0,-0.4, 0,th,-0.63, 0,0,-0.54, 0,0,-0.4, 0,0,-0.54, 0,-th,-0.63]);
+  tri([0,h*0.9,0.16, 0,h*0.9+p.dorsal,-0.02, 0,h*0.72,-0.3]);
+  tri([0,-h*0.85,-0.02, 0,-h*0.85-p.anal,-0.17, 0,-h*0.62,-0.31]);
+  tri([p.w*0.9,-h*0.15,0.2, p.w*0.9+0.07,-h*0.4,0.06, p.w*0.85,-h*0.35,0.14]);
+  tri([-p.w*0.9,-h*0.15,0.2, -p.w*0.9-0.07,-h*0.4,0.06, -p.w*0.85,-h*0.35,0.14]);
+  const eye=new THREE.SphereGeometry(p.eye||Math.min(0.035,h*0.22),8,6);
+  addGeo(acc,eye,M4(p.w*0.72,h*0.22,0.34),()=>[0.03,0.03,0.04],ex0);addGeo(acc,eye,M4(-p.w*0.72,h*0.22,0.34),()=>[0.03,0.03,0.04],ex0);
+  if(p.extra)p.extra(acc,ex0);
+  return finishGeo(acc);
+}
+const cs=(belly,back,yh)=>(x,y,z,f)=>mixc(belly,back,sstep(-0.25,0.55,y/yh));
+const FISH={
+  sardine:{name:'太平洋沙丁鱼',n:220,len:[0.17,0.22],spd:[0.7,1.3],h:0.11,w:0.065,tailH:0.11,dorsal:0.05,anal:0.02,
+    col:(x,y,z,f)=>f?[0.5,0.58,0.64]:mixc([0.9,0.92,0.95],[0.1,0.28,0.42],sstep(-0.01,0.07,y)),sheen:1.2,
+    nb:1.0,sep:0.22,ali:1.4,coh:0.6,sepW:0.05,mill:1.1,rheo:0},
+  chromis:{name:'蓝绿光鳃鱼',n:70,len:[0.06,0.09],spd:[0.2,0.55],h:0.2,w:0.07,tailH:0.14,dorsal:0.07,anal:0.06,
+    col:(x,y,z,f)=>f?[0.45,0.85,0.9]:mixc([0.55,0.95,0.85],[0.2,0.65,0.9],sstep(-0.1,0.18,y)),sheen:0.5,
+    nb:0.7,sep:0.12,ali:0.7,coh:0.7,sepW:0.02,mill:0,rheo:1},
+  anthias:{name:'丝鳍拟花鲈',n:140,len:[0.07,0.11],spd:[0.2,0.6],h:0.17,w:0.06,tailH:0.15,dorsal:0.06,anal:0.05,
+    col:cs([1,0.92,0.85],[0.95,0.8,0.75],0.17),tint:[[1,0.5,0.25],[1,0.55,0.3],[0.85,0.3,0.75]],sheen:0.2,
+    nb:0.9,sep:0.15,ali:0.5,coh:0.45,sepW:0.025,mill:0,rheo:1},
+  butterfly:{name:'月斑蝴蝶鱼',n:14,len:[0.13,0.18],spd:[0.15,0.35],h:0.38,w:0.06,tailH:0.14,dorsal:0.12,anal:0.1,
+    col:(x,y,z,f)=>{if(f)return[1,0.72,0.15];if(z>0.24&&z<0.33&&y>-0.15)return[0.04,0.04,0.05];if(z>0.17&&z<=0.24)return[0.97,0.97,0.94];
+      if(z<-0.22&&z>-0.34&&y>0.0)return[0.05,0.05,0.06];return mixc([1,0.85,0.25],[0.95,0.7,0.15],sstep(-0.2,0.3,y));},
+    nb:1.6,sep:0.25,ali:0.3,coh:0.15,sepW:0.02,mill:0,rheo:0},
+  clown:{name:'眼斑双锯鱼（小丑鱼）',n:10,len:[0.07,0.1],spd:[0.08,0.3],h:0.3,w:0.12,tailH:0.13,dorsal:0.07,anal:0.06,
+    col:(x,y,z,f)=>{const bands=[0.24,0.0,-0.3],wd=[0.04,0.05,0.03];
+      for(let k=0;k<3;k++){const d=Math.abs(z-bands[k]);if(d<wd[k])return[0.98,0.98,0.96];if(d<wd[k]+0.015)return[0.04,0.04,0.04];}
+      return f?[1,0.45,0.08]:[1,0.42,0.06];},
+    nb:0.5,sep:0.08,ali:0.1,coh:0.1,sepW:0.01,mill:0,rheo:0,wander:1.2},
+  snapper:{name:'四线笛鲷',n:45,len:[0.2,0.28],spd:[0.25,0.55],h:0.24,w:0.09,tailH:0.13,dorsal:0.07,anal:0.05,
+    col:(x,y,z,f)=>{if(f)return[1,0.85,0.2];const yn=y/0.24;for(const b of[0.42,0.18,-0.06,-0.3]){if(Math.abs(yn-b+z*0.15)<0.045)return[0.25,0.6,1.0];}
+      return yn<-0.45?[0.98,0.95,0.85]:[1,0.82,0.12];},sheen:0.3,
+    nb:1.2,sep:0.3,ali:0.6,coh:0.5,sepW:0.04,mill:0,rheo:1},
+  parrot:{name:'蓝点鹦嘴鱼',n:7,len:[0.4,0.6],spd:[0.2,0.45],h:0.3,w:0.13,tailH:0.15,dorsal:0.05,anal:0.04,
+    col:(x,y,z,f)=>{if(f)return[0.95,0.45,0.6];if(z>0.38)return[0.2,0.75,0.85];const sc=Math.sin(z*40)*Math.sin(y*45)>0.45;
+      return sc?[0.95,0.5,0.6]:mixc([0.35,0.85,0.75],[0.15,0.55,0.75],sstep(-0.2,0.3,y/0.3));},
+    nb:2.5,sep:0.6,ali:0.2,coh:0.05,sepW:0.05,mill:0,rheo:0,wander:0.4},
+  rockfish:{name:'蓝平鲉',n:26,len:[0.25,0.38],spd:[0.2,0.5],h:0.26,w:0.11,tailH:0.13,dorsal:0.09,anal:0.06,
+    col:(x,y,z,f)=>{const mt=0.5+0.5*Math.sin(z*30+y*14)*Math.sin(z*11-y*20);return f?[0.25,0.3,0.4]:mixc(mixc([0.55,0.6,0.68],[0.2,0.25,0.36],sstep(-0.2,0.3,y/0.26)),[0.15,0.18,0.26],mt*0.4);},
+    nb:1.5,sep:0.45,ali:0.4,coh:0.15,sepW:0.05,mill:0,rheo:1},
+  hammer:{name:'路氏双髻鲨',eye:0.004,n:16,len:[2.4,3.2],spd:[0.6,1.1],h:0.1,w:0.1,tailH:0.2,dorsal:0.17,anal:0.04,
+    col:(x,y,z,f)=>f?[0.4,0.43,0.46]:mixc([0.92,0.92,0.9],[0.42,0.45,0.48],sstep(-0.04,0.03,y)),
+    extra:(acc,ex0)=>{addGeo(acc,new THREE.SphereGeometry(1,18,8),M4(0,0.006,0.46,0,0,0,0.17,0.016,0.045),(x,y)=>y<0?[0.85,0.85,0.84]:[0.42,0.45,0.48],ex0);
+      for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(0.011,6,4),M4(sg*0.168,0.006,0.462),()=>[0.02,0.02,0.02],ex0);
+        addGeo(acc,triGeo([sg*0.08,-0.05,0.18, sg*0.24,-0.09,0.02, sg*0.08,-0.05,0.06]),null,()=>[0.42,0.45,0.48],ex0);}},
+    nb:7,sep:2.2,ali:0.6,coh:0.2,sepW:0.6,mill:0.35,rheo:0},
+  hatchet:{name:'银斧鱼',n:60,len:[0.04,0.07],spd:[0.1,0.3],h:0.42,w:0.035,tailH:0.1,dorsal:0.05,anal:0.05,
+    col:(x,y,z,f)=>f?[0.6,0.65,0.7]:mixc([0.92,0.94,0.97],[0.25,0.28,0.35],sstep(0.1,0.3,y/0.42)),sheen:1.0,
+    glow:(x,y,z)=>(y<-0.42*0.62&&(((z+0.5)*16)%1)<0.45&&z<0.3&&z>-0.3)?1:0,
+    nb:0.8,sep:0.15,ali:0.5,coh:0.3,sepW:0.02,mill:0,rheo:0},
+  snail:{name:'马里亚纳狮子鱼',n:14,len:[0.2,0.28],spd:[0.04,0.16],h:0.22,w:0.13,tailH:0.05,dorsal:0.03,anal:0.03,
+    col:(x,y,z,f)=>f?[0.95,0.85,0.85]:mixc([0.98,0.78,0.8],[0.93,0.86,0.86],sstep(-0.1,0.2,y/0.22)),
+    nb:1.5,sep:0.4,ali:0.1,coh:0.05,sepW:0.03,mill:0,rheo:0,wander:0.15},
+  baitfish:{name:'小型饵鱼',n:200,len:[0.06,0.09],spd:[0.5,1.0],h:0.16,w:0.05,tailH:0.1,dorsal:0.03,anal:0.02,
+    col:(x,y,z,f)=>f?[0.75,0.8,0.85]:mixc([0.95,0.96,0.98],[0.45,0.6,0.7],sstep(0.0,0.1,y)),sheen:1.4,
+    nb:0.6,sep:0.1,ali:1.5,coh:0.7,sepW:0.02,mill:0.9,rheo:0},
+  jack:{name:'鲹',n:9,len:[0.6,0.9],spd:[0.6,1.2],h:0.3,w:0.1,tailH:0.2,dorsal:0.08,anal:0.06,
+    col:(x,y,z,f)=>f?[0.4,0.5,0.6]:mixc([0.9,0.92,0.94],[0.35,0.45,0.55],sstep(-0.02,0.12,y/0.3)),sheen:1.0,
+    nb:3,sep:1.0,ali:0.7,coh:0.3,sepW:0.2,mill:0.4,rheo:0},
+  lionfish:{name:'魔鬼蓑鲉',n:4,len:[0.25,0.32],spd:[0.02,0.08],h:0.3,w:0.1,tailH:0.13,dorsal:0.25,anal:0.12,
+    col:(x,y,z,f)=>{const st=Math.sin(z*48+y*9)>0.1;return f?(st?[0.85,0.25,0.18]:[0.97,0.92,0.88]):(st?[0.75,0.22,0.15]:[0.97,0.9,0.85]);},
+    extra:(acc,ex0)=>{for(const sg of[1,-1])for(let k=0;k<6;k++)addGeo(acc,new THREE.CylinderGeometry(0.004,0.002,0.32,3),M4(sg*(0.08+k*0.01),-0.02,0.18-k*0.05,0.6,0,sg*(1.0+k*0.08)),()=>k%2?[0.95,0.9,0.85]:[0.8,0.25,0.18],ex0);},
+    nb:1.5,sep:0.5,ali:0.05,coh:0.02,sepW:0.03,mill:0,rheo:0,wander:0.08},
+  redfish:{name:'挪威平鲉',eye:0.05,n:22,len:[0.35,0.5],spd:[0.05,0.2],h:0.27,w:0.12,tailH:0.13,dorsal:0.11,anal:0.06,
+    col:(x,y,z,f)=>f?[0.95,0.3,0.15]:mixc([0.98,0.55,0.35],[0.9,0.22,0.12],sstep(-0.2,0.3,y/0.27)),sheen:0.2,
+    nb:2,sep:0.7,ali:0.08,coh:0.04,sepW:0.05,mill:0,rheo:1,wander:0.12},
+  lantern:{name:'灯笼鱼',n:70,len:[0.06,0.1],spd:[0.15,0.4],h:0.18,w:0.08,tailH:0.12,dorsal:0.05,anal:0.04,
+    col:(x,y,z,f)=>f?[0.15,0.15,0.18]:mixc([0.45,0.47,0.5],[0.08,0.08,0.1],sstep(-0.2,0.3,y/0.18)),
+    glow:(x,y,z)=>{if(y<-0.18*0.45&&Math.abs(x)>0.02&&(((z+0.5)*13)%1)<0.38&&z<0.3&&z>-0.38)return 1;if(z>0.38&&y<0&&Math.abs(x)>0.04)return 0.8;return 0;},
+    nb:1.2,sep:0.2,ali:0.4,coh:0.25,sepW:0.02,mill:0,rheo:0}
+};
+const fishMats={};
+for(const key in FISH){
+  const sp=FISH[key];const geo=buildFishGeo(sp);
+  const ph=new Float32Array(sp.n);geo.setAttribute('aPhase',new THREE.InstancedBufferAttribute(ph,1));
+  const mat=waterify(lambert({side:THREE.DoubleSide}),'fish_'+key,{
+    vHead:'attribute float aPhase;'+(sp.glow?'attribute float aGlow; varying float vGlow;':''),
+    vBegin:'float bt=clamp(0.15-position.z,0.0,1.0); transformed.x+=sin(aPhase-position.z*4.0)*0.22*bt*bt;'+(sp.glow?'vGlow=aGlow;':''),
+    fHead:sp.glow?'varying float vGlow;':'',
+    lit:sp.sheen?`gl_FragColor.rgb+=${sp.sheen.toFixed(2)}*pow(max(dot(reflect(vdir,nrmW),uSunDir),0.0),5.0)*uDay*diffuseColor.rgb;`:'',
+    emit:sp.glow?'emit+=vec3(0.15,0.55,1.0)*vGlow*(1.6+0.8*sin(uTime*2.3+vWPos.x*7.0+vWPos.z*5.0));':''
+  });
+  const mesh=new THREE.InstancedMesh(geo,mat,sp.n);mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const c=new THREE.Color();
+  for(let i=0;i<sp.n;i++){const t=sp.tint?sp.tint[i%sp.tint.length]:[1,1,1],k=R(0.88,1.08);mesh.setColorAt(i,c.setRGB(t[0]*k,t[1]*k,t[2]*k));}
+  mesh.count=0;scene.add(mesh);
+  sp.mesh=mesh;sp.ph=ph;sp.p=new Float32Array(sp.n*3);sp.v=new Float32Array(sp.n*3);sp.L=new Float32Array(sp.n);sp.active=false;sp.box=null;sp.homes=null;
+  for(let i=0;i<sp.n;i++){sp.L[i]=R(sp.len[0],sp.len[1]);ph[i]=rnd()*6.28;}
+}
+function setSchool(sp,on,box,homes){
+  const was=sp.active;sp.active=on;sp.mesh.count=on?sp.n:0;sp.box=box;sp.homes=homes||null;
+  if(on&&(!was||sp.forceRespawn)){
+    for(let i=0;i<sp.n;i++){const o=i*3;
+      if(homes){const h=homes[i%homes.length];sp.p[o]=h.x+R(-0.2,0.2);sp.p[o+1]=h.y+R(0,0.2);sp.p[o+2]=h.z+R(-0.2,0.2);}
+      else{sp.p[o]=box.cx+R(-1,1)*box.rx;sp.p[o+1]=box.cy+R(-1,1)*box.ry;sp.p[o+2]=box.cz+R(-1,1)*box.rz;}
+      const a=rnd()*6.28;sp.v[o]=Math.cos(a)*sp.spd[0];sp.v[o+1]=0;sp.v[o+2]=Math.sin(a)*sp.spd[0];}
+  }
+  sp.forceRespawn=false;
+}
+function stepSchool(sp,dt,t){
+  if(!sp.active)return;
+  if(DIVE.on&&!sp.homes&&sp.box)relocateBox(sp.box,sp.p,sp.n,sp.zr);
+  const n=sp.n,p=sp.p,v=sp.v,B=sp.box,nb2=sp.nb*sp.nb,sep2=sp.sep*sp.sep,fy=-S.D;
+  const vmin=sp.spd[0],vmax=sp.spd[1];
+  for(let i=0;i<n;i++){
+    const ix=i*3;let ax=0,ay=0,az=0,cx=0,cy=0,cz=0,sx=0,sy=0,sz=0,cnt=0;
+    if(sp.ali>0||sp.coh>0)for(let j=0;j<n;j++){if(j===i)continue;const jx=j*3;
+      const dx=p[jx]-p[ix],dy=p[jx+1]-p[ix+1],dz=p[jx+2]-p[ix+2],d2=dx*dx+dy*dy+dz*dz;
+      if(d2<nb2){cnt++;ax+=v[jx];ay+=v[jx+1];az+=v[jx+2];cx+=dx;cy+=dy;cz+=dz;if(d2<sep2){const k=1/(d2+0.004);sx-=dx*k;sy-=dy*k;sz-=dz*k;}}}
+    let gx=0,gy=0,gz=0;
+    if(cnt){gx+=(ax/cnt-v[ix])*sp.ali+cx/cnt*sp.coh;gy+=(ay/cnt-v[ix+1])*sp.ali+cy/cnt*sp.coh;gz+=(az/cnt-v[ix+2])*sp.ali+cz/cnt*sp.coh;}
+    gx+=sx*sp.sepW;gy+=sy*sp.sepW;gz+=sz*sp.sepW;
+    if(sp.homes){const h=sp.homes[i%sp.homes.length];const dx=h.x-p[ix],dy=h.y-p[ix+1],dz=h.z-p[ix+2],d=Math.hypot(dx,dy,dz);
+      const k=d>0.25?3.5*(d-0.25)/Math.max(d,1e-3)+0.6:0.6;gx+=dx*k;gy+=dy*k;gz+=dz*k;}
+    else{const ex=(p[ix]-B.cx)/B.rx,ey=(p[ix+1]-B.cy)/B.ry,ez=(p[ix+2]-B.cz)/B.rz;
+      if(Math.abs(ex)>1)gx-=Math.sign(ex)*(Math.abs(ex)-1)*2.5;if(Math.abs(ey)>1)gy-=Math.sign(ey)*(Math.abs(ey)-1)*2.5;if(Math.abs(ez)>1)gz-=Math.sign(ez)*(Math.abs(ez)-1)*2.5;
+      if(sp.mill){const dx=p[ix]-B.cx,dz=p[ix+2]-B.cz,d=Math.hypot(dx,dz)||1;gx+=(-dz/d)*sp.mill-dx*0.25;gz+=(dx/d)*sp.mill-dz*0.25;}}
+    if(sp.wander){gx+=Math.sin(t*1.7+i*3.1)*sp.wander;gz+=Math.cos(t*1.3+i*5.7)*sp.wander;gy+=Math.sin(t*2.1+i)*0.3*sp.wander;}
+    if(p[ix+1]<floorY(p[ix],p[ix+2])+0.35)gy+=3;if(p[ix+1]>-0.6)gy-=3;
+    if(sp.rheo&&S.cur>0.05){const k=Math.min(1,S.cur/0.3)*0.5;gx+=(-CUR.x*vmin-v[ix])*k;gz+=(-CUR.z*vmin-v[ix+2])*k;}
+    v[ix]+=gx*dt;v[ix+1]+=gy*dt;v[ix+2]+=gz*dt;v[ix+1]*=0.96;
+    let s=Math.hypot(v[ix],v[ix+1],v[ix+2])||1e-4;const cl=Math.min(vmax,Math.max(vmin,s));v[ix]*=cl/s;v[ix+1]*=cl/s;v[ix+2]*=cl/s;s=cl;
+    orbital(p[ix],p[ix+1],t,_u);
+    p[ix]+=(v[ix]+_u.x*0.7)*dt;p[ix+1]+=(v[ix+1]+_u.y*0.7)*dt;p[ix+2]+=(v[ix+2]+_u.z*0.7)*dt;
+    sp.ph[i]+=2*Math.PI*Math.min(12,s/(0.7*sp.L[i]))*dt;
+    _d.set(v[ix],Math.max(-0.6,Math.min(0.6,v[ix+1]/s))*s,v[ix+2]).normalize();
+    _m.lookAt(_d,ORIGIN,UP);_q.setFromRotationMatrix(_m);_p.set(p[ix],p[ix+1],p[ix+2]);_s.setScalar(sp.L[i]);
+    _m.compose(_p,_q,_s);sp.mesh.setMatrixAt(i,_m);
+  }
+  sp.mesh.instanceMatrix.needsUpdate=true;sp.mesh.geometry.attributes.aPhase.needsUpdate=true;
+}
+
+/* =========================================================
+   11. Manta rays, green sea turtles, anglerfish
+   ========================================================= */
+function mantaGeo(){
+  const acc=Acc();const NU=36,NV=18;
+  const shape=(u,v)=>{const hw=0.5*Math.pow(Math.sin(Math.PI*Math.min(1,v*1.12)),0.75);const x=u*hw;const z=0.32-v*0.62-0.24*Math.pow(Math.abs(u),1.6)*hw*2;const y=0.06*Math.pow(1-u*u,2)*Math.sin(Math.PI*v);return[x,y,z];};
+  for(const side of [1,-1]){
+    const pos=[],idx=[];
+    for(let j=0;j<=NV;j++)for(let i=0;i<=NU;i++){const u=i/NU*2-1,v=j/NV;const[x,y,z]=shape(u,v);pos.push(x,side>0?y:-y*0.5,z);}
+    for(let j=0;j<NV;j++)for(let i=0;i<NU;i++){const a=j*(NU+1)+i,b=a+1,c=a+NU+1,d=c+1;if(side>0)idx.push(a,c,b,b,c,d);else idx.push(a,b,c,b,d,c);}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
+    addGeo(acc,g,null,side>0?(x,y,z)=>{const ax=Math.abs(x);const patch=sstep(0.06,0.0,Math.abs(ax-0.17)-0.06)*sstep(0.06,0.0,Math.abs(z-0.12)-0.05);return mixc([0.1,0.11,0.13],[0.75,0.76,0.78],patch*0.8);}
+      :(x,y,z)=>{const sp=(Math.sin(x*70)*Math.sin(z*60)>0.93&&Math.abs(x)<0.15)?1:0;const edge=sstep(0.38,0.5,Math.abs(x));return mixc(mixc([0.93,0.94,0.95],[0.1,0.1,0.12],sp),[0.2,0.2,0.22],edge*0.8);});
+  }
+  addGeo(acc,new THREE.CylinderGeometry(0.004,0.008,0.32,5),M4(0,0,-0.45,Math.PI/2),()=>[0.1,0.1,0.12]);
+  for(const s of [1,-1])addGeo(acc,new THREE.BoxGeometry(0.02,0.07,0.09),M4(s*0.07,-0.01,0.33,0,0,s*0.3),()=>[0.12,0.12,0.14]);
+  return finishGeo(acc);
+}
+const mantaG=mantaGeo();
+const mantas=[0,1].map(i=>{
+  const mat=waterify(lambert({side:THREE.DoubleSide}),'manta',{uniforms:{uFlap:{value:0}},vHead:'uniform float uFlap;',
+    vBegin:'{ float ax=abs(position.x)*2.0; transformed.y+=0.13*pow(ax,1.6)*sin(uFlap-ax*1.3); }'});
+  const m=new THREE.Mesh(mantaG,mat);m.scale.setScalar(i?3.0:3.8);m.visible=false;scene.add(m);
+  m.userData={R:i?11:8,w:(i?-1:1)*0.09,th:i?2:0,h:i?3.5:5,ph:rnd()*6};
+  m.material.onBeforeCompile=(orig=>sh=>{orig(sh);m.userData.u=sh.uniforms.uFlap;})(m.material.onBeforeCompile);
+  return m;
+});
+let mantaOn=false;
+function stepMantas(dt,t){
+  if(!mantaOn)return;const fy=-S.D;
+  mantas.forEach(m=>{const u=m.userData;u.th+=u.w*dt;
+    const y=(DIVE.on?controls.target.y+u.h-3:Math.min(fy+u.h,-2.0))+0.5*Math.sin(t*0.2+u.ph);
+    m.position.set(Math.cos(u.th)*u.R,y,Math.sin(u.th)*u.R);
+    const hx=-Math.sin(u.th)*Math.sign(u.w),hz=Math.cos(u.th)*Math.sign(u.w);
+    m.rotation.set(0,Math.atan2(hx,hz),0);m.rotateZ(-0.22*Math.sign(u.w));
+    if(m.userData.u)m.userData.u.value=t*2*Math.PI/4.5+u.ph;});
+}
+
+/* green sea turtle (Chelonia mydas) */
+const turtleMat=waterify(lambert(),'turtle',{defines:{CAUSTICS:''}});
+function makeTurtle(){
+  const g=new THREE.Group();
+  const shellAcc=Acc();
+  const sg=new THREE.SphereGeometry(1,28,16);
+  addGeo(shellAcc,sg,M4(0,0,0,0,0,0,0.42,0.15,0.5),(x,y,z)=>{if(y<-0.02)return[0.88,0.82,0.62];
+    const sc=0.5+0.5*Math.sin(x*28)*Math.sin(z*22+Math.sin(x*15));const streak=0.5+0.5*Math.sin(Math.atan2(x,z)*9+Math.hypot(x,z)*18);
+    return mixc(mixc([0.42,0.3,0.14],[0.62,0.48,0.22],streak),[0.2,0.14,0.07],sstep(0.85,1,sc)*0.8);});
+  addGeo(shellAcc,new THREE.SphereGeometry(1,14,10),M4(0,0.01,0.6,0,0,0,0.11,0.09,0.14),(x,y,z)=>(Math.sin(x*90)*Math.sin(z*80)>0.6?[0.85,0.8,0.6]:[0.42,0.38,0.25]));
+  g.add(new THREE.Mesh(finishGeo(shellAcc),turtleMat));
+  const flipAcc=Acc();addGeo(flipAcc,new THREE.SphereGeometry(1,14,8),M4(0.27,0,-0.05,0,0.3,0,0.3,0.025,0.1),(x,y,z)=>(Math.sin(x*60)*Math.sin(z*70)>0.5?[0.8,0.76,0.58]:[0.36,0.32,0.22]));
+  const flipG=finishGeo(flipAcc);
+  const rearAcc=Acc();addGeo(rearAcc,new THREE.SphereGeometry(1,10,6),M4(0.1,0,-0.03,0,0,0,0.12,0.02,0.08),()=>[0.36,0.32,0.22]);const rearG=finishGeo(rearAcc);
+  const pivots=[];
+  for(const s of [1,-1]){
+    const pv=new THREE.Object3D();pv.position.set(s*0.3,-0.02,0.25);const f=new THREE.Mesh(flipG,turtleMat);f.scale.x=s;pv.add(f);g.add(pv);pivots.push(pv);
+    const pr=new THREE.Object3D();pr.position.set(s*0.26,-0.03,-0.38);const r=new THREE.Mesh(rearG,turtleMat);r.scale.x=s;pr.add(r);g.add(pr);pivots.push(pr);
+  }
+  g.userData.pv=pivots;g.visible=false;scene.add(g);return g;
+}
+const turtles=[makeTurtle(),makeTurtle()];
+turtles[0].userData.o={R:7,w:0.06,th:1,h:2.2,ph:0};turtles[1].userData.o={R:10.5,w:-0.045,th:4,h:1.3,ph:2};
+let turtleOn=false;
+function stepTurtles(dt,t){
+  if(!turtleOn)return;const fy=-S.D;
+  turtles.forEach(g=>{const o=g.userData.o;o.th+=o.w*dt;
+    const x=Math.cos(o.th)*o.R+2,z=Math.sin(o.th)*o.R-1,y=Math.min((DIVE.on?controls.target.y+o.h-2:fy+o.h)+0.4*Math.sin(t*0.25+o.ph),-1.5);
+    g.position.set(x,y,z);const hx=-Math.sin(o.th)*Math.sign(o.w),hz=Math.cos(o.th)*Math.sign(o.w);
+    g.rotation.set(0.05*Math.sin(t*0.4+o.ph),Math.atan2(hx,hz),-0.1*Math.sign(o.w));
+    const ph=t*2*Math.PI/3.2+o.ph,pv=g.userData.pv;
+    for(let k=0;k<4;k++){const s=k<2?1:-1,front=k%2===0;
+      if(front){pv[k].rotation.set(0,s*0.35*Math.cos(ph),s*-0.6*Math.sin(ph));}
+      else pv[k].rotation.set(0,s*0.25*Math.sin(ph*0.5),0);}
+  });
+}
+
+/* deep-sea anglerfish (Melanocetus) with glowing esca */
+const anglerGeo=buildFishGeo({h:0.7,w:0.55,tailH:0.16,dorsal:0.05,anal:0.04,col:(x,y,z,f)=>mixc([0.12,0.1,0.1],[0.05,0.04,0.04],sstep(-0.3,0.4,y/0.7))});
+const anglerMat=waterify(lambert({side:THREE.DoubleSide}),'angler');
+const anglers=[0,1,2].map(i=>{const g=new THREE.Group();g.add(new THREE.Mesh(anglerGeo,anglerMat));
+  const st=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.01,0.35,4),anglerMat);st.position.set(0,0.62,0.32);st.rotation.x=0.9;g.add(st);
+  g.scale.setScalar(R(0.16,0.22));g.visible=false;g.userData={a:rnd()*6.28,r:R(1.5,4),h:R(0.6,2),ph:rnd()*6};scene.add(g);return g;});
+let anglerOn=false;
+const lureLocal=new THREE.Vector3(0,0.75,0.45);
+
+/* =========================================================
+   12. Jellyfish & comb jellies (custom translucent shader)
+   ========================================================= */
+const JELLY_V=`
+attribute float aPhase;
+uniform float uTime; uniform float uFreq; uniform float uPulse;
+varying vec3 vWPos; varying vec3 vNrm; varying vec3 vLoc; varying float vPh; varying vec3 vCen;
+void main(){
+  vCen=(modelMatrix*instanceMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;
+  float ph=uTime*uFreq*6.2831853+aPhase;
+  float p=pow(0.5+0.5*sin(ph),3.0)*uPulse;
+  vec3 pos=position; float rim=1.0-clamp(pos.y,0.0,1.0);
+  pos.xz*=1.0-0.2*p*(0.3+0.7*rim); pos.y*=1.0+0.12*p;
+  vLoc=position; vPh=aPhase;
+  vec4 wp=modelMatrix*instanceMatrix*vec4(pos,1.0);
+  vWPos=wp.xyz; vNrm=normalize(mat3(modelMatrix)*mat3(instanceMatrix)*normal);
+  gl_Position=projectionMatrix*viewMatrix*wp;
+}`;
+const JELLY_F=WATER_PARS+`
+uniform float uType; uniform vec3 uCol; uniform vec3 uCol2; uniform vec4 uAlarm;
+varying vec3 vNrm; varying vec3 vLoc; varying float vPh; varying vec3 vCen;
+void main(){
+  vec3 v=vWPos-cameraPosition; float d=length(v); vec3 vd=v/d;
+  vec3 n=normalize(vNrm); float fr=1.0-abs(dot(n,vd));
+  vec3 inc=lightAt(-vWPos.y)*uSky*(0.75+0.5*uDay*max(dot(n,uSunDir),0.0)) + torchAt(vWPos,0.8);
+  float th=atan(vLoc.z,vLoc.x); vec3 col=uCol; float a=0.2; vec3 emit=vec3(0.0);
+  if(uType<0.5){
+    float rr=length(vLoc.xz);
+    float g=smoothstep(0.07,0.0,abs(rr-0.32))*smoothstep(0.25,0.85,cos(4.0*th));
+    col=mix(uCol,uCol2,g); a=0.08+0.5*fr*fr+0.45*g+0.25*smoothstep(0.08,0.0,vLoc.y);
+  } else if(uType<1.5){
+    float stripe=smoothstep(0.55,1.0,cos(th*16.0));
+    col=mix(uCol,uCol2,stripe*smoothstep(0.05,0.6,vLoc.y)); a=0.35+0.5*fr;
+  } else if(uType<2.5){
+    col=uCol*(0.55+0.45*smoothstep(0.3,0.36,vLoc.y)); a=0.6+0.35*fr;
+    float al=exp(-max(uTime-uAlarm.w,0.0)/3.5)*step(uAlarm.w,uTime)*step(length(vCen-uAlarm.xyz),1.0);
+    float on=max(step(0.8,fract(uTime*0.06+vPh*0.159)),step(0.05,al));
+    float spots=pow(max(cos(th*8.0-uTime*7.0*on-vPh),0.0),10.0)*smoothstep(0.28,0.04,vLoc.y);
+    emit=vec3(0.12,0.45,1.0)*spots*(0.35+3.0*on+5.0*al); a=max(a,spots);
+  } else if(uType<3.5){
+    float rows=pow(max(cos(th*8.0),0.0),28.0)*smoothstep(0.95,0.6,abs(vLoc.y));
+    float hue=fract(vLoc.y*1.2-uTime*1.3+th*0.15);
+    col=uCol+hsv2rgb(vec3(hue,0.85,1.0))*rows*3.0; a=0.05+0.3*fr*fr+rows*0.7;
+  } else {
+    float gut=smoothstep(0.3,0.05,length(vLoc.xy*vec2(1.2,1.6)))*step(abs(vLoc.z),0.8);
+    float veil=smoothstep(0.55,0.95,vLoc.z)+smoothstep(-0.9,-0.6,-vLoc.z)*0.0;
+    col=mix(uCol,uCol2,gut); a=0.18+0.45*fr*fr+gut*0.45+veil*0.15;
+  }
+  vec3 T=exp(-uC*d);
+  vec3 outc=(col*inc+emit)*T;
+  a=clamp(a,0.0,1.0)*clamp(T.g*1.4+0.15*step(1.5,uType)*step(uType,2.5),0.0,1.0);
+  gl_FragColor=vec4(outc,a);
+  #include <tonemapping_fragment>
+  #include <encodings_fragment>
+}`;
+const bellGeo=new THREE.SphereGeometry(1,28,14,0,Math.PI*2,0,Math.PI*0.5);
+const combGeo=(()=>{const g=new THREE.SphereGeometry(1,28,18);g.scale(0.62,1,0.62);return g;})();
+const JELLY={
+  moon:{name:'海月水母',type:0,n:12,r:[0.12,0.22],freq:0.8,pulse:1,col:[0.72,0.82,0.95],col2:[0.95,0.45,0.78],geo:bellGeo},
+  nettle:{name:'太平洋金黄水母',type:1,n:7,r:[0.17,0.27],freq:0.55,pulse:1,col:[0.98,0.62,0.22],col2:[0.55,0.15,0.06],geo:bellGeo,
+    tent:[{k:8,len:2.4,seg:14,col:[0.9,0.55,0.25],w:0.95},{k:4,len:1.2,seg:10,col:[0.98,0.85,0.7],w:0.35}]},
+  atolla:{name:'冠水母',type:2,n:7,r:[0.06,0.1],freq:0.45,pulse:1,col:[0.55,0.03,0.04],col2:[0,0,0],geo:bellGeo,tent:[{k:1,len:0.9,seg:14,col:[0.5,0.05,0.05],w:0.9}]},
+  cucumber:{name:'游泳海参',type:4,n:6,r:[0.12,0.2],freq:0.2,pulse:0,col:[0.98,0.4,0.48],col2:[0.45,0.06,0.1],geo:(()=>{const g=new THREE.SphereGeometry(1,24,14);g.scale(0.5,0.42,1);return g;})()},
+  comb:{name:'栉水母',type:3,n:10,r:[0.04,0.08],freq:0.2,pulse:0,col:[0.06,0.07,0.09],col2:[0,0,0],geo:combGeo}
+};
+for(const key in JELLY){
+  const J=JELLY[key];const ph=new Float32Array(J.n);for(let i=0;i<J.n;i++)ph[i]=rnd()*6.28;
+  const geo=J.geo.clone();geo.setAttribute('aPhase',new THREE.InstancedBufferAttribute(ph,1));
+  const mat=new THREE.ShaderMaterial({uniforms:Object.assign({},U,{uType:{value:J.type},uFreq:{value:J.freq},uPulse:{value:J.pulse},
+      uCol:{value:new THREE.Vector3(...J.col)},uCol2:{value:new THREE.Vector3(...J.col2)},uAlarm:{value:new THREE.Vector4(0,0,0,-99)}}),
+    vertexShader:JELLY_V,fragmentShader:JELLY_F,transparent:true,depthWrite:false,side:THREE.DoubleSide});
+  const mesh=new THREE.InstancedMesh(geo,mat,J.n);mesh.frustumCulled=false;mesh.count=0;mesh.renderOrder=2;scene.add(mesh);
+  Object.assign(J,{mesh,ph,p:new Float32Array(J.n*3),v:new Float32Array(J.n*3),R:new Float32Array(J.n),rot:new Float32Array(J.n),active:false});
+  for(let i=0;i<J.n;i++){J.R[i]=R(J.r[0],J.r[1]);J.rot[i]=rnd()*6.28;}
+  if(J.tent){
+    let pts=0;J.tent.forEach(tc=>pts+=tc.k*tc.seg);pts*=J.n;
+    const pos=new Float32Array(pts*3),prev=new Float32Array(pts*3),tt=new Float32Array(pts),col=new Float32Array(pts*3),idx=[];
+    let q=0;for(let i=0;i<J.n;i++)J.tent.forEach(tc=>{for(let k=0;k<tc.k;k++){for(let s=0;s<tc.seg;s++){tt[q]=s/(tc.seg-1);col[q*3]=tc.col[0];col[q*3+1]=tc.col[1];col[q*3+2]=tc.col[2];if(s>0)idx.push(q-1,q);q++;}}});
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('aT',new THREE.BufferAttribute(tt,1));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.setIndex(idx);
+    const lm=new THREE.ShaderMaterial({uniforms:U,transparent:true,depthWrite:false,vertexColors:true,
+      vertexShader:'attribute float aT; varying float vT; varying vec3 vWPos; varying vec3 vCol; void main(){ vT=aT; vCol=color; vWPos=position; gl_Position=projectionMatrix*viewMatrix*vec4(position,1.0);} ',
+      fragmentShader:WATER_PARS+`varying float vT; varying vec3 vCol;
+        void main(){ float d=length(vWPos-cameraPosition); vec3 inc=lightAt(-vWPos.y)*uSky+torchAt(vWPos,0.7);
+          gl_FragColor=vec4(vCol*inc*exp(-uC*d),(1.0-vT)*0.7*clamp(exp(-uC.g*d)*1.4,0.0,1.0));
+          #include <tonemapping_fragment>
+          #include <encodings_fragment>
+        }`});
+    const lines=new THREE.LineSegments(g,lm);lines.frustumCulled=false;lines.visible=false;lines.renderOrder=1;scene.add(lines);
+    Object.assign(J,{lines,tpos:pos,tprev:prev});
+  }
+}
+function setJelly(J,on,box){
+  const was=J.active;J.active=on;J.mesh.count=on?J.n:0;J.box=box;if(J.lines)J.lines.visible=on;
+  if(on&&!was){for(let i=0;i<J.n;i++){const o=i*3;J.p[o]=box.cx+R(-1,1)*box.rx;J.p[o+1]=box.cy+R(-1,1)*box.ry;J.p[o+2]=box.cz+R(-1,1)*box.rz;J.v[o]=J.v[o+1]=J.v[o+2]=0;}
+    if(J.lines)initTentacles(J);}
+}
+function initTentacles(J){
+  let q=0;for(let i=0;i<J.n;i++){const o=i*3;J.tent.forEach(tc=>{for(let k=0;k<tc.k;k++)for(let s=0;s<tc.seg;s++){
+    J.tpos[q*3]=J.tprev[q*3]=J.p[o];J.tpos[q*3+1]=J.tprev[q*3+1]=J.p[o+1]-s*tc.len/tc.seg;J.tpos[q*3+2]=J.tprev[q*3+2]=J.p[o+2];q++;}});}
+}
+function stepJelly(J,dt,t){
+  if(!J.active)return;if(DIVE.on&&relocateBox(J.box,J.p,J.n,J.zr))J.resetT=true;const B=J.box,fy=-S.D,c=camera.position;
+  for(let i=0;i<J.n;i++){
+    const o=i*3,ph=t*J.freq*2*Math.PI+J.ph[i],pulse=Math.pow(0.5+0.5*Math.sin(ph),3)*J.pulse,dp=Math.cos(ph);
+    if(J.pulse&&dp>0)J.v[o+1]+=pulse*0.6*dt*(J.R[i]/0.15);
+    J.v[o+1]-=0.012*dt;J.v[o]*=0.98;J.v[o+1]*=0.97;J.v[o+2]*=0.98;
+    if(J.p[o+1]<fy+0.8)J.v[o+1]+=0.2*dt;if(J.p[o+1]>Math.min(-0.8,B.cy+B.ry))J.v[o+1]-=0.2*dt;
+    orbital(J.p[o],J.p[o+1],t,_u);
+    J.p[o]+=(J.v[o]+_u.x)*dt;J.p[o+1]+=(J.v[o+1]+_u.y)*dt;J.p[o+2]+=(J.v[o+2]+_u.z)*dt;
+    for(const[k,cc,r]of[[0,c.x,B.rx],[2,c.z,B.rz]]){const d=J.p[o+k]-cc;if(d>r){J.p[o+k]-=2*r;J.resetT=true;}else if(d<-r){J.p[o+k]+=2*r;J.resetT=true;}}
+    J.rot[i]+=dt*0.1;
+    _q.setFromEuler(_e.set(0.15*Math.sin(t*0.3+J.ph[i]),J.rot[i],0.15*Math.cos(t*0.27+J.ph[i])));_p.set(J.p[o],J.p[o+1],J.p[o+2]);_s.setScalar(J.R[i]);
+    _m.compose(_p,_q,_s);J.mesh.setMatrixAt(i,_m);
+  }
+  J.mesh.instanceMatrix.needsUpdate=true;
+  if(J.lines){if(J.resetT){initTentacles(J);J.resetT=false;}stepTentacles(J,dt,t);}
+}
+function stepTentacles(J,dt,t){
+  const P=J.tpos,Q=J.tprev;let q=0;
+  for(let i=0;i<J.n;i++){const o=i*3,r=J.R[i];
+    const ph=t*J.freq*2*Math.PI+J.ph[i],cont=1-0.2*Math.pow(0.5+0.5*Math.sin(ph),3);
+    J.tent.forEach(tc=>{const sl=tc.len/tc.seg;
+      for(let k=0;k<tc.k;k++){const a=k/tc.k*Math.PI*2+J.rot[i];const rr=r*tc.w*cont;
+        const rx=J.p[o]+Math.cos(a)*rr,ry=J.p[o+1]-r*0.05,rz=J.p[o+2]+Math.sin(a)*rr;
+        P[q*3]=rx;P[q*3+1]=ry;P[q*3+2]=rz;Q[q*3]=rx;Q[q*3+1]=ry;Q[q*3+2]=rz;
+        for(let s=1;s<tc.seg;s++){const z=(q+s)*3;orbital(P[z],P[z+1],t,_u);
+          const px=P[z],py=P[z+1],pz=P[z+2];
+          P[z]+=(px-Q[z])*0.9+(_u.x*0.5+0.02*Math.sin(t*1.3+s*0.7+k))*dt;P[z+1]+=(py-Q[z+1])*0.9-0.05*dt;P[z+2]+=(pz-Q[z+2])*0.9+(_u.z*0.5+0.02*Math.cos(t*1.1+s*0.6+k))*dt;
+          Q[z]=px;Q[z+1]=py;Q[z+2]=pz;}
+        for(let it=0;it<2;it++)for(let s=1;s<tc.seg;s++){const a0=(q+s-1)*3,b0=(q+s)*3;
+          const dx=P[b0]-P[a0],dy=P[b0+1]-P[a0+1],dz=P[b0+2]-P[a0+2],l=Math.hypot(dx,dy,dz)||1e-6,f=(l-sl)/l;
+          P[b0]-=dx*f;P[b0+1]-=dy*f;P[b0+2]-=dz*f;}
+        q+=tc.seg;}
+    });
+  }
+  J.lines.geometry.attributes.position.needsUpdate=true;
+}
+
+/* =========================================================
+   13. Particles: marine snow, bubbles, bioluminescent flashes, sea sparkle, lure glow
+   ========================================================= */
+function pointsMat(frag,blending){
+  return new THREE.ShaderMaterial({uniforms:U,transparent:true,depthWrite:false,blending:blending||THREE.NormalBlending,
+    vertexShader:'attribute float aSize; attribute float aSeed; varying vec3 vWPos; varying float vSeed; uniform float uScale; void main(){ vec4 wp=modelMatrix*vec4(position,1.0); vWPos=wp.xyz; vSeed=aSeed; vec4 mv=viewMatrix*wp; gl_Position=projectionMatrix*mv; gl_PointSize=clamp(aSize*uScale/max(-mv.z,0.01),0.0,80.0);} ',
+    fragmentShader:WATER_PARS+'varying float vSeed;\n'+frag+'\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}'});
+}
+function makePoints(n,frag,blend){
+  const pos=new Float32Array(n*3),size=new Float32Array(n),sd=new Float32Array(n);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('aSize',new THREE.BufferAttribute(size,1));g.setAttribute('aSeed',new THREE.BufferAttribute(sd,1));
+  const pts=new THREE.Points(g,pointsMat(frag,blend));pts.frustumCulled=false;scene.add(pts);return{pts,pos,size,sd,g};
+}
+/* marine snow (lit by sun and by the torch: backscatter) */
+const NS=2400,snow=makePoints(NS,`void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  vec3 tE=torchAt(vWPos,1.0)*5.0;
+  vec3 c=waterPath(vec3(0.9,0.88,0.8),vWPos)+vec3(0.9,0.88,0.8)*tE*exp(-uC*length(vWPos-cameraPosition));
+  gl_FragColor=vec4(c,(1.0-r)*0.75);`);
+for(let i=0;i<NS;i++){snow.pos[i*3]=R(-10,10);snow.pos[i*3+1]=-10+R(0,20);snow.pos[i*3+2]=R(-10,10);snow.size[i]=0.004+rnd()*rnd()*0.016;snow.sd[i]=rnd();}
+function stepSnow(dt,t){const c=camera.position,P=snow.pos;
+  for(let i=0;i<NS;i++){const o=i*3;orbital(P[o],P[o+1],t,_u);
+    P[o]+=_u.x*dt;P[o+1]+=(_u.y-0.0009)*dt;P[o+2]+=(_u.z+Math.sin(t*0.3+snow.sd[i]*40)*0.004)*dt;
+    for(let k=0;k<3;k++){const d=P[o+k]-c.getComponent(k);if(d>10)P[o+k]-=20;else if(d<-10)P[o+k]+=20;}}
+  snow.g.attributes.position.needsUpdate=true;}
+
+/* bubbles: diver exhalation (shallow) or methane seep (Haima) — display size x3 */
+const NB=360,bub=makePoints(NB,`void main(){ vec2 c=gl_PointCoord-0.5; float r=length(c)*2.0; if(r>1.0) discard;
+  float rim=smoothstep(0.55,0.92,r)*(1.0-smoothstep(0.92,1.0,r)); float hl=smoothstep(0.32,0.0,length(c-vec2(-0.16,-0.16)));
+  vec3 tE=torchAt(vWPos,1.0)*2.0;
+  gl_FragColor=vec4(waterPath(vec3(1.4),vWPos)+vec3(1.4)*tE*exp(-uC*length(vWPos-cameraPosition)),clamp(rim*0.9+hl*0.9+0.06,0.0,1.0));`);
+const bubbles=[];for(let i=0;i<NB;i++)bubbles.push({on:false});
+let breathT=0,seepAcc=0,diverOn=false;
+function emitBubble(x,y,z,rmin,rmax){const b=bubbles.find(b=>!b.on);if(!b)return;b.on=true;b.x=x;b.y=y;b.z=z;b.r0=Math.exp(Math.log(rmin)+rnd()*(Math.log(rmax)-Math.log(rmin)));b.ph=rnd()*6.28;b.P0=pressure(-y);b.stuck=0;}
+function stepBubbles(dt,t){
+  if(diverOn){breathT+=dt;if(breathT>4.5){breathT=0;
+    playBreath();const c=camera.position;_d.copy(U.uCamDir.value).setY(0).normalize();
+    for(let i=0;i<26;i++)emitBubble(c.x+_d.x*1.4+R(-0.12,0.12),c.y-0.5+R(-0.05,0.05),c.z+_d.z*1.4+R(-0.12,0.12),5e-4,5e-3);}}
+  if(S.seep&&S.D>=800){seepAcc+=dt*16;while(seepAcc>=1){seepAcc--;emitBubble(SEEP.x+R(-0.2,0.2),floorY(SEEP.x,SEEP.z)+0.03,SEEP.z+R(-0.2,0.2),1.5e-3,4e-3);}}
+  const top=ICE.on?-ICE.h-0.03:Math.min(-0.05,camera.position.y+25);
+  for(let i=0;i<NB;i++){const b=bubbles[i];
+    if(b.on){const r=b.r0*Math.cbrt(b.P0/pressure(-b.y)),v=riseSpeed(r);orbital(b.x,b.y,t,_u);
+      const wob=r>9e-4?Math.min(1,(r-9e-4)/2e-3)*0.06:0;b.ph+=dt*2*Math.PI*6;
+      if(ICE.on&&b.y>=top){b.y=top;b.stuck=(b.stuck||0)+dt;if(b.stuck>25){b.on=false;b.stuck=0;}}else{b.y+=(v+_u.y)*dt;b.x+=(_u.x+Math.cos(b.ph)*wob)*dt;b.z+=(_u.z+Math.sin(b.ph)*wob)*dt;if(b.y>top){if(ICE.on){b.y=top;b.stuck=0.001;}else b.on=false;}}
+      bub.pos[i*3]=b.x;bub.pos[i*3+1]=b.y;bub.pos[i*3+2]=b.z;bub.size[i]=b.on?2*r*3:0;}else bub.size[i]=0;}
+  bub.g.attributes.position.needsUpdate=true;bub.g.attributes.aSize.needsUpdate=true;
+}
+
+/* sparks: one pool for sea sparkle (dinoflagellates) + deep-sea flashes; own-light, only beam attenuation applies */
+const NK2=1400,spark=makePoints(NK2,`varying float vA; void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  float d=length(vWPos-cameraPosition);
+  gl_FragColor=vec4(vec3(0.15,0.55,1.0)*vA*exp(-uC*d)*(1.0-r)*(1.0-r)*3.0,1.0);`,THREE.AdditiveBlending);
+spark.pts.material.vertexShader=spark.pts.material.vertexShader.replace('attribute float aSeed;','attribute float aSeed; varying float vA;').replace('vSeed=aSeed;','vSeed=aSeed; vA=aSeed;');
+spark.pts.material.fragmentShader=spark.pts.material.fragmentShader.replace('varying float vA;','').replace('varying float vSeed;','varying float vSeed; varying float vA;');
+const sparkAge=new Float32Array(NK2).fill(99),sparkLife=new Float32Array(NK2);let sparkNext=0;
+function emitSpark(x,y,z,life,size){const i=sparkNext;sparkNext=(sparkNext+1)%NK2;spark.pos[i*3]=x;spark.pos[i*3+1]=y;spark.pos[i*3+2]=z;sparkAge[i]=0;sparkLife[i]=life;spark.size[i]=size;}
+let sparkleOn=false,deepFlashOn=false;
+function stepSparks(dt,t){
+  if(sparkleOn){
+    for(const key in FISH){const sp=FISH[key];if(!sp.active)continue;const k=sp.n*dt*(key==='sardine'?1.2:3);
+      for(let e=0;e<k||rnd()<k-e;e++){const i=Math.floor(rnd()*sp.n)*3;emitSpark(sp.p[i]+R(-0.08,0.08),sp.p[i+1]+R(-0.05,0.05),sp.p[i+2]+R(-0.08,0.08),R(0.4,1.1),R(0.015,0.03));if(e>40)break;}}
+    for(const key in JELLY){const J=JELLY[key];if(!J.active)continue;if(rnd()<dt*J.n*2){const i=Math.floor(rnd()*J.n)*3;emitSpark(J.p[i]+R(-0.2,0.2),J.p[i+1]-R(0,0.3),J.p[i+2]+R(-0.2,0.2),R(0.5,1),0.02);}}
+    if(turtleOn)turtles.forEach(g=>{for(let e=0;e<3;e++)emitSpark(g.position.x+R(-0.5,0.5),g.position.y+R(-0.2,0.1),g.position.z+R(-0.5,0.5),R(0.5,1.2),R(0.02,0.035));});
+    if(mantaOn)mantas.forEach(m=>{for(let e=0;e<6;e++)emitSpark(m.position.x+R(-1.6,1.6),m.position.y+R(-0.3,0.3),m.position.z+R(-1.6,1.6),R(0.5,1.2),R(0.02,0.04));});
+    const c=camera.position;for(let e=0;e<4;e++)emitSpark(c.x+R(-6,6),c.y+R(-4,3),c.z+R(-6,6),R(0.3,0.8),R(0.012,0.025));
+  }
+  if(DIVE.on&&DIVE.play&&camZ()>200){const c=camera.position,k=Math.min(80,8+diveSpeed()*0.6)*dt;
+    for(let e=0;e<k||rnd()<k-e;e++){const a=rnd()*6.28,r=R(1,5);emitSpark(c.x+Math.cos(a)*r,c.y+R(-3,1),c.z+Math.sin(a)*r,R(0.3,1.0),R(0.012,0.03));if(e>30)break;}}
+  if(deepFlashOn){const c=camera.position;for(let e=0;e<3;e++)if(rnd()<dt*16)emitSpark(c.x+R(-12,12),c.y+R(-6,6),c.z+R(-12,12),R(0.6,2.2),R(0.03,0.07));}
+  for(let i=0;i<NK2;i++){sparkAge[i]+=dt;const a=sparkAge[i],L=sparkLife[i];
+    spark.sd[i]=a<L?Math.min(1,a/0.06)*Math.exp(-a/(L*0.35)):0;}
+  spark.g.attributes.position.needsUpdate=true;spark.g.attributes.aSeed.needsUpdate=true;spark.g.attributes.aSize.needsUpdate=true;
+}
+/* angler lures */
+const lure=makePoints(3,`void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  float d=length(vWPos-cameraPosition); float pul=0.75+0.25*sin(uTime*1.7+vSeed*20.0);
+  gl_FragColor=vec4(vec3(0.35,0.85,1.0)*exp(-uC*d)*pow(1.0-r,2.0)*1.6*pul,1.0);`,THREE.AdditiveBlending);
+for(let i=0;i<3;i++){lure.size[i]=0;lure.sd[i]=rnd();}
+function stepAnglers(dt,t){
+  if(!anglerOn)return;const fy=-S.D;
+  anglers.forEach((g,i)=>{const u=g.userData;u.a+=dt*0.04;
+    if(DIVE.on){const ty=controls.target.y;if(u.by===undefined||Math.abs(u.by-ty)>30)u.by=ty+(u.by!==undefined&&u.by>ty?-12:R(-4,1));
+      g.position.set(controls.target.x+Math.cos(u.a)*u.r*2,u.by+0.3*Math.sin(t*0.3+u.ph),controls.target.z+Math.sin(u.a)*u.r*2);}
+    else g.position.set(Math.cos(u.a)*u.r+1,fy+u.h+0.15*Math.sin(t*0.3+u.ph),Math.sin(u.a)*u.r+1);
+    g.rotation.set(0,-u.a,0.05*Math.sin(t*0.5+u.ph));
+    _p.copy(lureLocal).applyMatrix4(g.matrixWorld);lure.pos[i*3]=_p.x;lure.pos[i*3+1]=_p.y;lure.pos[i*3+2]=_p.z;lure.size[i]=0.12;});
+  lure.g.attributes.position.needsUpdate=true;lure.g.attributes.aSize.needsUpdate=true;
+}
+
+/* =========================================================
+   14. God rays (light shafts): visible because of particle scattering
+   ========================================================= */
+const NR=18;
+const rayGeo=new THREE.PlaneGeometry(1,1,1,8);rayGeo.translate(0,-0.5,0);
+const raySeed=new Float32Array(NR);for(let i=0;i<NR;i++)raySeed[i]=rnd();
+rayGeo.setAttribute('aSeed',new THREE.InstancedBufferAttribute(raySeed,1));
+const rayMat=new THREE.ShaderMaterial({uniforms:U,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
+  vertexShader:'attribute float aSeed; varying vec2 vUv; varying float vSeed; varying vec3 vWPos; void main(){ vUv=uv; vSeed=aSeed; vec4 wp=modelMatrix*instanceMatrix*vec4(position,1.0); vWPos=wp.xyz; gl_Position=projectionMatrix*viewMatrix*wp; }',
+  fragmentShader:WATER_PARS+`uniform float uShaft; varying vec2 vUv; varying float vSeed;
+    void main(){ float e=pow(sin(3.14159*vUv.x),4.0);
+      float fl=0.5+0.5*sin(uTime*(0.5+vSeed*0.7)+vSeed*40.0+vUv.y*2.0);
+      float d=length(vWPos-cameraPosition);
+      float near=smoothstep(1.0,6.0,d);
+      vec3 col=lightAt(-vWPos.y)*uShaft*e*fl*near*smoothstep(0.0,0.15,vUv.y)*exp(-uC*d);
+      gl_FragColor=vec4(col,1.0);
+      #include <tonemapping_fragment>
+      #include <encodings_fragment>
+    }`});
+const rays=new THREE.InstancedMesh(rayGeo,rayMat,NR);rays.frustumCulled=false;rays.renderOrder=3;scene.add(rays);
+const rayX=new Float32Array(NR),rayZ=new Float32Array(NR),rayW=new Float32Array(NR);
+for(let i=0;i<NR;i++){rayX[i]=R(-1,1);rayZ[i]=R(-1,1);rayW[i]=R(0.6,2.6);}
+let rayRange=14;
+const _ax=new THREE.Vector3(),_side=new THREE.Vector3(),_fw=new THREE.Vector3(),_rm=new THREE.Matrix4();
+function stepRays(dt,t){
+  if(!rays.visible)return;const sd=OPT.sunDir,c=camera.position,camD=-c.y;
+  const len=DIVE.on?Math.min(camD+40,170):Math.min(S.D,70)+4;
+  for(let i=0;i<NR;i++){
+    rayX[i]+=dt*0.15*Math.sin(t*0.1+i);const sx=rayX[i]-c.x,sz=rayZ[i]-c.z,RR=rayRange;
+    if(sx>RR)rayX[i]-=2*RR;if(sx<-RR)rayX[i]+=2*RR;if(sz>RR)rayZ[i]-=2*RR;if(sz<-RR)rayZ[i]+=2*RR;
+    let tx=rayX[i]+sd.x/sd.y*camD,tz=rayZ[i]+sd.z/sd.y*camD;
+    if(ICE.on){const a=i*2.39996,rr=ICE.hr*0.7*Math.sqrt((i%7+0.5)/7);tx=ICE.hx+Math.cos(a)*rr;tz=ICE.hz+Math.sin(a)*rr;rayW[i]=0.7+0.25*(i%3);}
+    _ax.copy(sd);_fw.set(c.x-tx,0,c.z-tz);_side.crossVectors(_ax,_fw).normalize();if(_side.lengthSq()<0.5)_side.set(1,0,0);
+    _fw.crossVectors(_side,_ax).normalize();
+    _rm.makeBasis(_side.clone().multiplyScalar(rayW[i]),_ax.clone().multiplyScalar(len),_fw);
+    _rm.setPosition(tx,ICE.on?-ICE.h:-0.3,tz);rays.setMatrixAt(i,_rm);
+  }
+  rays.instanceMatrix.needsUpdate=true;
+}
+
+/* =========================================================
+   14b. Ocean scale: giants, deep drifters, hadal floor life
+   ========================================================= */
+const DIVE={on:false,play:false,speed:'auto',z:5,lastZ:5,elapsed:0,manualTorch:false,zoneT:0,infoT:0,replay:false,clock:0,rphase:'',bt:0,rev:new Set()};
+const zEff=()=>DIVE.on?DIVE.z:S.D;
+const camZ=()=>Math.max(-camera.position.y,0);
+
+/* single animated swimmer (one-instance InstancedMesh so it shares the fish shader path) */
+function makeSwimmer(key,geo,o){
+  const ph=new Float32Array(1);geo.setAttribute('aPhase',new THREE.InstancedBufferAttribute(ph,1));
+  const mat=waterify(lambert({side:THREE.DoubleSide}),key,Object.assign({vHead:'attribute float aPhase;'},o||{}));
+  const mesh=new THREE.InstancedMesh(geo,mat,1);mesh.frustumCulled=false;mesh.count=0;scene.add(mesh);
+  return{mesh,ph,geo};
+}
+function poseSwimmer(sw,pos,dir,scale){
+  _d.copy(dir).normalize();_m.lookAt(_d,ORIGIN,UP);_q.setFromRotationMatrix(_m);_s.setScalar(scale);
+  _m.compose(pos,_q,_s);sw.mesh.setMatrixAt(0,_m);sw.mesh.instanceMatrix.needsUpdate=true;sw.geo.attributes.aPhase.needsUpdate=true;
+}
+/* encounter: a large animal emerges from the haze, passes the viewer and fades away */
+function Enc(cfg){this.cfg=cfg;this.on=false;this.cool=R(2,6);this.pos=new THREE.Vector3();this.p0=new THREE.Vector3();this.dir=new THREE.Vector3();this.s=0;this.py=0;this.yOff=0;this.tt=0;this.phase='';this.dist=0;}
+/* start ahead of the viewer: crossing the view at distance `fwd`, or (bearing mode) approaching along a line of sight */
+Enc.prototype.start=function(){
+  const c=camera.position,tg=controls.target,cf=this.cfg;let fx=tg.x-c.x,fz=tg.z-c.z;const fl=Math.hypot(fx,fz)||1;fx/=fl;fz/=fl;
+  const lit=!S.night&&light(camZ(),1)>3e-3,fwd=lit?R(cf.fwd[0],cf.fwd[1]):R(cf.fwdDark[0],cf.fwdDark[1]),sd=rnd()<0.5?-1:1;
+  const sx=-fz*sd,sz=fx*sd;
+  this.p0.set(c.x+fx*fwd+sx*cf.R0,0,c.z+fz*fwd+sz*cf.R0);this.dir.set(-sx,0,-sz);
+  let b=R(-0.4,0.4);
+  if(wall.visible){const n=WALL.n,off=R(3,9);this.p0.set(c.x+fx*cf.R0+n.x*off,0,c.z+fz*cf.R0+n.z*off);this.dir.set(-fx,0,-fz);
+    b=Math.abs(b)+0.1;if((fx*Math.cos(b)-fz*Math.sin(b))*n.x+(fx*Math.sin(b)+fz*Math.cos(b))*n.z<0)b=-b;}
+  this.bx=fx*Math.cos(b)-fz*Math.sin(b);this.bz=fx*Math.sin(b)+fz*Math.cos(b);
+  this.s=0;this.tt=0;this.phase='in';this.dist=cf.R0;this.yOff=R(cf.y[0],cf.y[1]);this.on=true;this.pos.copy(this.p0);this.py=this.yTarget();
+};
+Enc.prototype.stop=function(){this.on=false;this.cool=R(this.cfg.cool[0],this.cfg.cool[1]);};
+Enc.prototype.yTarget=function(){const cf=this.cfg;let y=(cf.yAbs!==undefined?cf.yAbs:controls.target.y)+this.yOff;y=Math.max(y,floorY(this.pos.x,this.pos.z)+cf.minAb);return Math.min(y,-cf.minAb*0.5-0.6);};
+
+/* whale shark (Rhincodon typus) */
+const WSH=makeSwimmer('whaleshark',buildFishGeo({eye:0.005,h:0.12,w:0.15,tailH:0.24,dorsal:0.1,anal:0.03,
+  col:(x,y,z,f)=>{if(f)return[0.22,0.28,0.34];if(y<-0.025)return[0.86,0.87,0.86];
+    const sp=Math.sin(z*85)*Math.sin(Math.atan2(y,x)*14)>0.8,st=Math.abs(Math.sin(z*42))<0.06&&z<0.32;return(sp||st)?[0.86,0.88,0.9]:[0.2,0.26,0.33];},
+  extra:(acc,ex0)=>{addGeo(acc,new THREE.SphereGeometry(1,16,6),M4(0,-0.018,0.495,0,0,0,0.1,0.012,0.012),()=>[0.06,0.06,0.07],ex0);
+    for(const sg of[1,-1])addGeo(acc,triGeo([sg*0.12,-0.05,0.16, sg*0.34,-0.11,-0.02, sg*0.12,-0.05,0.02]),null,()=>[0.22,0.28,0.34],ex0);}}),
+  {vBegin:'float bt=clamp(0.15-position.z,0.0,1.0); transformed.x+=sin(aPhase-position.z*4.0)*0.15*bt*bt;'});
+const encWS=new Enc({R0:34,fwd:[11,18],fwdDark:[7,10],y:[-1,3],cool:[22,40],spd:1.0,len:9.5,minAb:2.5});
+
+/* sperm whale (Physeter macrocephalus): horizontal flukes beat up and down */
+function spermGeo(){
+  const acc=Acc();
+  const body=latheZ([[0.001,-0.5],[0.012,-0.47],[0.02,-0.4],[0.04,-0.25],[0.065,-0.08],[0.078,0.08],[0.082,0.25],[0.08,0.42],[0.07,0.48],[0.04,0.5],[0.001,0.505]],24);
+  addGeo(acc,body,M4(0,0,0,0,0,0,0.9,1.12,1),(x,y,z)=>{const wr=0.5+0.5*Math.sin(z*160+Math.sin(x*80)*2);return mixc([0.31,0.3,0.3],[0.2,0.2,0.21],wr*0.6*sstep(-0.3,0.1,z));});
+  addGeo(acc,new THREE.CylinderGeometry(0.012,0.009,0.3,8),M4(0,-0.08,0.33,Math.PI/2),()=>[0.82,0.82,0.8]);
+  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(sg*0.075,-0.05,0.17,0,sg*0.5,sg*0.4,0.05,0.008,0.025),()=>[0.25,0.25,0.26]);
+  addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0,0.058,-0.18,0,0,0,0.015,0.02,0.05),()=>[0.27,0.26,0.26]);
+  addGeo(acc,triGeo([0,0,-0.47, 0.13,0,-0.56, 0.02,0,-0.52,  0,0,-0.47, -0.02,0,-0.52, -0.13,0,-0.56,  0,0,-0.47, 0.02,0,-0.52, -0.02,0,-0.52],true),null,()=>[0.24,0.24,0.25]);
+  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.006,6,4),M4(sg*0.072,-0.04,0.22),()=>[0.02,0.02,0.02]);
+  return finishGeo(acc);
+}
+const SPW=makeSwimmer('sperm',spermGeo(),{vBegin:'float bt=clamp(-0.05-position.z,0.0,1.0); transformed.y+=sin(aPhase-position.z*4.0)*0.35*bt*bt;'});
+const encSW=new Enc({R0:42,fwd:[13,20],fwdDark:[8,11],y:[-3,4],cool:[30,55],spd:1.5,len:15,minAb:4});
+
+/* giant squid (Architeuthis dux): seen only at the edge of the light */
+function squidGeo(){
+  const acc=Acc(),red=(x,y)=>mixc([0.78,0.45,0.4],[0.58,0.2,0.18],sstep(-0.02,0.02,y));
+  addGeo(acc,latheZ([[0.022,0.285],[0.027,0.3],[0.028,0.36],[0.024,0.43],[0.012,0.48],[0.001,0.5]],14),null,red);
+  addGeo(acc,triGeo([0,0,0.5, 0.05,0,0.465, 0,0,0.43,  0,0,0.5, 0,0,0.43, -0.05,0,0.465],true),null,()=>[0.6,0.24,0.2]);
+  addGeo(acc,new THREE.SphereGeometry(0.021,12,8),M4(0,0,0.27),red);
+  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.0135,10,8),M4(sg*0.019,0.004,0.272),()=>[0.04,0.04,0.06]);
+  const cone=new THREE.ConeGeometry(0.006,0.22,5);cone.translate(0,0.11,0);
+  for(let k=0;k<8;k++){const a=k/8*Math.PI*2,dir=new THREE.Vector3(Math.cos(a)*0.13,Math.sin(a)*0.13,-1).normalize();
+    addGeo(acc,cone,new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a)*0.012,Math.sin(a)*0.012,0.255),new THREE.Quaternion().setFromUnitVectors(UP,dir),new THREE.Vector3(1,1,1)),red);}
+  const ten=new THREE.CylinderGeometry(0.0022,0.0022,0.7,4);ten.translate(0,0.35,0);
+  for(const sg of[1,-1]){const dir=new THREE.Vector3(sg*0.03,-0.02,-1).normalize(),q=new THREE.Quaternion().setFromUnitVectors(UP,dir);
+    addGeo(acc,ten,new THREE.Matrix4().compose(new THREE.Vector3(sg*0.006,-0.004,0.255),q,new THREE.Vector3(1,1,1)),red);
+    const end=new THREE.Vector3(sg*0.006,-0.004,0.255).addScaledVector(dir,0.7);
+    addGeo(acc,new THREE.SphereGeometry(1,8,5),M4(end.x,end.y,end.z,0,0,0,0.007,0.004,0.045),red);}
+  return finishGeo(acc);
+}
+const SQD=makeSwimmer('squid',squidGeo(),{vBegin:`{ float a=clamp((0.26-position.z)/0.75,0.0,1.0);
+  transformed.x+=sin(uTime*1.1+position.z*14.0+aPhase)*0.035*a; transformed.y+=cos(uTime*0.9+position.z*11.0+aPhase*1.3)*0.03*a; }`});
+const encSQ=new Enc({R0:26,fwd:[0,0],fwdDark:[0,0],y:[-2,2],cool:[28,50],len:9,minAb:2});
+
+/* giant siphonophore (Apolemia-type colonial chain, tens of metres long): bioluminescent pulses travel along it */
+const NSI=120;
+const siph=makePoints(NSI,`varying float vA; void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  float d=length(vWPos-cameraPosition); vec3 tE=torchAt(vWPos,1.0);
+  vec3 body=vec3(0.75,0.8,0.85)*(tE+lightAt(-vWPos.y)*uSky)*0.6*(1.0-r);
+  gl_FragColor=vec4((vec3(0.2,0.7,1.0)*vA*2.4*(1.0-r)*(1.0-r)+body)*exp(-uC*d),1.0);`,THREE.AdditiveBlending);
+siph.pts.material.vertexShader=siph.pts.material.vertexShader.replace('attribute float aSeed;','attribute float aSeed; varying float vA;').replace('vSeed=aSeed;','vSeed=aSeed; vA=aSeed;');
+siph.pts.material.fragmentShader=siph.pts.material.fragmentShader.replace('varying float vA;','').replace('varying float vSeed;','varying float vSeed; varying float vA;');
+const encSI=new Enc({R0:15,fwd:[9,14],fwdDark:[9,14],y:[-2,3],cool:[18,35],minAb:3});
+
+/* generic drifting animals (InstancedMesh, wander + flow + depth-layer relocation) */
+const DRIFT={};
+function makeDrift(key,cfg){
+  const geo=cfg.geo,n=cfg.n,ph=new Float32Array(n);for(let i=0;i<n;i++)ph[i]=rnd()*6.28;
+  geo.setAttribute('aPhase',new THREE.InstancedBufferAttribute(ph,1));
+  const glow=!!geo.attributes.aGlow;
+  const mat=waterify(lambert({side:THREE.DoubleSide}),'dr_'+key,{
+    vHead:'attribute float aPhase; varying float vPh;'+(glow?'attribute float aGlow; varying float vGlow;':''),
+    vBegin:(cfg.vb||'')+'vPh=aPhase;'+(glow?'vGlow=aGlow;':''),fHead:'varying float vPh;'+(glow?'varying float vGlow;':''),emit:cfg.emit||''});
+  const mesh=new THREE.InstancedMesh(geo,mat,n);mesh.frustumCulled=false;mesh.count=0;scene.add(mesh);
+  const D=Object.assign({key,mesh,ph,n,p:new Float32Array(n*3),v:new Float32Array(n*3),sz:new Float32Array(n),hd:new Float32Array(n),active:false,box:null,glows:glow},cfg);
+  for(let i=0;i<n;i++){D.sz[i]=R(cfg.size[0],cfg.size[1]);D.hd[i]=rnd()*6.28;}
+  DRIFT[key]=D;return D;
+}
+function setDrift(D,on,box){
+  const was=D.active;D.active=on;D.mesh.count=on?D.n:0;if(on&&(!was||!D.box))D.box=box;
+  if(on&&!was){const B=D.box;for(let i=0;i<D.n;i++){const o=i*3;D.p[o]=B.cx+R(-1,1)*B.rx;D.p[o+1]=B.cy+R(-1,1)*B.ry;D.p[o+2]=B.cz+R(-1,1)*B.rz;D.v[o]=D.v[o+1]=D.v[o+2]=0;}}
+}
+/* in dive mode a layer's animals stay at their depth; when the viewer leaves them behind, the group reappears ahead */
+function relocateBox(B,arr,n,zr){
+  if(!B)return false;const c=controls.target;if(Math.abs(B.cy-c.y)<30)return false;
+  let ny=c.y+(B.cy>c.y?-10:10);if(zr)ny=Math.min(-zr[0],Math.max(-zr[1],ny));
+  const dy=ny-B.cy,dx=c.x-B.cx,dz=c.z-B.cz;B.cy=ny;B.cx=c.x;B.cz=c.z;
+  for(let i=0;i<n;i++){arr[i*3]+=dx;arr[i*3+1]+=dy;arr[i*3+2]+=dz;}
+  return true;
+}
+function stepDrift(D,dt,t){
+  if(!D.active)return;const B=D.box;if(DIVE.on)relocateBox(B,D.p,D.n,D.zr);
+  const c=controls.target,P=D.p,V=D.v;
+  for(let i=0;i<D.n;i++){
+    const o=i*3;D.hd[i]+=Math.sin(t*0.3+i*1.7)*0.5*dt+(D.jitter?(rnd()-0.5)*4*dt:0);
+    const sp=D.spd*(D.jitter?0.4+0.6*Math.abs(Math.sin(t*2.2+i*3.1)):1);
+    const tx=Math.cos(D.hd[i])*sp,tz=Math.sin(D.hd[i])*sp,ty=Math.sin(t*0.5+i*2.3)*sp*0.35+(B.cy-P[o+1])*0.04;
+    V[o]+=(tx-V[o])*Math.min(1,dt*1.5);V[o+1]+=(ty-V[o+1])*Math.min(1,dt*1.5);V[o+2]+=(tz-V[o+2])*Math.min(1,dt*1.5);
+    orbital(P[o],P[o+1],t,_u);
+    P[o]+=(V[o]+_u.x*0.8)*dt;P[o+1]+=(V[o+1]+_u.y*0.8)*dt;P[o+2]+=(V[o+2]+_u.z*0.8)*dt;
+    const fy=floorY(P[o],P[o+2])+D.minAb;if(P[o+1]<fy)P[o+1]=fy;const my=(D.maxY!==undefined?D.maxY:-0.8)-(ICE.on&&D.maxY===undefined?ICE.h+0.3:0);if(P[o+1]>my)P[o+1]=my;
+    for(const k of[0,2]){const d=P[o+k]-(k?c.z:c.x),r=k?B.rz:B.rx;if(d>r)P[o+k]-=2*r;else if(d<-r)P[o+k]+=2*r;}
+    if(D.upright)_q.setFromEuler(_e.set(0.12*Math.sin(t*0.7+i),D.hd[i],0.12*Math.cos(t*0.6+i)));
+    else{_d.set(V[o],V[o+1]*0.5,V[o+2]);if(_d.lengthSq()<1e-6)_d.set(Math.cos(D.hd[i]),0,Math.sin(D.hd[i]));_d.normalize();_m.lookAt(_d,ORIGIN,UP);_q.setFromRotationMatrix(_m);}
+    _p.set(P[o],P[o+1],P[o+2]);_s.setScalar(D.sz[i]);_m.compose(_p,_q,_s);D.mesh.setMatrixAt(i,_m);
+    D.ph[i]+=dt*(D.phRate||1);
+  }
+  D.mesh.instanceMatrix.needsUpdate=true;D.mesh.geometry.attributes.aPhase.needsUpdate=true;
+}
+/* vampire squid (Vampyroteuthis infernalis) */
+makeDrift('vampire',{n:4,size:[0.26,0.32],spd:0.08,minAb:1,geo:(()=>{const acc=Acc(),dk=[0.33,0.06,0.08],g0={aGlow:()=>0},g1={aGlow:()=>1};
+    addGeo(acc,new THREE.SphereGeometry(1,16,12),M4(0,0,0.12,0,0,0,0.17,0.17,0.26),()=>dk,g0);
+    for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(1,8,6),M4(sg*0.2,0,0.28,0,0,0,0.1,0.015,0.06),()=>dk,g0);
+      addGeo(acc,new THREE.SphereGeometry(0.025,6,4),M4(sg*0.13,0,0.3),()=>[0.6,0.7,0.9],g1);
+      addGeo(acc,new THREE.SphereGeometry(0.05,8,6),M4(sg*0.13,0.05,0.02),()=>[0.25,0.42,0.9],g0);}
+    const cone=new THREE.ConeGeometry(0.32,0.38,16,1,true);cone.rotateX(Math.PI/2);cone.translate(0,0,-0.17);
+    addGeo(acc,cone,null,(x,y,z)=>mixc([0.42,0.08,0.1],[0.1,0.02,0.03],sstep(-0.05,-0.3,z)),{aGlow:(x,y,z)=>{if(z>-0.33)return 0;const a=Math.atan2(y,x)/(Math.PI/4),k=((a%1)+1)%1;return(k<0.2||k>0.8)?1:0;}});
+    return finishGeo(acc);})(),
+  emit:'emit+=vec3(0.15,0.55,1.0)*vGlow*(0.35+3.2*smoothstep(0.86,0.95,fract(uTime*0.11+vPh*0.37)));'});
+/* dumbo octopus (Grimpoteuthis) */
+makeDrift('dumbo',{n:3,size:[0.22,0.3],spd:0.06,minAb:0.6,upright:true,geo:(()=>{const acc=Acc(),pk=[0.96,0.7,0.62];
+    addGeo(acc,new THREE.SphereGeometry(1,16,12,0,Math.PI*2,0,Math.PI*0.62),M4(0,0.1,0,0,0,0,0.22,0.3,0.22),()=>pk);
+    const sk=new THREE.ConeGeometry(0.34,0.3,24,2,true),p=sk.attributes.position;
+    for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);if(y<0){const a=Math.atan2(z,x),k=1+0.13*Math.cos(a*8);p.setX(i,x*k);p.setZ(i,z*k);p.setY(i,y-0.05*Math.max(0,Math.cos(a*8)));}}
+    sk.computeVertexNormals();addGeo(acc,sk,M4(0,-0.02,0),(x,y)=>mixc(pk,[0.86,0.5,0.48],sstep(0.05,-0.15,y)));
+    for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(sg*0.28,0.2,0,0,0,sg*0.35,0.1,0.016,0.065),()=>[0.98,0.76,0.68]);
+      addGeo(acc,new THREE.SphereGeometry(0.03,8,6),M4(sg*0.12,0.12,0.17),()=>[0.05,0.05,0.06]);}
+    return finishGeo(acc);})(),
+  vb:'{ float ex=abs(position.x); if(ex>0.19&&position.y>0.12){ transformed.y+=sin(uTime*2.6+aPhase)*0.1*(ex-0.19)/0.12; } }'});
+/* gulper eel (Eurypharynx pelecanoides) with glowing tail organ */
+makeDrift('gulper',{n:4,size:[0.6,0.8],spd:0.12,minAb:1,phRate:2.5,geo:(()=>{const acc=Acc(),bk=[0.06,0.06,0.07],g0={aGlow:()=>0};
+    addGeo(acc,latheZ([[0.001,-0.5],[0.004,-0.42],[0.008,-0.2],[0.014,0.1],[0.025,0.3],[0.03,0.36]],10),null,()=>bk,{aGlow:(x,y,z)=>z<-0.46?1:0});
+    addGeo(acc,new THREE.SphereGeometry(1,14,10),M4(0,-0.03,0.42,0,0,0,0.05,0.07,0.1),(x,y)=>y<-0.06?[0.14,0.11,0.12]:bk,g0);
+    addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0,0.02,0.44,0,0,0,0.03,0.015,0.09),()=>bk,g0);
+    for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.006,6,4),M4(sg*0.02,0.03,0.5),()=>[0.3,0.3,0.35],g0);
+    addGeo(acc,new THREE.SphereGeometry(0.009,6,4),M4(0,0,-0.5),()=>[1,0.5,0.6],{aGlow:()=>1});
+    return finishGeo(acc);})(),
+  vb:'transformed.x+=sin(aPhase*3.0-position.z*11.0)*0.05*(0.55-position.z);',
+  emit:'emit+=vec3(1.0,0.32,0.5)*vGlow*(1.6+0.9*sin(uTime*2.0+vPh));'});
+/* hadal amphipods (Hirondellea gigas) swarming just above the trench floor */
+makeDrift('amphi',{n:220,size:[0.03,0.05],spd:0.12,minAb:0.05,jitter:true,geo:(()=>{const acc=Acc();
+    for(let k=0;k<6;k++)addGeo(acc,new THREE.SphereGeometry(1,7,5),M4(0,0.05*Math.cos(k*0.55),0.35-k*0.14,0,0,0,0.14,0.17-k*0.012,0.1),()=>[0.96,0.92,0.86]);
+    for(const sg of[1,-1])addGeo(acc,new THREE.CylinderGeometry(0.008,0.008,0.4,3),M4(sg*0.05,0.09,0.56,1.2,0,sg*0.2),()=>[0.9,0.85,0.8]);
+    return finishGeo(acc);})()});
+
+/* hadal floor: holothurians and xenophyophores (giant single-celled foraminifera) */
+const holoGeo=(()=>{const g=new THREE.SphereGeometry(1,16,10),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),b=1+0.12*Math.max(0,Math.sin(z*9)*Math.sin(Math.atan2(y,x)*5));p.setXYZ(i,x*0.34*b,y*0.24*b,z*b);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,(x,y)=>mixc([0.9,0.62,0.66],[0.7,0.4,0.48],sstep(-0.1,0.2,y)));return finishGeo(acc);})();
+const holos=new THREE.InstancedMesh(holoGeo,urchinMat,28);holos.frustumCulled=false;holos.count=0;scene.add(holos);
+const xenoGeo=(()=>{const g=new THREE.IcosahedronGeometry(1,2),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=0.8+0.35*Math.abs(Math.sin(x*7+y*5)*Math.sin(z*6));p.setXYZ(i,x*k,y*k*0.8,z*k);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,()=>[0.84,0.78,0.66]);return finishGeo(acc);})();
+const xenos=new THREE.InstancedMesh(xenoGeo,urchinMat,44);xenos.frustumCulled=false;xenos.count=0;scene.add(xenos);
+function buildHadal(on){if(on){placeOnFloor(holos,28,13,[0.15,0.3],false);placeOnFloor(xenos,44,13,[0.05,0.12],false);}else{holos.count=0;xenos.count=0;}}
+
+function stepPass(e,sw,dt,t,allowed,hz){
+  if(!allowed){e.on=false;sw.mesh.count=0;e.cool=Math.min(e.cool,4);return;}
+  if(!e.on){e.cool-=dt;sw.mesh.count=0;if(e.cool>0)return;e.start();}
+  e.s+=e.cfg.spd*dt;e.pos.set(e.p0.x+e.dir.x*e.s,e.py,e.p0.z+e.dir.z*e.s);e.py+=(e.yTarget()-e.py)*Math.min(1,dt*0.6);
+  sw.ph[0]+=dt*2*Math.PI*hz;_a.copy(e.dir);_a.y=0.05*Math.sin(t*0.3);poseSwimmer(sw,e.pos,_a,e.cfg.len);sw.mesh.count=1;
+  if(e.s>2*e.cfg.R0){e.stop();sw.mesh.count=0;}
+}
+function stepSquid(dt,t,allowed){
+  const e=encSQ;if(!allowed){e.on=false;SQD.mesh.count=0;e.cool=Math.min(e.cool,6);return;}
+  if(!e.on){e.cool-=dt;SQD.mesh.count=0;if(e.cool>0)return;e.start();}
+  if(e.phase==='in'){e.dist-=1.1*dt;if(e.dist<=9){e.phase='hold';e.tt=0;}}
+  else if(e.phase==='hold'){e.tt+=dt;e.dist=9+0.4*Math.sin(e.tt*0.8);if(e.tt>7)e.phase='out';}
+  else{e.dist+=7*dt;if(e.dist>40){e.stop();SQD.mesh.count=0;return;}}
+  const c=camera.position,bx=e.bx,bz=e.bz;e.py+=(e.yTarget()-e.py)*Math.min(1,dt);
+  e.pos.set(c.x+bx*e.dist,e.py,c.z+bz*e.dist);const ang=e.phase==='out'?0.35:1.15;_a.set(bx*Math.cos(ang)-bz*Math.sin(ang),0.05*Math.sin(t*0.3),bx*Math.sin(ang)+bz*Math.cos(ang));
+  SQD.ph[0]=t*0.5;poseSwimmer(SQD,e.pos,_a,e.cfg.len);SQD.mesh.count=1;
+}
+function stepSiph(dt,t,allowed){
+  const e=encSI;
+  if(!allowed||!e.on){if(!allowed){e.on=false;e.cool=Math.min(e.cool,4);}else{e.cool-=dt;if(e.cool<=0){e.start();e.tt=0;e.ang=rnd()*6.28;
+      e.pos.copy(e.p0).addScaledVector(e.dir,e.cfg.R0+R(-4,4));e.ang=Math.atan2(e.dir.z,e.dir.x);}}
+    if(!e.on){for(let i=0;i<NSI;i++)siph.size[i]=0;siph.g.attributes.aSize.needsUpdate=true;return;}}
+  e.tt+=dt;const life=30,fade=Math.max(0,Math.min(1,e.tt/3,(life-e.tt)/3));if(e.tt>life){e.stop();return;}
+  e.py+=(e.yTarget()-e.py)*Math.min(1,dt*0.5);
+  let x=e.pos.x+Math.cos(e.ang)*0.12*e.tt,z=e.pos.z+Math.sin(e.ang)*0.12*e.tt,y=e.py;
+  const L=NSI*0.24,wave=(t*5)%(L+10);
+  for(let i=0;i<NSI;i++){const sdist=i*0.24,a=e.ang+Math.PI+0.55*Math.sin(sdist*0.11+t*0.12);
+    x+=Math.cos(a)*0.24;z+=Math.sin(a)*0.24;const yy=y+1.6*Math.sin(sdist*0.08+t*0.18);
+    siph.pos[i*3]=x;siph.pos[i*3+1]=yy;siph.pos[i*3+2]=z;
+    siph.size[i]=(i<8?0.2:(i%4===0?0.11:0.07))*(fade>0?1:0);
+    siph.sd[i]=fade*(0.12+1.4*Math.exp(-((sdist-wave)*(sdist-wave))/4)+(i<8?0.3:0));}
+  siph.g.attributes.position.needsUpdate=true;siph.g.attributes.aSize.needsUpdate=true;siph.g.attributes.aSeed.needsUpdate=true;
+}
+function stepGiants(dt,t){
+  stepPass(encWS,WSH,dt,t,!!H.whaleshark,0.33);
+  stepPass(encSW,SPW,dt,t,!!H.sperm,0.22);
+  stepSquid(dt,t,!!H.squid);
+  stepSiph(dt,t,!!H.siph);
+  stepPass(encSeal,SEAL,dt,t,!!H.seal,0.5);
+}
+
+/* =========================================================
+   14c. Dive mode
+   ========================================================= */
+const TPROF=[[0,28.5],[60,28],[120,26],[200,20],[300,13],[400,10],[600,7],[1000,4.5],[2000,2.3],[4000,1.5],[6000,1.6],[8000,1.9],[10935,2.5]];
+function tempAt(z){for(let i=1;i<TPROF.length;i++){if(z<=TPROF[i][0]){const[a,ta]=TPROF[i-1],[b,tb]=TPROF[i];return ta+(tb-ta)*(z-a)/(b-a);}}return 2.5;}
+const MILESTONES=[
+  [30,'30 m','红光几乎被水吸收殆尽，身边的一切都变成了蓝绿色。'],
+  [200,'200 m · 进入暮光层','阳光只剩不到 1%，植物无法再进行光合作用。这里的很多动物夜里会上浮到浅层觅食，这是地球上规模最大的动物迁徙。'],
+  [332,'332 m','水肺潜水的世界纪录（2014 年）。再往下，人类只能坐在耐压舱里。'],
+  [1000,'1,000 m · 进入午夜层','这里再也没有一丝阳光。此后看到的光，除了潜水器的灯，全部来自生物自己。'],
+  [2992,'2,992 m','柯氏喙鲸到过这里，这是哺乳动物的下潜纪录。'],
+  [3700,'约 3,700 m','全球海洋的平均深度。地球表面七成被海水覆盖，大部分海底都在这样的黑暗里。'],
+  [3800,'3,800 m','泰坦尼克号的残骸就躺在这个深度的大西洋海底。'],
+  [4000,'4,000 m · 进入深渊层','水温约 1.5 °C，压强约 400 个大气压。几乎所有食物，都来自上方缓慢飘落的海洋雪。'],
+  [6000,'6,000 m · 进入超深渊层','只存在于海沟之中。全世界的海沟加起来，还不到海底面积的 0.25%。'],
+  [8200,'约 8,200 m','狮子鱼的极限。再深，鱼类体内对抗压强的分子就不够用了，这以下再也没有鱼。'],
+  [8849,'8,849 m','珠穆朗玛峰的高度。把它整个放进这条海沟，峰顶离海面还有两千多米。'],
+  [10930,'10,935 m · 挑战者深渊','地球海洋的最深处。头顶的海水压强约 1,100 个大气压，相当于每平方厘米压着一吨多。到过这里的人比登上月球的人还少。']
+];
+let capTimer=0;
+function showCaption(title,sub,dur){$('capT').textContent=title;$('capS').textContent=sub||'';$('cap').classList.add('on');capTimer=dur||7;}
+const autoSpeed=z=>z<200?5:z<1000?20:z<6000?60:z<10500?120:25;
+function diveSpeed(){return DIVE.speed==='auto'?(DIVE.bh?(DIVE.z<60?2:DIVE.z<165?1:4):autoSpeed(DIVE.z)):+DIVE.speed;}
+function hms(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+' 小时 ':'')+(h||m?m+' 分 ':'')+(h?'':x+' 秒');}
+function setDiveZ(z){
+  z=Math.max(2,Math.min(S.D-2.2,z));const dz=z-DIVE.z;if(!dz)return;
+  camera.position.y-=dz;controls.target.y-=dz;DIVE.z=z;
+  if(dz>0){let hit=null;for(const m of(DIVE.bh?BH_MS:MILESTONES))if(DIVE.lastZ<m[0]&&z>=m[0]&&!(DIVE.replay&&m[0]>=10930))hit=m;if(hit)showCaption(hit[1],hit[2],hit[0]>=10930?12:8);}
+  DIVE.lastZ=z;S.temp=Math.round((DIVE.bh?bhTemp(z):tempAt(z))*10)/10;
+  if(z>=S.D-2.2&&DIVE.play&&!DIVE.replay){DIVE.play=false;updDiveUI();}
+}
+function updDiveUI(){
+  $('diveBar').hidden=!DIVE.on||!!DIVE.dvm;$('diveCta').hidden=DIVE.on||PILOT.on;$('pilotBtn').hidden=DIVE.on||PILOT.on;$('envDet').hidden=DIVE.on;$('prof').toggleAttribute('hidden',!DIVE.on||!!DIVE.dvm);$('dProg').disabled=DIVE.replay;
+  $('dPlay').textContent=DIVE.replay?(DIVE.rphase==='done'?'已回到水面':DIVE.play?'暂停':'继续'):(DIVE.play?'暂停':(DIVE.z>=S.D-2.3?'已到底':'继续下潜'));
+  [...$('dSpeed').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===String(DIVE.speed)));
+}
+function diveInfo(){
+  if(DIVE.replay){const k=DIVE.speed==='auto'?60:+DIVE.speed,ph={descent:'下潜中',bottom:'在海底',ascent:'上浮中',done:'已回到水面'}[DIVE.rphase];
+    $('dInfo').textContent='2012 年 3 月 26 日 · 当地时间 '+clockStr(DIVE.clock)+' · '+ph+' · 倍速 ×'+k+(DIVE.speed==='auto'?'（真实时间的 60 倍）':'');
+    $('dProg').value=Math.round(DIVE.z);return;}
+  if(DIVE.bh){const z=DIVE.z;$('dInfo').textContent='倍速 ×'+diveSpeed()+(DIVE.speed==='auto'?'（在化学跃层放慢）':'')+' · 现在：'+(z<70?'含氧层':z<100?'化学跃层，氧气迅速减少':'无氧层，海水里溶有硫化氢')+' · 到洞底还有 '+Math.round(S.D-z)+' m';if(document.activeElement!==$('dProg'))$('dProg').value=Math.round(z);return;}
+  const left=(S.D-DIVE.z)/1.0;const cupH=Math.cbrt(foamV(pressAtm(DIVE.z)));
+  $('dInfo').textContent='挂在外面的泡沫杯：高度约原来的 '+Math.round(cupH*100)+'% · 倍速 ×'+diveSpeed()+(DIVE.speed==='auto'?'（浅处慢、空旷处快）':'')+' · 按真实速度约 1 m/s，已下潜 '+hms(DIVE.elapsed)+'，到底还要 '+hms(left);
+  if(document.activeElement!==$('dProg'))$('dProg').value=Math.round(DIVE.z);
+}
+function enterDive(replay){
+  DIVE.bh=false;
+  if(DIVE.dvm)exitDive();
+  DIVE.on=true;DIVE.play=true;DIVE.z=5;DIVE.lastZ=5;DIVE.elapsed=0;DIVE.manualTorch=false;
+  DIVE.replay=!!replay;DIVE.clock=0;DIVE.rphase='descent';DIVE.bt=0;DIVE.rev=new Set();WALL.cy=1e9;
+  S.loc=replay?'replay':'dive';Object.assign(S,{water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,seep:false,torch:'off'});
+  for(const k in FISH)FISH[k].active=false;for(const k in JELLY)JELLY[k].active=false;for(const k in DRIFT)DRIFT[k].active=false;
+  [encWS,encSW,encSQ,encSI].forEach(e=>{e.on=false;e.cool=R(2,5);});
+  S.D=LOC[S.loc].D;$('dProg').max=Math.round(S.D-2);controls.target.set(0,-5,0);camera.position.set(replay?4.2:2.5,-3.6,replay?7.8:4.6);{const f=new THREE.Vector3(-4.2,0,-7.8).normalize(),r=new THREE.Vector3(-f.z,0,f.x),a=0.06;WALL.n.copy(r).multiplyScalar(Math.cos(a)).addScaledVector(f,-Math.sin(a)).normalize();}
+  bubbles.forEach(b=>b.on=false);sparkAge.fill(99);
+  rebuild();updDiveUI();buildProfile();updProfile();
+  if(replay){rpEvents();return;}
+  showCaption('从关岛的礁壁出发','目标：马里亚纳海沟挑战者深渊，10,935 m。真实下潜要 3 个小时左右，可在下方调整倍速或拖动深度。',9);
+}
+function exitDive(){
+  if(DIVE.bh){DIVE.bh=false;sulf.pts.visible=false;capTimer=0;$('cap').classList.remove('on');}
+  if(DIVE.dvm){DIVE.dvm=false;$('dvmSec').hidden=true;S.night=DVM.prevNight;dglow.pts.visible=false;capTimer=0;$('cap').classList.remove('on');}
+  DIVE.on=false;DIVE.play=false;[encWS,encSW,encSQ,encSI].forEach(e=>e.on=false);
+  [WSH,SPW,SQD].forEach(sw=>sw.mesh.count=0);DIVE.replay=false;wall.visible=false;for(let i=0;i<NSI;i++)siph.size[i]=0;siph.g.attributes.aSize.needsUpdate=true;
+  for(const k in DRIFT)setDrift(DRIFT[k],false,null);
+  updDiveUI();
+}
+
+/* =========================================================
+   14d. Field guide: species stay hidden until met
+   ========================================================= */
+const CAT=[
+  ['coral','造礁珊瑚','Scleractinia','0–150 m'],['kelp','巨藻','Macrocystis pyrifera','0–35 m'],['anem','公主海葵','Heteractis magnifica','0–40 m'],['clown','眼斑双锯鱼','Amphiprion ocellaris','0–40 m'],
+  ['clam','长砗磲','Tridacna maxima','0–20 m'],['fanS','柳珊瑚','Gorgonacea','3–200 m'],['fanD','竹珊瑚','Isididae','200 m 以深'],['turtle','绿海龟','Chelonia mydas','0–60 m'],
+  ['manta','阿氏前口蝠鲼','Mobula alfredi','0–120 m'],['whaleshark','鲸鲨','Rhincodon typus','0–150 m'],['hammer','路氏双髻鲨','Sphyrna lewini','10–300 m'],
+  ['chromis','蓝绿光鳃鱼','Chromis viridis','0–30 m'],['anthias','丝鳍拟花鲈','Pseudanthias squamipinnis','0–60 m'],['butterfly','月斑蝴蝶鱼','Chaetodon lunula','0–60 m'],
+  ['snapper','四线笛鲷','Lutjanus kasmira','0–80 m'],['parrot','蓝点鹦嘴鱼','Scarus ghobban','0–30 m'],['sardine','太平洋沙丁鱼','Sardinops sagax','0–200 m'],['rockfish','蓝平鲉','Sebastes mystinus','0–150 m'],
+  ['urchinT','紫球海胆','Strongylocentrotus purpuratus','0–200 m'],['urchinD','冠海胆','Diadema setosum','0–70 m'],['starT','蓝指海星','Linckia laevigata','0–200 m'],['starC','蝙蝠海星','Patiria miniata','0–200 m'],
+  ['moon','海月水母','Aurelia aurita','0–150 m'],['nettle','太平洋金黄水母','Chrysaora fuscescens','0–100 m'],['comb','栉水母','Ctenophora','各种深度'],
+  ['sperm','抹香鲸','Physeter macrocephalus','0–2,000 m'],['lantern','灯笼鱼','Myctophidae','白天 200–1,200 m · 夜里上浮到表层'],['hatchet','银斧鱼','Argyropelecus','200–1,000 m'],
+  ['siph','巨型管水母','Apolemia','300–1,000 m'],['squid','大王乌贼','Architeuthis dux','300–1,000 m'],['vampire','幽灵蛸','Vampyroteuthis infernalis','600–1,300 m'],
+  ['atolla','冠水母','Atolla wyvillei','400–4,000 m'],['gulper','宽咽鱼','Eurypharynx pelecanoides','500–3,000 m'],['cucumber','游泳海参','Enypniastes eximia','500–5,000 m'],
+  ['angler','黑鮟鱇','Melanocetus johnsonii','700–4,000 m'],['dumbo','烟灰蛸','Grimpoteuthis','1,000–7,000 m'],['sponge','偕老同穴','Euplectella','400–7,000 m'],
+  ['seep','冷泉贻贝与管栖蠕虫','Bathymodiolus · Lamellibrachia','冷泉'],['snail','马里亚纳狮子鱼','Pseudoliparis swirei','6,000–8,200 m'],
+  ['hagfish','太平洋盲鳗','Eptatretus deani','鲸落 · 深海'],['sleeper','太平洋睡鲨','Somniosus pacificus','0–2,000 m'],
+  ['osedax','食骨蠕虫','Osedax','鲸落'],['crab','深海石蟹','Lithodidae','鲸落 · 深海'],
+  ['rimicaris','盲虾','Rimicaris kairei','印度洋热液区'],['kiwa','雪人蟹','Kiwa sp.','热液区'],['scalyfoot','鳞角腹足蜗牛（铁甲蜗牛）','Chrysomallon squamiferum','印度洋热液区'],
+  ['giga','盾巨螺','Gigantopelta aegis','西南印度洋热液区'],['ventmussel','印度洋深海偏顶蛤','Bathymodiolus marisindicus','印度洋热液区'],
+  ['barnacle','柄藤壶','Neolepas','热液区外圈'],['ventanem','深海海葵','Actinostolidae','热液区外圈'],
+  ['acropora','鹿角珊瑚（产卵中）','Acropora','0–30 m · 每年集体产卵'],['dendro','软珊瑚','Dendronephthya 等','0–50 m · 沉船与礁石'],['baitfish','小型饵鱼群','Atherinidae 等','热带浅海'],['jack','鲹','Caranx','热带浅海'],['lionfish','魔鬼蓑鲉','Pterois volitans','0–50 m · 印度—太平洋'],['lophelia','深水石珊瑚（佩尔图萨珊瑚）','Desmophyllum pertusum','80–3,000 m · 4–12 °C'],['paragorgia','泡泡糖珊瑚','Paragorgia arborea','冷水 · 200–1,300 m'],['redfish','挪威平鲉','Sebastes norvegicus','北大西洋 · 100–1,000 m'],['geodia','球海绵','Geodia','北大西洋深海'],['acesta','大锉蛤','Acesta excavata','冷水珊瑚礁'],['seal','威德尔海豹','Leptonychotes weddellii','南极海冰下'],['icefish','冰鱼（白血鱼）','Channichthyidae','南大洋 · −1.8–2 °C'],['borch','秃南极鱼','Pagothenia borchgrevinki','南极海冰底下'],['icealgae','冰藻','海冰底部的硅藻群落','南极海冰底部'],['odontaster','南极红海星','Odontaster validus','南大洋'],['sterechinus','南极海胆','Sterechinus neumayeri','南大洋'],['pycno','巨型海蜘蛛','Pycnogonida','南大洋海底'],['rossella','南极玻璃海绵','Rossellidae','南大洋'],['childressi','墨西哥湾甲烷贻贝','Bathymodiolus childressi','墨西哥湾冷泉 · 盐池岸边'],['krill','磷虾','Euphausiidae','0–500 m · 每天上下迁移'],['salp','樽海鞘','Salpa aspera','0–800 m · 每天上下迁移'],['amphi','巨型钩虾','Hirondellea gigas','海沟底部'],['holo','超深渊海参','Elpidiidae','海沟底部'],['xeno','巨型单细胞生物','Xenophyophorea','海沟底部']
+];
+const CATMAP={};CAT.forEach(c=>CATMAP[c[0]]=c);
+const SHARE={live:false,cnt:{},n:0,db:null,uid:null,canWrite:null,sent:'',busy:false,state:''};
+let FOUND=new Set();
+try{const v=localStorage.getItem('seafloor-found');if(v)FOUND=new Set(JSON.parse(v));}catch(e){}
+function seeDist(glow){const z=camZ();let d=(!S.night&&light(z,1)>2e-3)?Math.min(32,4/OPT.c[1]):0;if(S.torch!=='off')d=Math.max(d,14);if(glow)d=Math.max(d,24);return d;}
+function minDist(arr,n){const c=camera.position,st=Math.max(1,Math.floor(n/48));let m=1e9;for(let i=0;i<n;i+=st){const o=i*3,d=Math.hypot(arr[o]-c.x,arr[o+1]-c.y,arr[o+2]-c.z);if(d<m)m=d;}return m;}
+function isSeen(k){
+  const c=camera.position,nearF=(S.D-camZ())<28;
+  if(FISH[k])return FISH[k].active&&minDist(FISH[k].p,FISH[k].n)<seeDist(!!FISH[k].glow);
+  if(JELLY[k])return JELLY[k].active&&minDist(JELLY[k].p,JELLY[k].n)<seeDist(k==='atolla');
+  if(DRIFT[k])return DRIFT[k].active&&minDist(DRIFT[k].p,DRIFT[k].n)<seeDist(DRIFT[k].glows);
+  switch(k){
+    case'whaleshark':return encWS.on&&encWS.pos.distanceTo(c)<seeDist(false)+4;
+    case'sperm':return encSW.on&&encSW.pos.distanceTo(c)<seeDist(false)+6;
+    case'squid':return encSQ.on&&encSQ.pos.distanceTo(c)<seeDist(false)+1;
+    case'siph':return encSI.on&&encSI.pos.distanceTo(c)<seeDist(true)+10;
+    case'manta':return mantaOn&&mantas.some(m=>m.position.distanceTo(c)<seeDist(false));
+    case'turtle':return turtleOn&&turtles.some(g=>g.position.distanceTo(c)<seeDist(false));
+    case'angler':return anglerOn&&anglers.some(g=>g.position.distanceTo(c)<seeDist(true));
+    case'acropora':return SPN.on&&SPN.t>21.02;
+    case'fanS':return H.fan&&S.D<=200&&nearF&&seeDist(false)>4;
+    case'fanD':return H.fan&&S.D>200&&!ROST.on&&nearF;
+    case'paragorgia':return H.fan&&ROST.on&&nearF;
+    case'lophelia':return ROST.on&&nearF;
+    case'geodia':return ROST.on&&nearF;
+    case'acesta':return ROST.on&&nearF&&seeDist(false)>6;
+    case'starT':return H.star&&S.temp>=18&&nearF&&seeDist(false)>4;
+    case'starC':return H.star&&S.temp<18&&!ICE.on&&nearF&&seeDist(false)>4;
+    case'urchinT':return !!H.urchinT&&!ICE.on&&nearF&&seeDist(false)>4;
+    case'sponge':return !!H.sponge&&!ICE.on&&nearF;
+    case'odontaster':return ICE.on&&H.star&&nearF;
+    case'sterechinus':return ICE.on&&H.urchinT&&nearF;
+    case'rossella':return ICE.on&&nearF;
+    case'pycno':return ICE.on&&nearF;
+    case'icealgae':return ICE.on;
+    case'seal':return encSeal.on&&encSeal.pos.distanceTo(c)<seeDist(false)+4;
+    default:return !!H[k]&&nearF&&seeDist(false)>(S.D-camZ())+2;
+  }
+}
+const toastQ=[];let toastT=0;
+function checkDiscover(){
+  let changed=false;
+  for(const c of CAT){if(FOUND.has(c[0]))continue;if(isSeen(c[0])){FOUND.add(c[0]);changed=true;toastQ.push(c);}}
+  if(changed){try{localStorage.setItem('seafloor-found',JSON.stringify([...FOUND]));}catch(e){}renderCatalog();}
+}
+function renderCatalog(){
+  $('catN').textContent='已遇见 '+FOUND.size+' / '+CAT.length;$('catBar').style.width=(FOUND.size/CAT.length*100)+'%';
+  const sc=k=>SHARE.live&&SHARE.cnt[k]?'<b class="shc" title="'+SHARE.cnt[k]+' 位探险者遇见过">'+SHARE.cnt[k]+'人</b>':'';
+  $('cat').innerHTML=CAT.map(c=>FOUND.has(c[0])?'<span class="sp" title="'+c[2]+'">'+c[1]+sc(c[0])+'</span>':'<span class="sp unk">？？？<i>'+c[3]+'</i>'+sc(c[0])+'</span>').join('');
+  if(typeof shareRender==='function')shareRender();
+}
+function stepToast(dt){
+  if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').classList.remove('on');return;}
+  if(toastQ.length){const c=toastQ.shift();$('toast').innerHTML=c.mission?'任务完成：'+c.mission.t:'新遇见：'+c[1]+'<i>'+c[2]+'</i>';$('toast').classList.add('on');toastT=3.2;}
+}
+
+/* =========================================================
+   14e. Synthesized sound (Web Audio; starts only after a click)
+   ========================================================= */
+const AUD={ctx:null,on:false,clickT:1};
+function audioStart(){
+  if(!AUD.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;
+    let ctx;try{ctx=new C();}catch(e){return false;}AUD.ctx=ctx;
+    const master=ctx.createGain();master.gain.value=0.7;master.connect(ctx.destination);AUD.master=master;
+    const len=ctx.sampleRate*4,nb=ctx.createBuffer(1,len,ctx.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<len;i++)nd[i]=Math.random()*2-1;AUD.noise=nb;
+    const bb=ctx.createBuffer(1,len,ctx.sampleRate),bd=bb.getChannelData(0);let l=0;for(let i=0;i<len;i++){l=(l+0.02*(Math.random()*2-1))/1.02;bd[i]=l*3.5;}
+    const rs=ctx.createBufferSource();rs.buffer=bb;rs.loop=true;const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=220;
+    const rg=ctx.createGain();rg.gain.value=0;rs.connect(lp);lp.connect(rg);rg.connect(master);rs.start();AUD.rumble=rg;AUD.rlp=lp;
+    const ws=ctx.createBufferSource();ws.buffer=nb;ws.loop=true;const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=550;bp.Q.value=0.5;
+    const wg=ctx.createGain();wg.gain.value=0;ws.connect(bp);bp.connect(wg);wg.connect(master);ws.start();AUD.wash=wg;}
+  if(AUD.ctx.state==='suspended')AUD.ctx.resume();AUD.on=true;return true;
+}
+function setSound(on){
+  if(on){if(!audioStart())on=false;}else if(AUD.ctx){AUD.ctx.suspend();AUD.on=false;}
+  AUD.on=on;$('cSound').checked=on;$('dSound').textContent='声音：'+(on?'开':'关');
+}
+/* exhaled bubbles ring at their Minnaert frequency f=(1/2πr)√(3γP/ρ); the regulator hisses on the inhale */
+function playBreath(){
+  if(!AUD.on)return;const ctx=AUD.ctx,t0=ctx.currentTime,P=pressure(camZ());
+  for(let i=0;i<24;i++){const st=t0+Math.random()*1.4,r=Math.exp(Math.log(8e-4)+Math.random()*Math.log(6));
+    const f=Math.min(6000,Math.sqrt(3*1.4*P/RHO)/(2*Math.PI*r));
+    const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.setValueAtTime(f,st);o.frequency.exponentialRampToValueAtTime(f*1.25,st+0.06);
+    g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(0.03+Math.random()*0.04,st+0.004);g.gain.exponentialRampToValueAtTime(0.0001,st+0.08);
+    o.connect(g);g.connect(AUD.master);o.start(st);o.stop(st+0.1);}
+  const st=t0+2.3,src=ctx.createBufferSource();src.buffer=AUD.noise;const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2600;bp.Q.value=1.1;
+  const g=ctx.createGain();g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(0.05,st+0.25);g.gain.linearRampToValueAtTime(0,st+1.1);
+  src.connect(bp);bp.connect(g);g.connect(AUD.master);src.start(st,Math.random()*2,1.2);
+}
+function playClick(gain){
+  const ctx=AUD.ctx,t0=ctx.currentTime;
+  for(let k=0;k<3;k++){const st=t0+k*0.004,src=ctx.createBufferSource();src.buffer=AUD.noise;const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2200;bp.Q.value=0.7;
+    const g=ctx.createGain();const gk=gain*[1,0.45,0.2][k];g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(gk,st+0.0008);g.gain.exponentialRampToValueAtTime(0.0001,st+0.02);
+    src.connect(bp);bp.connect(g);g.connect(AUD.master);src.start(st,Math.random()*3,0.03);}
+}
+function audioUpdate(dt,t){
+  if(!AUD.on||!AUD.ctx)return;const z=camZ(),now=AUD.ctx.currentTime;
+  AUD.wash.gain.setTargetAtTime(0.14*Math.exp(-z/18)*(0.6+0.4*Math.sin(2*Math.PI*t/S.T)),now,0.2);
+  AUD.rumble.gain.setTargetAtTime((ventOn?0.2:0.05)+0.1*Math.min(1,z/1500),now,0.5);
+  AUD.rlp.frequency.setTargetAtTime(240-140*Math.min(1,z/3000),now,0.5);
+  if(encSW.on){AUD.clickT-=dt;if(AUD.clickT<=0){AUD.clickT=R(0.5,1.0);playClick(0.5*Math.exp(-encSW.pos.distanceTo(camera.position)/80));}}
+}
+
+/* =========================================================
+   14f. Walls: Guam's reef drop-off near the surface, the trench's inner wall in the hadal zone.
+   The cliff mesh follows the viewer; its distance from the descent line changes with depth
+   (leaving the reef wall for open ocean, meeting the trench wall below 6,000 m, then the flat trench floor).
+   ========================================================= */
+function hash2(i,j){let h=Math.imul(i,374761393)+Math.imul(j,668265263);h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return(h>>>0)/4294967295;}
+function vnoise(x,y){const i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+  const a=hash2(i,j),b=hash2(i+1,j),c=hash2(i,j+1),d=hash2(i+1,j+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+function fbm(x,y){return vnoise(x,y)*0.55+vnoise(x*2.1+5.3,y*2.1+1.7)*0.28+vnoise(x*4.3+9.1,y*4.3+3.3)*0.17;}
+function wallDist(z){
+  if(DIVE.replay||DIVE.dvm)return 1e4;
+  if(DIVE.bh)return 3.0;
+  if(z<220)return 2.5;if(z<700)return 2.5+(z-220)*0.6;if(z<5800)return 1e4;
+  if(z<6400)return 300-(z-5800)*0.495;if(z<10200)return 3;if(z<10700)return 3+(z-10200)*0.59;return 1e4;
+}
+function wallBump(wy,lz){const z=-wy;const f=fbm(wy*0.05,lz*0.05),g=fbm(wy*0.21+7,lz*0.21);
+  const ledge=Math.pow(Math.max(0,Math.sin(wy*0.33+f*4)),6)*2.4;return 5.2*f+1.8*g+ledge-5.5+(z>5000?1.2*fbm(wy*0.02,lz*0.02):0);}
+const wallGeo=new THREE.PlaneGeometry(170,150,85,75);wallGeo.rotateY(Math.PI/2);
+wallGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(wallGeo.attributes.position.count*3),3));
+const WALLU={uWallY:{value:0}};
+const wallMat=waterify(lambert({side:THREE.DoubleSide}),'wall',{defines:{CAUSTICS:''},uniforms:WALLU,
+  fHead:`uniform float uWallY;
+    float h3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+    float n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+      return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
+                 mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}`,
+  fColor:`{ vec3 q=vec3(vLocal.x,vLocal.y+uWallY,vLocal.z);
+    float r=n3(q*0.9)*0.45+n3(q*2.7)*0.33+n3(q*8.0)*0.22;
+    float crev=smoothstep(0.32,0.18,n3(q*vec3(0.6,1.8,0.6)));
+    diffuseColor.rgb*=(0.4+1.15*r)*(1.0-0.55*crev); }`});
+const wall=new THREE.Mesh(wallGeo,wallMat);wall.visible=false;wall.frustumCulled=false;scene.add(wall);
+const WALL={cy:1e9,n:new THREE.Vector3(1,0,0)};
+function wallColor(z,f,g,ny){
+  const sh=0.35+0.65*sstep(-0.7,0.7,ny)*(0.7+0.3*f);
+  let c;
+  if(DIVE.bh&&z>=25){
+    if(z<70)c=mixc([0.5,0.47,0.4],[0.95,0.6,0.25],sstep(0.66,0.74,g)*0.8);
+    else if(z<100)c=mixc([0.36,0.34,0.31],[0.85,0.85,0.8],sstep(0.6,0.72,g)*0.6*sstep(75,95,z));
+    else if(z<165)c=mixc([0.2,0.19,0.17],[0.9,0.88,0.72],sstep(0.55,0.7,g)*0.75);
+    else c=mixc([0.13,0.12,0.11],[0.24,0.2,0.16],f);
+  }
+  else if(z<45){const pal=[[0.8,0.42,0.52],[0.5,0.32,0.66],[0.7,0.58,0.3],[0.32,0.55,0.4],[0.86,0.5,0.3]];
+    const k=Math.floor(g*5)%5,cover=sstep(0.42,0.58,f);c=mixc([0.3,0.24,0.22],pal[k],cover*0.85);}
+  else if(z<160){const sp=sstep(0.6,0.7,g);c=mixc([0.22,0.19,0.18],[[0.95,0.6,0.2],[0.6,0.3,0.7],[0.9,0.8,0.3]][Math.floor(f*3)%3],sp*0.85);}
+  else if(z<1000)c=mixc([0.16,0.15,0.15],[0.7,0.68,0.6],sstep(0.7,0.78,g)*0.6);
+  else c=mixc([0.17,0.16,0.15],[0.55,0.52,0.45],sstep(0.25,0.7,ny)*0.9);
+  const k=sh*(z<1000?2.1:2.4)*(DIVE.bh&&z>=25?1.35:1);return[Math.min(1,c[0]*k),Math.min(1,c[1]*k),Math.min(1,c[2]*k)];
+}
+/* life on the reef wall: soft corals in the shallows, sea fans and sea whips below ~20 m, tube sponges deeper */
+const wSoft=new THREE.InstancedMesh(CORAL.soft.geo,coralMat,40);
+const wFan=new THREE.InstancedMesh(fanGeo(1.0),waterify(lambert({side:THREE.DoubleSide}),'wallfan'),30);
+const tubeSpGeo=(()=>{const acc=Acc();for(let k=0;k<3;k++){const c=new THREE.CylinderGeometry(0.06,0.045,1,10,1,true);c.translate(0,0.5,0);
+  addGeo(acc,c,M4(Math.cos(k*2.1)*0.07,0,Math.sin(k*2.1)*0.07,Math.cos(k*2.1)*0.15,0,Math.sin(k*2.1)*0.15,1,0.6+k*0.2,1),(x,y)=>mixc([1,1,1],[0.8,0.8,0.8],y));}return finishGeo(acc);})();
+const wSponge=new THREE.InstancedMesh(tubeSpGeo,urchinMat,30);
+[wSoft,wFan,wSponge].forEach(m=>{m.frustumCulled=false;m.count=0;wall.add(m);});
+function colorAll(mesh,pal){const c=new THREE.Color();for(let i=0;i<mesh.instanceMatrix.count;i++){const p=pal[i%pal.length],k=R(0.85,1.1);mesh.setColorAt(i,c.setRGB(p[0]*k,p[1]*k,p[2]*k));}mesh.instanceColor.needsUpdate=true;}
+colorAll(wSoft,[[0.95,0.4,0.62],[0.75,0.35,0.85],[1,0.55,0.35],[0.95,0.3,0.3]]);
+colorAll(wFan,[[0.85,0.18,0.15],[0.95,0.55,0.15],[0.95,0.8,0.25],[0.6,0.25,0.7]]);
+colorAll(wSponge,[[0.95,0.75,0.2],[0.95,0.5,0.15],[0.55,0.3,0.75],[0.3,0.5,0.9]]);
+const _wq=new THREE.Quaternion(),_wv=new THREE.Vector3();
+function placeWallLife(){
+  const cy=WALL.cy;
+  const put=(mesh,n,band,sc,orient)=>{let k=0;
+    for(let tries=0;tries<n*6&&k<n;tries++){const ly=R(-40,40),lz=R(-35,35),wy=cy+ly,z=-wy;if(z<band[0]||z>band[1])continue;
+      const x=wallBump(wy,lz)+0.25;orient(_wq);_s.setScalar(R(sc[0],sc[1]));_p.set(x,ly,lz);_m.compose(_p,_wq,_s);mesh.setMatrixAt(k++,_m);}
+    mesh.count=k;mesh.instanceMatrix.needsUpdate=true;};
+  const bh=!!DIVE.bh;
+  put(wSoft,40,bh?[4,30]:[4,60],[0.6,1.3],q=>q.setFromUnitVectors(UP,_wv.set(1,R(0.3,0.9),R(-0.3,0.3)).normalize()));
+  put(wFan,30,bh?[15,60]:[18,200],[0.8,1.8],q=>q.setFromEuler(_e.set(R(-0.15,0.15),0,-R(0.7,1.2))));
+  put(wSponge,30,bh?[10,70]:[12,260],[0.4,0.9],q=>q.setFromUnitVectors(UP,_wv.set(1,R(0.5,1.2),R(-0.3,0.3)).normalize()));
+}
+function recenterWall(){
+  const cy=Math.round(camera.position.y/10)*10;WALL.cy=cy;wall.position.y=cy;WALLU.uWallY.value=((cy%1000)+1000)%1000;
+  const p=wallGeo.attributes.position,c=wallGeo.attributes.color;
+  for(let i=0;i<p.count;i++){const ly=p.getY(i),lz=p.getZ(i);p.setX(i,wallBump(cy+ly,lz));}
+  wallGeo.computeVertexNormals();const n=wallGeo.attributes.normal;
+  for(let i=0;i<p.count;i++){const wy=cy+p.getY(i),lz=p.getZ(i),col=wallColor(-wy,fbm(wy*0.09+3,lz*0.09),fbm(wy*0.3,lz*0.3+11),n.getY(i));c.setXYZ(i,col[0],col[1],col[2]);}
+  p.needsUpdate=true;c.needsUpdate=true;placeWallLife();
+}
+function stepWall(){
+  const z=camZ(),d=DIVE.on?wallDist(z):1e4,show=d<160;wall.visible=show;if(!show)return;
+  const n=WALL.n,tg=controls.target;wall.position.x=tg.x-n.x*d;wall.position.z=tg.z-n.z*d;wall.rotation.y=-Math.atan2(n.z,n.x);
+  if(Math.abs(camera.position.y-WALL.cy)>20)recenterWall();
+  const sd=(camera.position.x-wall.position.x)*n.x+(camera.position.z-wall.position.z)*n.z;
+  if(sd<3){camera.position.x+=n.x*(3-sd);camera.position.z+=n.z*(3-sd);}
+}
+
+/* =========================================================
+   14g. Depth profile: the whole water column to scale, with Everest set inside the trench
+   ========================================================= */
+const PROF={top:14,h:372};
+function buildProfile(){
+  const D=S.D,y=z=>PROF.top+z/D*PROF.h,svg=$('prof');
+  const ev=8849,base=y(D),peak=y(D-ev);
+  const marks=[[332,'潜水纪录'],[1000,'阳光消失'],[3750,'平均深度 · 泰坦尼克'],[6000,'海沟'],[8200,'鱼类极限']];
+  let h='<defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a8fb0"/><stop offset="0.12" stop-color="#0d3c52"/><stop offset="0.35" stop-color="#06161f"/><stop offset="1" stop-color="#020608"/></linearGradient></defs>';
+  h+='<rect x="18" y="'+PROF.top+'" width="12" height="'+PROF.h+'" rx="2" fill="url(#pg)" stroke="rgba(120,190,205,.3)"/>';
+  h+='<polygon points="10,'+base+' 19,'+(peak+40)+' 22,'+(peak+18)+' 24,'+peak+' 27,'+(peak+22)+' 31,'+(peak+46)+' 38,'+base+'" fill="rgba(210,200,185,.28)" stroke="rgba(230,220,200,.65)" stroke-width="0.7"/>';
+  h+='<text x="34" y="'+(peak+3)+'" class="pl">珠峰 8,849 m</text>';
+  for(let k=0;k<=D;k+=2000)h+='<line x1="14" x2="18" y1="'+y(k)+'" y2="'+y(k)+'" stroke="rgba(120,190,205,.5)"/><text x="12" y="'+(y(k)+3)+'" class="pt" text-anchor="end">'+(k/1000)+'</text>';
+  marks.forEach(([z,t])=>{if(z<D)h+='<line x1="30" x2="33" y1="'+y(z)+'" y2="'+y(z)+'" stroke="rgba(217,236,239,.55)"/><text x="35" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
+  h+='<text x="12" y="'+(PROF.top-4)+'" class="pt" text-anchor="end">km</text>';
+  h+='<g id="profMe"><line x1="10" x2="34" y1="0" y2="0" stroke="#62d4e3" stroke-width="1.4"/><circle cx="24" cy="0" r="3.2" fill="#62d4e3"/></g>';
+  svg.innerHTML=h;
+}
+function updProfile(){if(!DIVE.on)return;const g=$('profMe');if(g)g.setAttribute('transform','translate(0,'+(PROF.top+DIVE.z/S.D*PROF.h)+')');}
+
+/* =========================================================
+   14h. Replay: James Cameron, Deepsea Challenger, 26 March 2012
+   Sources: NBC News / CS Monitor / National Geographic / Spokesman-Review reports of the dive.
+   ========================================================= */
+const RP={depth:10898,bottom:11100,ascentV:10898/4200,start:5*3600+15*60};
+function clockStr(sec){const t=Math.round(RP.start+sec),h=Math.floor(t/3600)%24,m=Math.floor(t%3600/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+const RP_EVENTS=[
+  {ph:'descent',t:5,title:'2012 年 3 月 26 日 05:15',sub:'关岛西南约 330 km。詹姆斯·卡梅隆独自驾驶 12 吨重的“深海挑战者号”离开水面。潜水器竖着下潜，驾驶舱是一个只容一人蜷坐的钢球。'},
+  {ph:'descent',t:900,title:'舱内像桑拿',sub:'下潜初期舱内温度一度超过 38 °C；越往下，舱外海水越冷，最后只有 2 °C 左右。'},
+  {ph:'bottom',t:3,title:'07:51 抵达海底',sub:'下潜用了 2 小时 36 分。公布的深度在 10,843 至 10,908 m 之间。巨大的压强让整艘潜水器缩短了约 7.6 cm。'},
+  {ph:'bottom',t:900,title:'“荒凉、孤寂，像月球一样的平原”',sub:'卡梅隆说他就坐在那里看着窗外。海底是柔软得近乎胶状的平地，几乎没有任何起伏。'},
+  {ph:'bottom',t:3600,title:'没有鱼',sub:'除了不到 2.5 cm 长、像小虾一样的端足类，他没有看到任何更大的动物。'},
+  {ph:'bottom',t:9000,title:'液压油泄漏',sub:'正要采集第一份样本时，液压油泄漏糊住了舷窗，机械臂无法使用，几个推进器也失灵了。'},
+  {ph:'bottom',t:11000,title:'提前上浮',sub:'在海底停留了三个多小时（原计划 6 小时）。1960 年，沃尔什和皮卡德在这里只停留了 20 分钟。'},
+  {ph:'done',t:0,title:'约 12:00 回到水面',sub:'上浮只用了 70 分钟。卡梅隆是第一个独自到达挑战者深渊的人，也是 1960 年之后第一个到达这里的人。'}
+];
+function rpEvents(){for(const e of RP_EVENTS){const key=e.ph+e.t;if(DIVE.rev.has(key))continue;
+  const now=e.ph==='descent'?(DIVE.rphase==='descent'&&DIVE.clock>=e.t):e.ph==='bottom'?((DIVE.rphase==='bottom'&&DIVE.bt>=e.t)||DIVE.rphase==='ascent'||DIVE.rphase==='done'):DIVE.rphase==='done';
+  if(now){DIVE.rev.add(key);showCaption(e.title,e.sub,10);}}}
+function replayStep(rdt){
+  const k=DIVE.speed==='auto'?60:+DIVE.speed,dtc=k*rdt;DIVE.clock+=dtc;
+  if(DIVE.rphase==='descent'){const z=DIVE.z,v=z<S.D-300?1.18:0.3+0.88*Math.max(0,S.D-2.2-z)/298;setDiveZ(z+v*dtc);
+    if(DIVE.z>=S.D-2.3){DIVE.rphase='bottom';DIVE.bt=0;}}
+  else if(DIVE.rphase==='bottom'){DIVE.bt+=dtc;if(DIVE.bt>=RP.bottom)DIVE.rphase='ascent';}
+  else if(DIVE.rphase==='ascent'){setDiveZ(DIVE.z-RP.ascentV*dtc);if(DIVE.z<=2.1){DIVE.rphase='done';DIVE.play=false;updDiveUI();}}
+  rpEvents();
+}
+
+/* =========================================================
+   14i. Whale fall (gray whale carcass, after MBARI observations in Monterey Canyon).
+   Succession after Smith & Baco (2003): mobile scavengers (flesh gone within ~2 yr, 40–60 kg/day),
+   enrichment opportunists (~2 yr, Osedax on exposed bone), sulfophilic stage (decades: bacterial mats, mussels).
+   ========================================================= */
+const WF={t:0.25};
+function wfStages(t){
+  const scav=t<0.1?1:t<2?1-(t-0.1)/1.9:0;
+  const enrich=t<0.3?t/0.3*0.5:t<1?0.5+0.5*(t-0.3)/0.7:t<4?1:t<10?1-(t-4)/6:0;
+  const sulfo=t<1.2?0:t<6?(t-1.2)/4.8:t<50?1:Math.max(0.35,1-(t-50)/60);
+  return{scav:Math.max(0,scav),enrich:Math.max(0,enrich),sulfo};
+}
+function fmtYears(t){if(t<1/12)return Math.max(1,Math.round(t*52))+' 周';if(t<1)return Math.round(t*12)+' 个月';if(t<10)return t.toFixed(1).replace(/\.0$/,'')+' 年';return Math.round(t)+' 年';}
+const wfGroup=new THREE.Group();wfGroup.visible=false;scene.add(wfGroup);
+const bonePts=[];
+const boneGeo=(()=>{
+  const acc=Acc(),bone=()=>[0.9,0.87,0.78],cyl=new THREE.CylinderGeometry(1,1,1,8,1);
+  const seg=(a,b,r)=>{const d=new THREE.Vector3().subVectors(b,a),L=d.length();addGeo(acc,cyl,new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5),new THREE.Quaternion().setFromUnitVectors(UP,d.normalize()),new THREE.Vector3(r,L,r)),bone);};
+  const sx=t=>0.25*Math.sin(t*2.2);
+  for(let i=0;i<44;i++){const z=-6.2+i*0.235,t=i/43,r=0.05+0.15*Math.sin(Math.PI*Math.min(1,t*1.1+0.05)),y=0.2,x=sx(t);
+    seg(new THREE.Vector3(x,y,z-0.09),new THREE.Vector3(x,y,z+0.09),r);
+    if(i>6)seg(new THREE.Vector3(x,y,z),new THREE.Vector3(x,y+r*1.6,z-0.05),r*0.22);
+    seg(new THREE.Vector3(x-r*2.2,y,z),new THREE.Vector3(x+r*2.2,y,z),r*0.18);
+    bonePts.push([x,y+r,z]);}
+  for(let k=0;k<13;k++){const z0=0.6+k*0.26,x0=sx((z0+6.2)/10.3),L=1.4+0.6*Math.sin(Math.PI*k/12);
+    for(const s of[1,-1]){let prev=new THREE.Vector3(x0,0.2,z0);
+      for(let j=1;j<=6;j++){const u=j/6,p=new THREE.Vector3(x0+s*L*Math.sin(u*1.4),0.2+0.15*Math.sin(u*Math.PI)-0.12*u,z0-0.5*u*u);seg(prev,p,0.045*(1-u*0.4));bonePts.push([p.x,p.y+0.04,p.z]);prev=p;}}}
+  addGeo(acc,new THREE.SphereGeometry(1,16,10),M4(0.3,0.32,5.3,0.05,0,0,0.9,0.35,1.5),bone);
+  for(let i=0;i<24;i++)bonePts.push([0.3+R(-0.6,0.6),0.62,5.3+R(-1.2,1.2)]);
+  for(const s of[1,-1]){let prev=new THREE.Vector3(0.3+s*0.5,0.12,4.0);for(let j=1;j<=6;j++){const u=j/6,p=new THREE.Vector3(0.3+s*(0.5+0.3*Math.sin(u*Math.PI)+0.4*u),0.12,4.0+2.8*u);seg(prev,p,0.07);prev=p;}}
+  for(const s of[1,-1])addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0.3+s*1.0,0.12,2.8,0,s*0.4,0,0.45,0.05,0.35),bone);
+  return finishGeo(acc);
+})();
+const WFU={uOse:{value:0},uMat:{value:0}};
+const boneMat=waterify(lambert(),'bone',{uniforms:WFU,fHead:'uniform float uOse; uniform float uMat;',
+  fColor:`{ float pn=0.5+0.5*sin(vLocal.x*9.0+sin(vLocal.z*7.0)*2.0)*sin(vLocal.z*11.0+vLocal.y*13.0+sin(vLocal.x*5.0));
+    float pm=0.5+0.5*sin(vLocal.z*3.1+sin(vLocal.x*4.3)*1.7)*sin(vLocal.x*5.7+vLocal.y*6.1+1.3);
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.85,0.2,0.24),uOse*smoothstep(0.3,0.55,pn));
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.97,0.95,0.86),uMat*smoothstep(0.25,0.6,pm));
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.25,0.22,0.2),uMat*0.35*(1.0-smoothstep(0.1,0.4,pm))); }`});
+const bones=new THREE.Mesh(boneGeo,boneMat);wfGroup.add(bones);
+const fleshGeo=(()=>{const g=latheZ([[0.001,-0.5],[0.02,-0.45],[0.05,-0.3],[0.075,-0.1],[0.08,0.1],[0.07,0.3],[0.05,0.42],[0.02,0.49],[0.001,0.5]],22);
+  const acc=Acc();addGeo(acc,g,M4(0,0,0,0,0,0,1,0.75,1),(x,y,z)=>{const n=0.5+0.5*Math.sin(x*60+z*40)*Math.sin(y*50);return mixc([0.44,0.36,0.36],[0.62,0.42,0.42],n*0.6);});return finishGeo(acc);})();
+const flesh=new THREE.Mesh(fleshGeo,waterify(lambert(),'flesh'));flesh.scale.set(13,13,13);flesh.position.set(0.25,0.45,-0.3);wfGroup.add(flesh);
+/* Osedax: feathery red plumes on the bones (1–2 cm each) */
+const osedaxGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.004,0.005,0.03,4),M4(0,0.015,0),()=>[0.9,0.85,0.7]);
+  for(let k=0;k<4;k++)addGeo(acc,new THREE.SphereGeometry(1,5,4),M4(Math.cos(k*1.57)*0.01,0.038,Math.sin(k*1.57)*0.01,Math.sin(k*1.57)*0.5,0,-Math.cos(k*1.57)*0.5,0.006,0.016,0.006),()=>[0.95,0.2,0.25]);return finishGeo(acc);})();
+const osedax=new THREE.InstancedMesh(osedaxGeo,waterify(lambert(),'osedax'),900);osedax.frustumCulled=false;osedax.count=0;wfGroup.add(osedax);
+for(let i=0;i<900;i++){const b=bonePts[i%bonePts.length];_q.setFromEuler(_e.set(R(-0.5,0.5),rnd()*6,R(-0.5,0.5)));_s.setScalar(R(1,1.8));_p.set(b[0]+R(-0.12,0.12),b[1]-0.02,b[2]+R(-0.12,0.12));_m.compose(_p,_q,_s);osedax.setMatrixAt(i,_m);}
+/* chemosynthetic mussels around the skeleton in the sulfophilic stage */
+const wfMussels=new THREE.InstancedMesh(musselGeo,urchinMat,120);wfMussels.frustumCulled=false;wfMussels.count=0;scene.add(wfMussels);
+/* deep-sea crabs drawn to the carcass */
+const crabGeo=(()=>{const acc=Acc(),col=()=>[0.86,0.36,0.22],leg=new THREE.CylinderGeometry(0.008,0.006,0.2,4);
+  addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.05,0,0,0,0,0.11,0.05,0.1),col);
+  for(const s of[1,-1]){for(let k=0;k<4;k++){const a=-0.6+k*0.4;addGeo(acc,leg,M4(s*0.15,0.03,a*0.12,0,-a*0.6*s,s*1.1),col);}
+    addGeo(acc,new THREE.SphereGeometry(1,8,6),M4(s*0.06,0.05,0.14,0,0,0,0.03,0.025,0.04),col);}
+  return finishGeo(acc);})();
+const NCR=24,crabs=new THREE.InstancedMesh(crabGeo,urchinMat,NCR);crabs.frustumCulled=false;crabs.count=0;scene.add(crabs);
+const crabS=[];for(let i=0;i<NCR;i++){const a=rnd()*6.28,r=R(1.5,6);crabS.push({x:Math.cos(a)*r*0.6,z:Math.sin(a)*r,h:rnd()*6.28,s:R(1,1.6)});}
+/* hagfish (Eptatretus deani) writhing in and around the carcass */
+makeDrift('hagfish',{n:40,size:[0.4,0.65],spd:0.14,minAb:0.08,phRate:2,geo:(()=>{const acc=Acc();
+    addGeo(acc,latheZ([[0.001,-0.5],[0.012,-0.42],[0.018,0],[0.018,0.4],[0.012,0.48],[0.001,0.5]],10),null,(x,y)=>mixc([0.78,0.6,0.6],[0.55,0.4,0.42],sstep(-0.01,0.015,y)));
+    return finishGeo(acc);})(),
+  vb:'transformed.x+=sin(aPhase*4.0-position.z*14.0)*0.05;'});
+/* Pacific sleeper shark (Somniosus pacificus): slow, cold-water scavenger */
+const SLP=makeSwimmer('sleeper',buildFishGeo({eye:0.006,h:0.12,w:0.12,tailH:0.12,dorsal:0.035,anal:0.025,
+  col:(x,y,z,f)=>mixc([0.4,0.38,0.37],[0.27,0.26,0.26],sstep(-0.05,0.05,y))}),
+  {vBegin:'float bt=clamp(0.15-position.z,0.0,1.0); transformed.x+=sin(aPhase-position.z*4.0)*0.18*bt*bt;'});
+const sleeperS={a:0};
+let wfOn=false,wfBase=0;
+function buildWhaleFall(on){
+  wfOn=on;wfGroup.visible=on;if(!on){wfMussels.count=0;crabs.count=0;SLP.mesh.count=0;return;}
+  let mn=0,nS=0;for(let z=-6;z<=7;z+=1)for(let x=-2;x<=2;x+=1){mn+=floorY(x,z);nS++;}mn/=nS;
+  wfBase=mn;wfGroup.position.set(0,mn+0.02,0);wfGroup.rotation.set(0,0,0);
+  for(let i=0;i<120;i++){const z=R(-6.5,6.5),x=R(-2.8,2.8)*(1-Math.abs(z)/9);_q.setFromEuler(_e.set(R(-0.6,0.6),rnd()*6,R(-0.6,0.6)));_s.setScalar(R(0.06,0.11));_p.set(x,floorY(x,z)+0.03,z);_m.compose(_p,_q,_s);wfMussels.setMatrixAt(i,_m);}
+  wfMussels.instanceMatrix.needsUpdate=true;applyWF();
+}
+function applyWF(){
+  if(!wfOn)return;const st=wfStages(WF.t),f=Math.pow(st.scav,0.8);
+  flesh.visible=f>0.02;flesh.scale.set(13*(0.25+0.75*f),13*(0.25+0.75*f),13);
+  osedax.count=Math.round(900*st.enrich*(1-0.7*f));WFU.uOse.value=st.enrich*0.8*(1-f);WFU.uMat.value=st.sulfo;
+  wfMussels.count=Math.round(120*st.sulfo);crabs.count=Math.round(NCR*Math.max(0.25,Math.min(1,st.scav+st.enrich*0.5)));
+  bones.scale.set(1,1-0.45*Math.max(0,(WF.t-20)/40),1);
+  $('wfV').textContent=fmtYears(WF.t);
+  $('wfStage').textContent=st.scav>0.4?'食腐动物阶段：盲鳗和睡鲨在啃食鲸肉，每天能吃掉 40–60 kg。':st.enrich>0.5&&st.sulfo<0.5?'机会主义者阶段：骨头露出，红色的食骨蠕虫把“根”钻进骨头里。':'化能合成阶段：细菌分解骨头里的油脂，放出硫化氢，白色细菌席和贻贝靠它生活，可以持续几十年。';
+}
+function stepWhaleFall(dt,t){
+  if(!wfOn)return;const st=wfStages(WF.t);
+  if(st.scav>0.3){sleeperS.a+=dt*0.04;const x=Math.cos(sleeperS.a)*6.5,z=Math.sin(sleeperS.a)*8.5;_p.set(x,wfBase+1.6+0.3*Math.sin(t*0.2),z);
+    _a.set(-Math.sin(sleeperS.a)*6.5,0,Math.cos(sleeperS.a)*8.5);SLP.ph[0]+=dt*2*Math.PI*0.2;poseSwimmer(SLP,_p,_a,3.6);SLP.mesh.count=1;}else SLP.mesh.count=0;
+  for(let i=0;i<crabs.count;i++){const c=crabS[i];c.h+=(rnd()-0.5)*dt*1.5;c.x+=Math.cos(c.h)*0.04*dt;c.z+=Math.sin(c.h)*0.04*dt;
+    if(Math.hypot(c.x/3,c.z/7.5)>1){c.h+=Math.PI*0.5*dt*4;c.x*=0.995;c.z*=0.995;}
+    _q.setFromEuler(_e.set(0,-c.h+Math.PI/2,0));_s.setScalar(c.s);_p.set(c.x,floorY(c.x,c.z)+0.01,c.z);_m.compose(_p,_q,_s);crabs.setMatrixAt(i,_m);}
+  crabs.instanceMatrix.needsUpdate=true;
+  const D=DRIFT.hagfish;if(D.active)D.mesh.count=Math.round(D.n*Math.min(1,0.1+st.scav*1.1));
+}
+
+/* =========================================================
+   14k. Hydrothermal vents: Longqi field, Southwest Indian Ridge (~2,800 m), after Copley et al. 2016.
+   Black smoke: metal sulfides precipitating as >300 °C fluid meets 2 °C seawater.
+   Plume: buoyant point-source plume, radius ≈ 0.12·height, rise speed ∝ height^(-1/3), bent by the current.
+   Fauna zoned outward from the fluid: shrimp, yeti crabs, scaly-foot snails → Gigantopelta, mussels → barnacles, anemones.
+   ========================================================= */
+const ventGroup=new THREE.Group();ventGroup.visible=false;scene.add(ventGroup);
+const chimMat=waterify(lambert(),'chimney');
+const CHIM=[
+  {key:'chim_main',x:0,z:-1,h:6,r0:1.3,r1:0.32,smoke:0.55,seed:1},
+  {key:'chim_tall',x:-9,z:-13,h:22,r0:2.1,r1:0.75,smoke:0.2,seed:2},
+  {key:'chim_mound',x:-6.5,z:5,h:8,r0:3.2,r1:1.4,smoke:0,seed:3},
+  {key:'chim_dead',x:9,z:6,h:9,r0:1.2,r1:0.4,smoke:0,seed:4,dead:true},
+  {key:'chim_dead',x:13,z:-9,h:12,r0:1.6,r1:0.5,smoke:0,seed:5,dead:true}
+];
+for(let k=0;k<6;k++){const a=k/6*Math.PI*2;CHIM.push({key:'chim_hydra',x:7+Math.cos(a)*1.7,z:-5+Math.sin(a)*1.7,h:R(1.8,2.6),r0:0.5,r1:0.14,smoke:0.04,seed:10+k});}
+const chimR=(c,y)=>{const u=y/c.h;return(c.r0+(c.r1-c.r0)*Math.pow(u,0.7))*(1+0.22*Math.pow(Math.max(0,Math.sin(y*2.1+c.seed*3)),8));};
+function chimneyGeo(c){
+  const pts=[];const N=Math.max(16,Math.round(c.h*6));
+  for(let i=0;i<=N;i++){const y=i/N*c.h;pts.push(new THREE.Vector2(chimR(c,y)*(1+0.1*Math.sin(y*5.3+c.seed)),y));}
+  pts.push(new THREE.Vector2(0.001,c.h));
+  const g=new THREE.LatheGeometry(pts,24),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),a=Math.atan2(z,x),k=1+0.12*Math.sin(a*3+y*1.7+c.seed)+0.06*Math.sin(a*7-y*3.1);p.setX(i,x*k);p.setZ(i,z*k);}
+  g.computeVertexNormals();
+  const acc=Acc();addGeo(acc,g,null,(x,y,z)=>{const u=y/c.h,n=0.5+0.5*Math.sin(x*4+y*3.3)*Math.sin(z*5-y*2.1);
+    let col=mixc([0.07,0.065,0.06],[0.15,0.12,0.09],n);
+    if(c.dead||u<0.5)col=mixc(col,[0.55,0.3,0.12],sstep(0.55,0.85,n)*(c.dead?0.8:0.6));
+    if(!c.dead&&u>0.86)col=mixc(col,[0.8,0.78,0.72],sstep(0.55,0.85,n)*0.6);
+    if(n>0.96)col=[0.7,0.55,0.18];return col;});
+  return finishGeo(acc);
+}
+const chimMeshes=CHIM.map(c=>{c.y0=0;const m=new THREE.Mesh(chimneyGeo(c),chimMat);m.position.set(c.x,0,c.z);m.userData.c=c;ventGroup.add(m);return m;});
+/* animals: small instanced shapes, placed by zone on chimney walls and the surrounding floor */
+const VFA={};
+function vfMesh(key,geo,mat,n){const m=new THREE.InstancedMesh(geo,mat,n);m.frustumCulled=false;m.count=0;ventGroup.add(m);VFA[key]=m;return m;}
+const vMat=waterify(lambert(),'ventfauna');
+vfMesh('scalyfoot',(()=>{const acc=Acc();addGeo(acc,new THREE.SphereGeometry(1,10,8),M4(0,0.55,0,0.3,0,0,0.8,0.62,0.95),(x,y,z)=>(Math.sin(Math.atan2(z,x)*3+y*8)>0.6?[0.22,0.2,0.19]:[0.4,0.37,0.33]));
+  addGeo(acc,new THREE.BoxGeometry(1.4,0.35,1.5),M4(0,0.15,0.1),(x,y,z)=>(Math.sin(x*30)*Math.sin(z*30)>0.2?[0.05,0.05,0.06]:[0.14,0.13,0.13]));return finishGeo(acc);})(),vMat,700);
+vfMesh('rimicaris',(()=>{const acc=Acc(),c=()=>[0.96,0.82,0.74];addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0,0.25,0.15,0,0,0,0.28,0.24,0.55),c);
+  addGeo(acc,new THREE.SphereGeometry(1,8,5),M4(0,0.2,-0.45,0,0,0,0.16,0.12,0.4),c);addGeo(acc,triGeo([0,0.2,-0.8, 0.22,0.2,-1.05, -0.22,0.2,-1.05],true),null,c);
+  for(const s of[1,-1])for(let k=0;k<4;k++)addGeo(acc,new THREE.CylinderGeometry(0.02,0.015,0.45,3),M4(s*0.22,0.05,0.25-k*0.15,0,0,s*1.0),c);
+  return finishGeo(acc);})(),vMat,160);
+vfMesh('kiwa',(()=>{const acc=Acc(),c=(x,y,z)=>(Math.sin(x*40)*Math.sin(z*40+y*30)>0.3?[0.98,0.96,0.9]:[0.88,0.84,0.78]);
+  addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.3,0,0,0,0,0.5,0.3,0.62),c);
+  for(const s of[1,-1]){for(let k=0;k<3;k++)addGeo(acc,new THREE.CylinderGeometry(0.04,0.03,0.9,4),M4(s*0.75,0.18,-0.25+k*0.25,0,0,s*1.1),c);
+    addGeo(acc,new THREE.CylinderGeometry(0.11,0.08,1.1,6),M4(s*0.55,0.35,0.75,1.2,s*0.5,0),c);
+    for(let h=0;h<10;h++)addGeo(acc,new THREE.CylinderGeometry(0.012,0.012,0.22,3),M4(s*(0.45+h*0.03),0.42+R(-0.05,0.05),0.45+h*0.07,R(-1,1),0,R(-1,1)),()=>[1,0.98,0.94]);}
+  return finishGeo(acc);})(),vMat,14);
+vfMesh('giga',(()=>{const acc=Acc();addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.45,0,0,0,0,1,0.5,1.1),(x,y,z)=>mixc([0.36,0.27,0.2],[0.6,0.48,0.36],sstep(-0.3,0.6,Math.sin(Math.atan2(z,x)*2+Math.hypot(x,z)*9))));
+  addGeo(acc,new THREE.SphereGeometry(1,8,5),M4(0,0.12,0.1,0,0,0,0.85,0.15,1.0),()=>[0.75,0.6,0.5]);return finishGeo(acc);})(),vMat,320);
+vfMesh('ventmussel',musselGeo,urchinMat,240);
+vfMesh('barnacle',(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.16,0.2,1,8),M4(0,0.5,0),()=>[0.5,0.4,0.32]);
+  addGeo(acc,new THREE.ConeGeometry(0.32,0.7,6),M4(0,1.3,0),(x,y)=>mixc([0.92,0.9,0.85],[0.75,0.72,0.66],sstep(1.0,1.6,y)));return finishGeo(acc);})(),vMat,280);
+vfMesh('ventanem',(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(0.3,0.35,0.6,10),M4(0,0.3,0),()=>[0.95,0.92,0.88]);
+  for(let k=0;k<16;k++){const a=k/16*Math.PI*2;addGeo(acc,new THREE.CylinderGeometry(0.03,0.05,0.55,4),M4(Math.cos(a)*0.28,0.75,Math.sin(a)*0.28,Math.sin(a)*0.7,0,-Math.cos(a)*0.7),()=>[1,0.86,0.86]);}
+  return finishGeo(acc);})(),vMat,70);
+const shrimpS=[];
+function onChimney(c,u,a,out){const y=u*c.h,r=chimR(c,y)*(1+0.12*Math.sin(a*3+y*1.7+c.seed));out.pos.set(c.x+Math.cos(a)*r,c.y0+y,c.z+Math.sin(a)*r);out.n.set(Math.cos(a),0.35,Math.sin(a)).normalize();return out;}
+const _sp={pos:new THREE.Vector3(),n:new THREE.Vector3()};
+function setInst(mesh,i,pos,n,sc,spin){_q.setFromUnitVectors(UP,n);_qt.setFromAxisAngle(n,spin);_q.premultiply(_qt);_s.setScalar(sc);_m.compose(pos,_q,_s);mesh.setMatrixAt(i,_m);}
+let ventOn=false,ventBase=0;
+function buildVent(on){
+  ventOn=on;ventGroup.visible=on;if(!on)return;
+  let mn=0,n=0;for(const c of CHIM){mn+=floorY(c.x,c.z);n++;}ventBase=mn/n;ventGroup.position.set(0,ventBase-0.25,0);
+  CHIM.forEach((c,i)=>{c.y0=floorY(c.x,c.z)-ventGroup.position.y-0.35;chimMeshes[i].position.y=c.y0;});
+  const live=CHIM.filter(c=>!c.dead&&c.smoke>0),act=CHIM.filter(c=>!c.dead);
+  const fill=(key,count,pick)=>{const m=VFA[key];let k=0;for(let i=0;i<count;i++){const r=pick(i);if(!r)continue;setInst(m,k++,r.pos,r.n,r.s,rnd()*6.28);}m.count=k;m.instanceMatrix.needsUpdate=true;};
+  fill('scalyfoot',700,i=>{const c=live[i%live.length];onChimney(c,R(0.5,0.93),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.035,0.05)};});
+  fill('kiwa',14,i=>{const c=live[i%2];onChimney(c,R(0.55,0.85),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.1,0.14)};});
+  fill('giga',320,i=>{const c=act[i%act.length];onChimney(c,R(0.12,0.55),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.04,0.06)};});
+  const ring=(c,d0,d1)=>{const a=rnd()*6.28,d=c.r0+R(d0,d1),x=c.x+Math.cos(a)*d,z=c.z+Math.sin(a)*d;return{pos:new THREE.Vector3(x,floorY(x,z)-ventGroup.position.y+0.02,z),n:new THREE.Vector3(R(-0.2,0.2),1,R(-0.2,0.2)).normalize()};};
+  fill('ventmussel',240,i=>{const c=act[i%act.length],r=ring(c,0,1.6);r.s=R(0.06,0.1);return r;});
+  fill('barnacle',280,i=>{if(i<120){const c=CHIM.filter(c=>c.dead)[i%2];onChimney(c,R(0.05,0.9),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.05,0.08)};}
+    const r=ring(CHIM[0],3,8);r.s=R(0.05,0.08);return r;});
+  fill('ventanem',70,i=>{const r=ring(CHIM[0],4.5,10);r.s=R(0.07,0.11);return r;});
+  shrimpS.length=0;const m=VFA.rimicaris;for(let i=0;i<160;i++)shrimpS.push({c:live[i%live.length],u:R(0.8,0.98),a:rnd()*6.28,s:R(0.04,0.055),ph:rnd()*6.28});m.count=160;
+}
+/* black smoke */
+const NSMK=3200;
+const smoke=makePoints(NSMK,`varying float vA; void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  vec3 v=vWPos-cameraPosition; float d=length(v); vec3 T=exp(-uC*d);
+  vec3 c=vec3(0.07,0.062,0.055)*(torchAt(vWPos,1.0)*1.6+lightAt(-vWPos.y)*uSky);
+  c=c*T+bgCol(v/d)*(1.0-T);
+  gl_FragColor=vec4(c,vA*(1.0-r*r)*clamp(T.g*1.3,0.0,1.0));`);
+smoke.pts.material.vertexShader=smoke.pts.material.vertexShader.replace('attribute float aSeed;','attribute float aSeed; varying float vA;').replace('vSeed=aSeed;','vSeed=aSeed; vA=aSeed;');
+smoke.pts.material.fragmentShader=smoke.pts.material.fragmentShader.replace('varying float vA;','').replace('varying float vSeed;','varying float vSeed; varying float vA;');
+const SMK=[];for(let i=0;i<NSMK;i++)SMK.push({src:null,z:R(0,22),u:Math.sqrt(rnd()),phi:rnd()*6.28,w:R(0.6,1.4),seed:rnd()});
+const W0=1.5;
+function stepVent(dt,t){
+  if(!ventOn){if(smoke.pts.visible){smoke.pts.visible=false;}return;}
+  smoke.pts.visible=true;const srcs=CHIM.filter(c=>c.smoke>0),tot=srcs.reduce((a,c)=>a+c.smoke,0),gy=ventGroup.position.y;
+  for(let i=0;i<NSMK;i++){const P=SMK[i];
+    if(!P.src){let r=rnd()*tot;for(const c of srcs){r-=c.smoke;if(r<=0){P.src=c;break;}}P.src=P.src||srcs[0];}
+    const c=P.src,zMax=c===CHIM[1]?30:c.key==='chim_hydra'?8:22;
+    P.z+=W0*P.w*Math.pow(1+P.z/0.4,-1/3)*dt;P.phi+=dt*(0.4+P.seed*0.6);
+    if(P.z>zMax){P.z=0;P.u=Math.sqrt(rnd());P.src=null;continue;}
+    const b=0.08+0.12*P.z,rr=b*P.u*(1+0.25*Math.sin(t*1.7+P.seed*40)),bend=S.cur*P.z*1.6;
+    const o=i*3;smoke.pos[o]=c.x+Math.cos(P.phi)*rr+CUR.x*bend;smoke.pos[o+1]=gy+c.y0+c.h+P.z;smoke.pos[o+2]=c.z+Math.sin(P.phi)*rr+CUR.z*bend;
+    smoke.size[i]=(0.25+0.16*P.z)*(c.key==='chim_hydra'?0.5:1);smoke.sd[i]=0.8*Math.exp(-P.z/(zMax*0.5))*Math.min(1,P.z*4+0.3);}
+  smoke.g.attributes.position.needsUpdate=true;smoke.g.attributes.aSize.needsUpdate=true;smoke.g.attributes.aSeed.needsUpdate=true;
+  const m=VFA.rimicaris;
+  for(let i=0;i<shrimpS.length;i++){const s=shrimpS[i];s.a+=Math.sin(t*0.9+s.ph)*0.15*dt;s.u=Math.min(0.98,Math.max(0.75,s.u+Math.cos(t*1.3+s.ph)*0.02*dt));
+    onChimney(s.c,s.u,s.a,_sp);setInst(m,i,_sp.pos,_sp.n,s.s,s.ph+t*0.2);}
+  m.instanceMatrix.needsUpdate=true;
+}
+const CHIM_INFO={
+  chim_main:['黑烟囱','热液喷口 · 约 6 m 高','海水从海底裂缝渗下去，被岩浆加热到 300 多摄氏度，溶进铁、铜、锌等金属后从这里喷出；一碰到 2 °C 的海水，金属硫化物瞬间析出，就成了“黑烟”。这里压强约 280 个大气压，海水要到约 400 °C 才会沸腾，所以热液不会沸腾。'],
+  chim_tall:['如意金箍棒','硫化物柱 · 20 m 以上','龙旂热液区里一根 20 多米高的硫化物柱，科考队给它起了这个名字。烟囱由析出的硫化物一层层堆起来，这么高说明这里的喷发已经持续了很久。'],
+  chim_hydra:['九头蛇（Hydra）','一圈六根小烟囱 · 约 2 m 高','六根小烟囱围成一圈。年轻的黑烟囱上以盲虾和铁甲蜗牛为主，老一些、只剩弥散流的烟囱则被巨螺、贻贝和藤壶占据。'],
+  chim_mound:['弥散流烟囱','温度较低的热液慢慢渗出','这里没有黑烟，较凉的热液从岩体缝隙里渗出，外围长满了巨螺和贻贝。'],
+  ice_under:['海冰底面与冰藻','海冰厚约 2 m · 水温 −1.9 °C','阳光穿过约 2 m 厚的海冰和积雪后只剩百分之几，冰底那些褐色的斑块是冰藻：硅藻等微藻生活在海冰底部和下方松散的“片状冰”里，靠这一点点光进行光合作用，是南极磷虾等动物的重要食物。','南极麦克默多湾'],
+  spawn_bundle:['卵精束','直径约 1–2 mm · 画面中放大约 15 倍','一个卵精束里裹着几十粒卵和成千上万个精子。卵富含脂质，比海水轻，所以卵精束会上浮；到水面后约一小时内散开，卵才和来自其他珊瑚的精子相遇。同一珊瑚自己的卵和精子大多不能互相受精。','珊瑚产卵之夜'],
+  brine_surf:['盐池的“湖面”','卤水与海水的分界面 · 水深约 650 m','这里的卤水含盐量约为海水的 4 倍，密度约 1.09 g/cm³，比海水重，所以沉在海底聚成一个“湖”，有清晰的湖面和湖岸，不和上面的海水混合。两层水密度只差约 6%，湖面波浪的回复力只有普通水面的约 3%，1 米长的波要 4–5 秒才起伏一次。你刚才碰到的地方会慢慢荡开一圈波纹。潜水器可以像船一样“停”在这个湖面上。','墨西哥湾 NR1 盐池'],
+  brine_dead:['误入卤水的动物','盐池底部','卤水几乎不含氧气，盐度又极高，游进或掉进去的动物很快就会死去，被卤水“腌”着保存下来。墨西哥湾另一个水深约 1,000 m 的盐池因此被叫作“绝望按摩池”（Jacuzzi of Despair），池边散落着这样的螃蟹和鱼。','墨西哥湾 NR1 盐池'],
+  chim_dead:['不再活动的硫化物烟囱','只剩矿物','热液已经停止，烟囱外层被氧化成铁锈色，柄藤壶和海葵在上面安家。龙旂热液区至少有 13 座这样不再活动的大型硫化物堆积体。']
+};
+
+/* =========================================================
+   14l. Diel vertical migration: open North Pacific (subtropical gyre, ~22.75° N like Station ALOHA), equinox.
+   Surface light from solar elevation (twilight from typical illuminance: ~400 lx at sunset, ~3 lx at -6°, ~0.01 lx at -12°).
+   Each migrant tracks its preferred light level (isolume): z*(t)=z_day+ln(E(t))/K_blue, clamped to [z_night,z_day],
+   with a swimming-speed limit. Hatchetfish stay put (weak migrators) for contrast.
+   ========================================================= */
+const DVM={t:17.5,rate:0.1,play:true,lat:22.75,z:50,tab:{},prevNight:false,lastSun:-99,cv:null};
+const KB=(()=>{const a=WATER.clear.a[2],b=WATER.clear.b[2];return Math.sqrt(a*a+0.256*a*b);})();
+const LOGE=[[-90,-8.3],[-18,-8.0],[-12,-7.1],[-6,-4.5],[-3,-3.4],[0,-2.4],[5,-1.35],[10,-0.95],[20,-0.55],[40,-0.2],[60,-0.07],[90,0]];
+function sunElev(h){const H=(h-12)*15*Math.PI/180,la=DVM.lat*Math.PI/180;return Math.asin(Math.cos(la)*Math.cos(H))*180/Math.PI;}
+function surfE(h){const e=sunElev(h);for(let i=1;i<LOGE.length;i++){if(e<=LOGE[i][0]){const[a,la]=LOGE[i-1],[b,lb]=LOGE[i];return Math.pow(10,la+(lb-la)*(e-a)/(b-a));}}return 1;}
+const MIG={
+  lantern:{zd:450,zn:40,w:[36,30],v:8,sv:1.0},
+  krill:{zd:320,zn:20,w:[28,38],v:3,sv:0.12},
+  salp:{zd:650,zn:15,w:[40,40],v:4,sv:0.03}
+};
+(function buildTables(){
+  for(const k in MIG){const g=MIG[k],T=new Float32Array(1440);let z=g.zd;
+    for(let d=0;d<3;d++)for(let m=0;m<1440;m++){const E=surfE(m/60),zs=Math.min(g.zd,Math.max(g.zn,g.zd+Math.log(E)/KB));
+      z+=Math.max(-g.v,Math.min(g.v,zs-z));if(d===2)T[m]=z;}
+    DVM.tab[k]=T;}
+})();
+function migZ(k,h){const T=DVM.tab[k],m=((h*60)%1440+1440)%1440,i=Math.floor(m),f=m-i;return T[i]*(1-f)+T[(i+1)%1440]*f;}
+function migW(k,zc){const g=MIG[k];return g.w[1]+(g.w[0]-g.w[1])*(zc-g.zn)/(g.zd-g.zn);}
+function migDens(k,z,h){const zc=migZ(k,h),w=migW(k,zc);return Math.exp(-0.5*Math.pow((z-zc)/w,2));}
+const HATCH=[300,500];
+function hatchDens(z){return z<HATCH[0]?Math.exp(-0.5*Math.pow((z-HATCH[0])/35,2)):z>HATCH[1]?Math.exp(-0.5*Math.pow((z-HATCH[1])/35,2)):1;}
+function hhmm(h){h=((h%24)+24)%24;const m=Math.floor(h*60+1e-6);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
+
+/* krill (Euphausiidae): ~2–3 cm, rows of blue photophores */
+makeDrift('krill',{n:260,size:[0.024,0.034],spd:0.07,minAb:0.5,jitter:true,geo:(()=>{const acc=Acc(),c=[0.9,0.72,0.66],g0={aGlow:()=>0},g1={aGlow:()=>1};
+    for(let k=0;k<6;k++)addGeo(acc,new THREE.SphereGeometry(1,7,5),M4(0,0.02*Math.cos(k*0.5),0.32-k*0.13,0,0,0,0.1,0.11-k*0.008,0.09),(x,y)=>y>0.03?[0.95,0.55,0.5]:c,g0);
+    addGeo(acc,triGeo([0,0.02,-0.44, 0.1,0.02,-0.62, -0.1,0.02,-0.62],true),null,()=>c,g0);
+    for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(0.04,6,4),M4(sg*0.07,0.05,0.4),()=>[0.05,0.05,0.06],g0);
+      addGeo(acc,new THREE.CylinderGeometry(0.006,0.006,0.5,3),M4(sg*0.04,0.06,0.62,1.3,0,sg*0.15),()=>c,g0);
+      for(let k=0;k<3;k++)addGeo(acc,new THREE.SphereGeometry(0.018,5,4),M4(sg*0.06,-0.07,0.18-k*0.16),()=>[0.6,0.8,1],g1);}
+    for(let k=0;k<5;k++)addGeo(acc,new THREE.CylinderGeometry(0.008,0.006,0.16,3),M4(0,-0.1,0.25-k*0.1,0.3,0,0),()=>c,g0);
+    return finishGeo(acc);})(),
+  emit:'emit+=vec3(0.15,0.5,1.0)*vGlow*(0.4+1.6*smoothstep(0.8,0.97,fract(uTime*0.07+vPh*0.53)));'});
+/* salp chains (Salpa aspera): transparent barrel zooids linked in a chain, each with an orange-brown gut */
+makeDrift('salp',{n:9,size:[0.8,1.2],spd:0.05,minAb:1,geo:(()=>{const acc=Acc(),g0={aGlow:()=>0};
+    for(let k=0;k<9;k++){const z=0.42-k*0.105,a=(k%2?0.35:-0.35);
+      const b=new THREE.CylinderGeometry(0.038,0.045,0.085,10,1,true);b.rotateX(Math.PI/2);
+      addGeo(acc,b,M4(Math.sin(k*0.7)*0.02,0,z,0,a,0),()=>[0.78,0.88,0.92],g0);
+      addGeo(acc,new THREE.SphereGeometry(0.014,6,5),M4(Math.sin(k*0.7)*0.02,-0.02,z-0.02),()=>[0.75,0.42,0.18],g0);}
+    return finishGeo(acc);})(),
+  vb:'transformed.x+=sin(aPhase*0.8+position.z*3.0)*0.04;'});
+{const m=DRIFT.salp.mesh.material;m.transparent=true;m.opacity=0.55;m.depthWrite=false;}
+
+function dvmLight(){
+  const E=surfE(DVM.t),el=sunElev(DVM.t),night=el<-6;
+  if(night!==S.night){S.night=night;rebuild();}
+  const sky=Math.max(E,0.015),day=Math.min(1,Math.max(0,(el+2)/10));
+  U.uSky.value=sky;U.uDay.value=day;sunLight.intensity=1.5*sky;hemi.intensity=0.65*sky;
+  sunLight.color.setRGB(el<6?1:1,el<6?0.8+0.2*Math.max(0,el)/6:1,el<6?0.62+0.38*Math.max(0,el)/6:1);
+  const s=Math.max(8,Math.round(el));if(s!==DVM.lastSun){DVM.lastSun=s;S.sun=s;updateOptics();}
+  U.uShaft.value=(0.1+1.3*Math.sqrt(WATER.clear.b[1]/0.4))*Math.min(1,0.4+S.H/1.5)*day;
+}
+function dvmH(){
+  const z=DIVE.z,h=DVM.t;DVM.d={lantern:migDens('lantern',z,h),krill:migDens('krill',z,h),salp:migDens('salp',z,h),hatchet:hatchDens(z)};
+  H.lantern=DVM.d.lantern>0.06;H.krill=DVM.d.krill>0.06;H.salp=DVM.d.salp>0.06;H.hatchet=DVM.d.hatchet>0.2;
+  H.manta=false;H.turtle=false;H.amphi=false;H.snail=false;
+}
+/* bioluminescent glints of the migrating layer: lanternfish photophores and krill flashes, scattered through the water around you.
+   Each point is lit only if the layer is at its depth (density at that point) and the water there is dark enough to see it. */
+const NG=2600,dglow=makePoints(NG,`void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  float k=fract(vSeed*7.31); float fl=k<0.5?(0.55+0.45*sin(uTime*(0.8+k*2.0)+vSeed*40.0)):smoothstep(0.86,0.99,fract(uTime*(0.12+0.1*k)+vSeed*13.0))*2.2;
+  float d=length(vWPos-cameraPosition); vec3 c=vec3(0.18,0.55,1.0)*fl*exp(-uC*d)*(1.0-r*r)*1.5;
+  gl_FragColor=vec4(c,1.0);`,THREE.AdditiveBlending);
+const GL=[];for(let i=0;i<NG;i++)GL.push({x:R(-22,22),y:R(-45,45),z:R(-22,22),g:i%3===0?'krill':'lantern',u:rnd()});
+dglow.pts.visible=false;
+function dvmGlow(){
+  const on=!!DIVE.dvm;dglow.pts.visible=on;if(!on)return;const c=controls.target,E=surfE(DVM.t);
+  for(let i=0;i<NG;i++){const P=GL[i],o=i*3;
+    let x=P.x,z=P.z;dglow.pos[o]=c.x+x;dglow.pos[o+2]=c.z+z;const wy=-DIVE.z+P.y;dglow.pos[o+1]=Math.min(-0.5,wy);
+    const dep=-wy,amb=light(dep,2)*E,dark=1-Math.min(1,Math.max(0,(Math.log10(amb+1e-14)+5.5)/2));
+    const den=dep>0?migDens(P.g,dep,DVM.t):0,vis=P.u<den*0.85&&dark>0.02;
+    dglow.size[i]=vis?(P.g==='krill'?0.05:0.07)*dark:0;dglow.sd[i]=(i*0.6180339)%1;}
+  dglow.g.attributes.position.needsUpdate=true;dglow.g.attributes.aSize.needsUpdate=true;dglow.g.attributes.aSeed.needsUpdate=true;
+}
+function dvmCounts(){
+  FISH.lantern.zr=[0,1200];FISH.hatchet.zr=HATCH;DRIFT.krill.zr=[0,1200];DRIFT.salp.zr=[0,1200];
+  const cnt=(n,d)=>Math.max(1,Math.round(n*Math.min(1,d*1.4)));
+  if(H.lantern)FISH.lantern.mesh.count=cnt(FISH.lantern.n,DVM.d.lantern);
+  if(H.hatchet)FISH.hatchet.mesh.count=cnt(FISH.hatchet.n,DVM.d.hatchet);
+  if(H.krill)DRIFT.krill.mesh.count=cnt(DRIFT.krill.n,DVM.d.krill);
+  if(H.salp)DRIFT.salp.mesh.count=cnt(DRIFT.salp.n,DVM.d.salp);
+  dvmGlow();
+}
+/* echogram: what a 38 kHz echosounder would draw over 24 h (relative volume backscatter, dB) */
+const ECHO={W:288,H:170,top:12,left:26,zmax:1000,img:null};
+function drawEchoBase(){
+  const cv=$('echo');if(!cv)return;const pr=Math.min(2,window.devicePixelRatio||1);
+  const W=ECHO.W,Hh=ECHO.H;cv.width=W*pr;cv.height=Hh*pr;const g=cv.getContext('2d');g.setTransform(pr,0,0,pr,0,0);
+  const pw=W-ECHO.left-4,ph=Hh-ECHO.top-16,id=g.createImageData(Math.round(pw*pr),Math.round(ph*pr));
+  const stops=[[-30,[8,22,32]],[-23,[22,58,120]],[-16,[30,120,200]],[-10,[40,170,110]],[-6,[225,210,60]],[-3,[240,140,45]],[0,[214,52,46]]];
+  const col=v=>{if(v<=stops[0][0])return stops[0][1];for(let i=1;i<stops.length;i++)if(v<=stops[i][0]){const[a,ca]=stops[i-1],[b,cb]=stops[i],f=(v-a)/(b-a);return ca.map((c,j)=>c+(cb[j]-c)*f);}return stops[stops.length-1][1];};
+  for(let x=0;x<id.width;x++){const h=x/id.width*24;
+    const zc={};for(const k in MIG){zc[k]=migZ(k,h);}
+    for(let y=0;y<id.height;y++){const z=y/id.height*ECHO.zmax;let s=0.004*Math.exp(-z/25)+1e-4;
+      for(const k in MIG){const w=migW(k,zc[k]);s+=MIG[k].sv*Math.exp(-0.5*Math.pow((z-zc[k])/w,2));}
+      s+=0.04*hatchDens(z);const n=0.6+0.8*hash2(x*7+3,y*13+5);
+      const c=col(10*Math.log10(s*n));const o=(y*id.width+x)*4;id.data[o]=c[0];id.data[o+1]=c[1];id.data[o+2]=c[2];id.data[o+3]=255;}}
+  ECHO.img=id;ECHO.pr=pr;ECHO.pw=pw;ECHO.ph=ph;
+}
+function drawEcho(){
+  const cv=$('echo');if(!cv||!ECHO.img)return;const g=cv.getContext('2d'),pr=ECHO.pr,L=ECHO.left,T=ECHO.top,pw=ECHO.pw,ph=ECHO.ph;
+  g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);g.putImageData(ECHO.img,Math.round(L*pr),Math.round(T*pr));g.setTransform(pr,0,0,pr,0,0);
+  for(let x=0;x<pw;x++){const el=sunElev(x/pw*24);g.fillStyle=el>0?'rgba(255,214,120,'+(0.35+0.5*Math.min(1,el/30))+')':el>-12?'rgba(120,140,190,'+(0.25+0.3*(el+12)/12)+')':'rgba(40,50,80,.5)';g.fillRect(L+x,T-7,1,4);}
+  g.font='9px '+getComputedStyle(document.body).getPropertyValue('--f-mono');g.fillStyle='#86a7ae';g.textAlign='right';
+  for(let z=0;z<=1000;z+=200){const y=T+z/ECHO.zmax*ph;g.fillText(String(z),L-3,y+3);g.fillRect(L-2,y,2,0.6);}
+  g.textAlign='center';for(let h=0;h<=24;h+=6){const x=L+h/24*pw;g.fillText(String(h).padStart(2,'0')+':00',Math.min(Math.max(x,L+12),L+pw-12),T+ph+11);}
+  const cx=L+((DVM.t%24)/24)*pw,cy=T+Math.min(1,DIVE.z/ECHO.zmax)*ph;
+  g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=1;g.beginPath();g.moveTo(cx,T-8);g.lineTo(cx,T+ph);g.stroke();
+  g.setLineDash([3,3]);g.strokeStyle='rgba(98,212,227,.95)';g.beginPath();g.moveTo(L,cy);g.lineTo(L+pw,cy);g.stroke();g.setLineDash([]);
+  g.fillStyle='#62d4e3';g.beginPath();g.arc(cx,cy,3.2,0,6.283);g.fill();
+}
+function dvmNote(){
+  const h=DVM.t,el=sunElev(h),zl=migZ('lantern',h),vl=(migZ('lantern',h+1/60)-zl);
+  const phase=el>20?'白天':el>0?(h<12?'清晨':'傍晚'):el>-12?(h<12?'黎明':'黄昏'):'夜里';
+  const mv=Math.abs(vl)<0.3?'停在那里':(vl<0?'正以约 '+Math.abs(vl).toFixed(1)+' m/min 上升':'正以约 '+vl.toFixed(1)+' m/min 下沉');
+  $('dvmNote').innerHTML='<b>'+phase+'</b> · 水面光照约为正午的 '+pct(surfE(h))+'。灯笼鱼层在约 <b>'+Math.round(zl)+' m</b>，'+mv+'；磷虾层约 '+Math.round(migZ('krill',h))+' m，樽海鞘约 '+Math.round(migZ('salp',h))+' m。银斧鱼不迁移，一直留在 300–500 m。';
+  $('dvmTV').textContent=hhmm(h);$('dvmZV').textContent=Math.round(DIVE.z)+' m';
+  if(document.activeElement!==$('sDvmT'))$('sDvmT').value=Math.round(((h%24)+24)%24*60)%1440;
+  if(document.activeElement!==$('sDvmZ'))$('sDvmZ').value=Math.round(DIVE.z);
+  [...$('dvmRate').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.r==='pause'?!DVM.play:(DVM.play&&+b.dataset.r===DVM.rate)));
+}
+function enterDVM(){
+  DVM.prevNight=S.night;DIVE.dvm=true;DIVE.on=true;DIVE.play=false;DIVE.replay=false;DIVE.manualTorch=false;DIVE.elapsed=0;WALL.cy=1e9;
+  S.loc='dvm';const L=LOC.dvm;Object.assign(S,{water:L.water,temp:L.temp,H:L.H,T:L.T,cur:L.cur,dir:L.dir,sun:L.sun,seep:false,torch:'off'});
+  for(const k in FISH)FISH[k].active=false;for(const k in JELLY)JELLY[k].active=false;for(const k in DRIFT)DRIFT[k].active=false;
+  [encWS,encSW,encSQ,encSI].forEach(e=>{e.on=false;e.cool=R(4,9);});
+  S.D=L.D;DIVE.z=DVM.z;DIVE.lastZ=DVM.z;controls.target.set(0,-DVM.z,0);camera.position.set(3.2,-DVM.z+0.9,5.6);
+  bubbles.forEach(b=>b.on=false);sparkAge.fill(99);DVM.lastSun=-99;S.night=sunElev(DVM.t)<-6;
+  rebuild();dvmLight();updDiveUI();$('dvmSec').hidden=false;drawEchoBase();drawEcho();dvmNote();
+  showCaption('地球上规模最大的迁移','每天黄昏，暮光层里数以十亿计的灯笼鱼、磷虾和樽海鞘从几百米深处升到表层觅食，天亮前再沉回去。你现在悬停在 '+Math.round(DVM.z)+' m，看着它们到来。',10);
+}
+function stepDVM(rdt){
+  if(!DIVE.dvm)return;
+  if(DVM.play){DVM.t=(DVM.t+DVM.rate*rdt)%24;}
+  dvmLight();
+}
+
+/* =========================================================
+   14m. Brine pool NR1, Green Canyon, northern Gulf of Mexico (~650 m), after MacDonald 1996 and the 2014 Nautilus dives.
+   Brine ~4x seawater salinity (~120 psu upper layer), density ~1.09 vs 1.027 g/cm3: it pools in a funnel-shaped depression
+   on top of a low mound, <2 m deep over most of its area and much deeper where methane bubbles out.
+   Interfacial waves feel a reduced gravity g'=g(r2-r1)/(r2+r1) ~0.3 m/s2: deep-water dispersion w^2=g'k, so they are slow.
+   A band of methane mussels (Bathymodiolus childressi) rings the shore.
+   ========================================================= */
+const BR={ax:5.5,az:9,zc:0,L:1.8,rim:2.25,D:1.45,base:0,gE:9.81*(1092-1027)/(1092+1027),rings:[],ri:0,acc:0,next:2};
+function brineQ(x,z){return Math.hypot(x/BR.ax,(z-BR.zc)/BR.az);}
+function brineH(q,x,z){
+  if(q<1){let h=BR.L-BR.D*sstep(1,0.72,q);const f=sstep(0.2,0,q);h-=2.4*f*f;return h+0.06*(fbm(x*0.6+3,z*0.6)-0.5)*sstep(0.95,0.8,q);}
+  const n=(fbm(x*0.32+7,z*0.32+1)-0.5)*0.5*sstep(1.15,1.5,q)*(1-sstep(1.9,2.4,q));
+  return (BR.L+(BR.rim-BR.L)*sstep(1,1.28,q))*(1-sstep(1.35,2.4,q))+n-0.03*sstep(2.0,2.4,q);
+}
+function brineFloor(x,z){const q=brineQ(x,z);if(q>=2.4)return floorY0(x,z);const w=1-sstep(1.6,2.4,q);return floorY0(x,z)*(1-w)+BR.base*w+brineH(q,x,z);}
+const brineGroup=new THREE.Group();brineGroup.visible=false;scene.add(brineGroup);
+const brTerrGeo=new THREE.PlaneGeometry(BR.ax*5,BR.az*5,150,240);brTerrGeo.rotateX(-Math.PI/2);
+brTerrGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(brTerrGeo.attributes.position.count*3),3));
+const brTerr=new THREE.Mesh(brTerrGeo,waterify(lambert(),'brineTerr'));brineGroup.add(brTerr);
+const brMus=new THREE.InstancedMesh(musselGeo,urchinMat,4000);brMus.frustumCulled=false;brMus.count=0;brineGroup.add(brMus);
+const deadCrabGeo=(()=>{const acc=Acc(),c=()=>[0.92,0.66,0.52];
+  addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.1,0,0,0,0,0.5,0.2,0.42),c);
+  for(const sg of[1,-1]){for(let k=0;k<4;k++)addGeo(acc,new THREE.CylinderGeometry(0.03,0.02,0.75,4),M4(sg*0.62,0.08,-0.25+k*0.17,0.15,0,sg*1.25),c);
+    addGeo(acc,new THREE.SphereGeometry(1,8,6),M4(sg*0.32,0.1,0.55,0,sg*0.4,0,0.1,0.07,0.22),c);}
+  return finishGeo(acc);})();
+const brDead=new THREE.InstancedMesh(deadCrabGeo,waterify(lambert(),'brineDead'),10);brDead.frustumCulled=false;brDead.count=0;brineGroup.add(brDead);
+const brFish=new THREE.InstancedMesh(FISH.rockfish.mesh.geometry,waterify(lambert({side:THREE.DoubleSide}),'brineFish'),2);brFish.frustumCulled=false;brFish.count=0;brineGroup.add(brFish);
+{const c=new THREE.Color();for(let i=0;i<2;i++)brFish.setColorAt(i,c.setRGB(0.75,0.72,0.68));}
+/* the brine surface: slow interfacial waves + ripple rings, Fresnel with n_brine/n_sea~1.013, a turbid brine body */
+const BR_WAVE=`uniform vec4 uRing[8]; uniform float uGE;
+float brineWave(vec2 p){ float h=0.0;
+  vec2 d1=normalize(vec2(1.0,0.3)),d2=normalize(vec2(-0.4,1.0)),d3=normalize(vec2(0.7,-0.8));
+  float k1=6.2832/2.2,k2=6.2832/1.3,k3=6.2832/0.8;
+  h+=0.018*sin(k1*dot(d1,p)-sqrt(uGE*k1)*uTime);
+  h+=0.010*sin(k2*dot(d2,p)-sqrt(uGE*k2)*uTime+1.7);
+  h+=0.005*sin(k3*dot(d3,p)-sqrt(uGE*k3)*uTime+4.1);
+  { vec2 d4=normalize(vec2(-0.9,-0.35)); float k4=6.2832/0.35; h+=0.0022*sin(k4*dot(d4,p)-sqrt(uGE*k4)*uTime+0.6)*(0.6+0.4*sin(p.x*0.7+p.y*0.4)); }
+  for(int i=0;i<8;i++){ vec4 r=uRing[i]; float age=uTime-r.z; if(age<0.0||age>40.0||r.w<=0.0) continue;
+    float kr=6.2832/0.7, cp=sqrt(uGE/kr), cg=0.5*cp; float d=length(p-r.xy);
+    float w=0.35+0.06*age; float env=exp(-pow((d-cg*age)/w,2.0));
+    h+=r.w*exp(-age/12.0)*env*cos(kr*d-sqrt(uGE*kr)*age)/sqrt(1.0+2.0*d); }
+  return h; }`;
+const brSurfMat=new THREE.ShaderMaterial({uniforms:Object.assign({},U,{uRing:{value:Array.from({length:8},()=>new THREE.Vector4(0,0,-99,0))},uGE:{value:BR.gE},uEll:{value:new THREE.Vector3(BR.ax,BR.az,BR.zc)},uLR:{value:new THREE.Vector2(BR.L,BR.rim)}}),
+  transparent:true,depthWrite:false,
+  vertexShader:'uniform float uTime; varying vec3 vWPos; varying vec2 vP; '+BR_WAVE+' void main(){ vec3 p=position; vP=p.xz; p.y+=brineWave(p.xz); vec4 wp=modelMatrix*vec4(p,1.0); vWPos=wp.xyz; gl_Position=projectionMatrix*viewMatrix*wp; }',
+  fragmentShader:WATER_PARS+BR_WAVE+`
+  uniform vec3 uEll; uniform vec2 uLR; varying vec2 vP;
+  float shoreRel(vec2 p){ float q=length(vec2(p.x/uEll.x,(p.y-uEll.z)/uEll.y)); if(q<1.0) return -9.0;
+    return (uLR.x+(uLR.y-uLR.x)*smoothstep(1.0,1.28,q))*(1.0-smoothstep(1.35,2.4,q))-uLR.x; }
+  vec3 shoreCol(vec2 p){ float q=length(vec2(p.x/uEll.x,(p.y-uEll.z)/uEll.y));
+    float sp=0.5+0.5*sin(p.x*41.0)*sin(p.y*37.0);
+    vec3 sed=vec3(0.42,0.4,0.36), mus=mix(vec3(0.1,0.07,0.04),vec3(0.42,0.33,0.2),sp*sp);
+    return mix(sed,mus,smoothstep(1.3,1.12,q)); }
+  void main(){
+    float q=length(vec2(vP.x/uEll.x,(vP.y-uEll.z)/uEll.y)); if(q>1.0) discard;
+    float e=0.04, h0=brineWave(vP), hx=brineWave(vP+vec2(e,0.0)), hz=brineWave(vP+vec2(0.0,e)), hx2=brineWave(vP-vec2(e,0.0)), hz2=brineWave(vP-vec2(0.0,e));
+    vec3 N=normalize(vec3(-(hx-hx2)/(2.0*e),1.0,-(hz-hz2)/(2.0*e)));
+    float lap=(hx+hx2+hz+hz2-4.0*h0)/(e*e);
+    vec3 V=normalize(cameraPosition-vWPos); float ci=max(dot(N,V),1e-3), n=1.0127;
+    float ct=sqrt(max(1.0-(1.0-ci*ci)/(n*n),0.0)); float rs=(ci-n*ct)/(ci+n*ct), rp=(n*ci-ct)/(n*ci+ct); float Fr=0.5*(rs*rs+rp*rp);
+    vec3 tE=torchAt(vWPos,ci);
+    float lens=clamp(1.0-lap*0.35,0.5,1.8);
+    vec3 murk=vec3(0.3,0.31,0.32)*tE*0.42*lens;
+    vec3 rd=reflect(-V,N); vec3 refl=bgCol(rd);
+    { float y0=vWPos.y; for(int i=1;i<=16;i++){ float t=float(i)*0.45; vec3 P=vWPos+rd*t; if(P.y-y0>3.0) break;
+        if(P.y-y0<shoreRel(P.xz)){ vec3 tl=torchAt(P,0.8); vec3 T2=exp(-uC*t); refl=shoreCol(P.xz)*tl*T2+refl*(1.0-T2); break; } } }
+    vec3 c=mix(murk,refl,clamp(Fr*1.5,0.0,1.0));
+    float d=length(vWPos-cameraPosition); vec3 T=exp(-uC*d); c=c*T+bgCol(-V)*(1.0-T);
+    float a=mix(0.5,0.9,smoothstep(0.99,0.78,q)); a=max(a,clamp(Fr*1.5,0.0,1.0));
+    gl_FragColor=vec4(c,a);
+  #include <tonemapping_fragment>
+  #include <encodings_fragment>
+  }`});
+const brSurfGeo=new THREE.PlaneGeometry(BR.ax*2.1,BR.az*2.1,120,190);brSurfGeo.rotateX(-Math.PI/2);brSurfGeo.translate(0,0,BR.zc);
+const brSurf=new THREE.Mesh(brSurfGeo,brSurfMat);brSurf.frustumCulled=false;brSurf.renderOrder=2;brineGroup.add(brSurf);
+function brineRing(x,z,amp){const r=brSurfMat.uniforms.uRing.value[BR.ri];BR.ri=(BR.ri+1)%8;r.set(x,z,U.uTime.value,amp);}
+function buildBrine(on){
+  brineOn=on;brineGroup.visible=on;rocks.children.forEach(m=>m.visible=true);if(!on)return;
+  BR.base=floorY0(0,BR.zc);
+  const p=brTerrGeo.attributes.position,c=brTerrGeo.attributes.color;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),q=brineQ(x,z),y=brineFloor(x,z);p.setY(i,y);
+    const n1=fbm(x*0.5+11,z*0.5+3),n2=fbm(x*1.7,z*1.7+5);
+    let col=mixc([0.44,0.42,0.38],[0.36,0.34,0.31],n1);
+    col=mixc(col,[0.6,0.58,0.52],sstep(0.55,0.75,n2)*sstep(1.08,1.3,q)*(1-sstep(1.7,2.1,q)));
+    const mat=sstep(0.5,0.68,n1+0.2*Math.sin(x*2.1)*Math.cos(z*1.7))*sstep(1.02,1.12,q)*(1-sstep(1.35,1.6,q));
+    col=mixc(col,n2>0.5?[0.95,0.94,0.9]:[0.9,0.6,0.3],mat*0.9);
+    col=mixc(col,[0.15,0.12,0.09],sstep(1.27,1.05,q)*sstep(0.95,1.0,q));
+    if(q<1)col=mixc([0.2,0.2,0.19],[0.28,0.27,0.25],n2);
+    c.setXYZ(i,col[0],col[1],col[2]);}
+  p.needsUpdate=true;c.needsUpdate=true;brTerrGeo.computeVertexNormals();brTerrGeo.computeBoundingSphere();
+  brSurf.position.y=BR.base+BR.L;
+  let k=0;const cc=new THREE.Color();
+  for(let tries=0;tries<20000&&k<4000;tries++){const a=rnd()*6.28,q=0.985+Math.pow(rnd(),1.7)*0.27;
+    if(rnd()>0.55+0.45*Math.sin(a*5+1.3)*Math.sin(a*3)&&q>1.12)continue;
+    const x=Math.cos(a)*BR.ax*q,z=BR.zc+Math.sin(a)*BR.az*q;
+    _q.setFromEuler(_e.set(R(-0.9,0.9),rnd()*6.28,R(-0.9,0.9)));_s.setScalar(R(0.05,0.072));_p.set(x,brineFloor(x,z)+0.03,z);_m.compose(_p,_q,_s);brMus.setMatrixAt(k,_m);
+    const t=R(0.45,0.85);brMus.setColorAt(k,cc.setRGB(t,t*R(0.92,1.05),t));k++;}
+  brMus.count=k;brMus.instanceMatrix.needsUpdate=true;if(brMus.instanceColor)brMus.instanceColor.needsUpdate=true;
+  for(let i=0;i<10;i++){const a=R(-0.6,2.2)+(i%2)*3.1,q=R(0.8,0.93),x=Math.cos(a)*BR.ax*q,z=BR.zc+Math.sin(a)*BR.az*q;
+    _q.setFromEuler(_e.set(R(-0.4,0.4)+(i%3===0?Math.PI:0),rnd()*6.28,R(-0.4,0.4)));_s.setScalar(R(0.07,0.1));_p.set(x,brineFloor(x,z)+0.04,z);_m.compose(_p,_q,_s);brDead.setMatrixAt(i,_m);}
+  brDead.count=10;brDead.instanceMatrix.needsUpdate=true;
+  for(let i=0;i<2;i++){const a=i?2.6:-0.3,q=0.86,x=Math.cos(a)*BR.ax*q,z=BR.zc+Math.sin(a)*BR.az*q;
+    _q.setFromEuler(_e.set(0,rnd()*6.28,Math.PI/2*0.9));_s.setScalar(0.3);_p.set(x,brineFloor(x,z)+0.06,z);_m.compose(_p,_q,_s);brFish.setMatrixAt(i,_m);}
+  brFish.count=2;brFish.instanceMatrix.needsUpdate=true;if(brFish.instanceColor)brFish.instanceColor.needsUpdate=true;
+  rocks.children.forEach(m=>{if(brineQ(m.position.x,m.position.z)<2.6)m.visible=false;});
+}
+function stepBrine(dt,t){
+  if(!brineOn)return;
+  BR.next-=dt;if(BR.next<=0){BR.next=R(1.2,4.5);const x=R(-0.35,0.35),z=BR.zc+R(-0.35,0.35),y=BR.base+BR.L-0.02,n=2+Math.floor(rnd()*6);
+    for(let i=0;i<n;i++)emitBubble(x+R(-0.08,0.08),y,z+R(-0.08,0.08),1.5e-3,4.5e-3);brineRing(x,z,0.012+0.004*n);}
+}
+
+/* =========================================================
+   14n. Sansha Yongle Blue Hole ("Dragon Hole"), Yongle Atoll, Paracel Islands: ~301 m deep (300.89 m in 2016),
+   ~130 m across at the mouth, ~32 m at the bottom; shaped like a ballet shoe with bends at ~77 m and ~158 m.
+   Water: oxic 0–70 m, chemocline 70–100 m, anoxic with hydrogen sulfide below ~100 m (sulfide rising to ~150 m).
+   Sulfur-oxidizing bacteria dominate 100–140 m and particulate organic carbon peaks near 150 m, so the redox
+   layer is a turbid band. Temperature ~30 °C at the surface, ~15 °C at the bottom (thermoclines 13–20 m, 70–150 m).
+   ========================================================= */
+const BH_TPROF=[[0,30],[13,29.6],[20,27.8],[70,26.2],[150,16.2],[301,15.4]];
+function bhTemp(z){for(let i=1;i<BH_TPROF.length;i++){if(z<=BH_TPROF[i][0]){const[a,ta]=BH_TPROF[i-1],[b,tb]=BH_TPROF[i];return ta+(tb-ta)*(z-a)/(b-a);}}return 15.4;}
+function bhHaze(z){return Math.exp(-0.5*Math.pow((z-125)/20,2))+0.25*Math.exp(-0.5*Math.pow((z-152)/10,2));}
+function bhO2(z){return z<70?1:1-sstep(70,100,z);}
+function bhH2S(z){return sstep(85,150,z);}
+const BH_MS=[
+  [13,'13 m · 温跃层','往下水温开始降低。洞口附近的珊瑚和二十多种鱼都生活在上面这几十米里。'],
+  [70,'70 m · 进入化学跃层','氧气开始迅速减少。洞里的水几乎不和外面的海水交换，下层的氧气一旦用完就得不到补充。'],
+  [77,'约 77 m · 洞道转折','龙洞的形状像一只芭蕾舞鞋：在 76–78 m 和约 158 m 处各有一次大的转折。'],
+  [100,'100 m · 氧气耗尽','从这里往下，海水里没有溶解氧，却富含硫化氢。鱼、藻类都无法生存，只剩下微生物。'],
+  [118,'约 100–150 m · 浑浊的细菌层','硫氧化细菌在 100–140 m 占到微生物的约九成，悬浮的有机颗粒在约 150 m 最多，海水在这里发浑。'],
+  [158,'约 158 m · 第二次转折','再往下是均匀、静止、无氧的老水，水温稳定在约 15 °C。'],
+  [298,'约 301 m · 龙洞底部','2016 年测得 300.89 m，是当时已知最深的蓝洞（现已知墨西哥的 Taam Ja\' 蓝洞至少 420 m）。洞底沉积的有机碳最老约 6,800 年。']
+];
+/* suspended particles of the turbid redox layer (bacteria, sulfur colloids, organic flakes), lit by the lamps */
+const NSU=2200,sulf=makePoints(NSU,`void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  vec3 tE=torchAt(vWPos,1.0)*4.0; vec3 a=vec3(0.95,0.92,0.78);
+  vec3 c=waterPath(a,vWPos)+a*tE*exp(-uC*length(vWPos-cameraPosition));
+  gl_FragColor=vec4(c,(1.0-r)*0.7);`);
+const SUP=[];for(let i=0;i<NSU;i++)SUP.push({x:R(-9,9),y:R(-14,14),z:R(-9,9),s:0.006+rnd()*rnd()*0.02});
+sulf.pts.visible=false;
+function stepBH(dt,t){
+  if(!DIVE.bh){if(sulf.pts.visible)sulf.pts.visible=false;return;}
+  sulf.pts.visible=true;const c=controls.target;
+  for(let i=0;i<NSU;i++){const P=SUP[i],o=i*3;P.y-=0.004*dt;P.x+=Math.sin(t*0.2+i)*0.01*dt;
+    let wy=c.y+P.y;if(wy-c.y<-14){P.y+=28;wy+=28;}
+    sulf.pos[o]=c.x+P.x;sulf.pos[o+1]=Math.min(-0.5,wy);sulf.pos[o+2]=c.z+P.z;const h=bhHaze(-wy);
+    sulf.size[i]=h>0.05?P.s*(0.4+0.8*h):0;sulf.sd[i]=0.5;}
+  sulf.g.attributes.position.needsUpdate=true;sulf.g.attributes.aSize.needsUpdate=true;
+  /* local water optics: scattering rises sharply inside the turbid layer, tinted toward pale yellow-grey */
+  const hz=bhHaze(DIVE.z),w=WATER.clear,tint=[1+0.25*hz,1+0.12*hz,1-0.15*hz];
+  const cc=[0,1,2].map(i=>w.a[i]+w.b[i]*(1+16*hz));U.uC.value.set(cc[0],cc[1],cc[2]);
+  U.uWater.value.set(...[0,1,2].map(i=>0.6*w.b[i]*(1+16*hz)/cc[i]*tint[i]));
+  const z=DIVE.z;U.uSky.value=(S.night?0.02:1)*Math.exp(-0.004*z-3.2*sstep(95,155,z));
+}
+function bhH(){
+  const z=DIVE.z;
+  Object.assign(H,{manta:false,turtle:z<25,whaleshark:false,hammer:false,moon:z<60,comb:z<70,atolla:false,lantern:false,hatchet:false,sperm:false,squid:false,siph:false,
+    vampire:false,gulper:false,cucumber:false,angler:false,dumbo:false,snail:false,amphi:false,
+    snapper:z<45,anthias:z<35,butterfly:z<30,parrot:z<20,chromis:z<20});
+}
+function bhSchools(){
+  const C=controls.target,b=(ry,dy,r)=>({cx:C.x+2,cy:C.y+dy,cz:C.z,rx:r||5,ry,rz:r||5});
+  const keep=(sp,box)=>sp.active&&sp.box?sp.box:box;
+  [['snapper',1,0],['anthias',1.2,0.5],['butterfly',1.5,-0.5],['parrot',1.2,-1],['chromis',0.8,0]].forEach(([k,ry,dy])=>{const sp=FISH[k];sp.zr=[0,70];setSchool(sp,!!H[k],keep(sp,b(ry,dy)));});
+}
+function buildProfileBH(){
+  const D=S.D,y=z=>PROF.top+z/D*PROF.h,svg=$('prof'),cx=z=>48+(z<77?0:z<158?(z-77)/81*9:9),hw=z=>5+17*Math.pow(1-z/D,1.3);
+  let L='',Rr='';for(let z=0;z<=D;z+=6){L+=(cx(z)-hw(z)).toFixed(1)+','+y(z).toFixed(1)+' ';}for(let z=D;z>=0;z-=6){Rr+=(cx(z)+hw(z)).toFixed(1)+','+y(z).toFixed(1)+' ';}
+  let h='<defs><linearGradient id="bhg" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="#3fb3d2"/><stop offset="'+(70/D)+'" stop-color="#14627a"/><stop offset="'+(100/D)+'" stop-color="#3a4d47"/>'+
+    '<stop offset="'+(125/D)+'" stop-color="#8a8466"/><stop offset="'+(160/D)+'" stop-color="#2a2236"/><stop offset="1" stop-color="#140f1c"/></linearGradient></defs>';
+  h+='<polygon points="'+L+Rr+'" fill="url(#bhg)" stroke="rgba(217,236,239,.55)" stroke-width="0.7"/>';
+  for(let k=0;k<=300;k+=50)h+='<line x1="6" x2="10" y1="'+y(k)+'" y2="'+y(k)+'" stroke="rgba(120,190,205,.5)"/><text x="5" y="'+(y(k)+3)+'" class="pt" text-anchor="end">'+k+'</text>';
+  [[35,'含氧'],[85,'化学跃层'],[125,'浑浊细菌层'],[220,'无氧 · 硫化氢'],[296,'约 301 m']].forEach(([z,t])=>{h+='<text x="'+(cx(z)+hw(z)+3)+'" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
+  h+='<text x="5" y="'+(PROF.top-4)+'" class="pt" text-anchor="end">m</text>';
+  h+='<g id="profMe"><line x1="18" x2="66" y1="0" y2="0" stroke="#62d4e3" stroke-width="1.4"/><circle cx="48" cy="0" r="3.2" fill="#62d4e3"/></g>';
+  svg.innerHTML=h;
+}
+function enterBH(){
+  DIVE.on=true;DIVE.bh=true;DIVE.dvm=false;DIVE.play=true;DIVE.z=4;DIVE.lastZ=4;DIVE.elapsed=0;DIVE.manualTorch=false;DIVE.replay=false;WALL.cy=1e9;
+  S.loc='bluehole';const L=LOC.bluehole;Object.assign(S,{water:L.water,temp:L.temp,H:L.H,T:L.T,cur:L.cur,dir:L.dir,sun:L.sun,seep:false,torch:'off'});
+  for(const k in FISH)FISH[k].active=false;for(const k in JELLY)JELLY[k].active=false;for(const k in DRIFT)DRIFT[k].active=false;
+  [encWS,encSW,encSQ,encSI].forEach(e=>{e.on=false;e.cool=R(2,5);});
+  S.D=L.D;$('dProg').max=Math.round(S.D-2);controls.target.set(0,-4,0);camera.position.set(2.5,-2.8,4.6);
+  {const f=new THREE.Vector3(-2.5,0,-4.6).normalize(),r=new THREE.Vector3(-f.z,0,f.x),a=0.32;WALL.n.copy(r).multiplyScalar(Math.cos(a)).addScaledVector(f,-Math.sin(a)).normalize();}
+  bubbles.forEach(b=>b.on=false);sparkAge.fill(99);
+  rebuild();updDiveUI();buildProfileBH();updProfile();
+  showCaption('三沙永乐龙洞','西沙永乐环礁上的一口海底竖井，深约 301 m，洞口宽约 130 m。上面几十米是热闹的珊瑚礁，100 m 以下的海水里没有氧气。',9);
+}
+
+/* =========================================================
+   14o. Coral mass spawning night at Luhuitou fringing reef, Sanya, Hainan (after Frontiers in Marine Science 2024:
+   22 species over 2009–2021; Acropora mostly in lunar March, starting after ~21:00 and lasting ~1 h; bundles mostly red).
+   Egg-sperm bundles are positively buoyant (lipid-rich eggs); taking ~1.5 mm bundles 1 % lighter than seawater,
+   the drag-limited rise is ~1 cm/s, so they reach the surface within minutes and break apart there within ~1 h.
+   Shown ~15x enlarged so they are visible.
+   ========================================================= */
+const SPN={on:false,t:20.8,rate:10,play:true,col:[],rel:0,prevNight:false};
+const NSPN=22000,spawnPts=makePoints(NSPN,`void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
+  float a=fract(vSeed); vec3 alb=mix(vec3(0.95,0.16,0.24),vec3(1.0,0.38,0.3),fract(vSeed*7.3));
+  vec3 tE=torchAt(vWPos,1.0)*0.9; float d=length(vWPos-cameraPosition);
+  vec3 c=waterPath(alb*0.6,vWPos)+alb*tE*exp(-uC*d);
+  float hl=smoothstep(0.5,0.0,length(gl_PointCoord-vec2(0.38,0.38)));
+  gl_FragColor=vec4(c*(0.8+0.5*hl),(1.0-r*r)*clamp(a*1.6,0.0,1.0));`);
+spawnPts.pts.visible=false;
+const SPP=[];for(let i=0;i<NSPN;i++)SPP.push({st:0,x:0,y:0,z:0,v:0,age:0,c:0});
+let spNext=0;
+function spawnColonies(){
+  SPN.col=[];const take=(k,top,rad)=>{const c=CORAL[k];for(let i=0;i<c.mesh.count;i++){const s=c.spots[i];
+    SPN.col.push({x:s.x,z:s.z,y:floorY(s.x,s.z)+top*s.s,r:rad*s.s,tr:R(21.0,21.9),n:Math.round(R(160,260)*s.s),emit:0,kind:k});}};
+  take('branch',0.55,0.35);take('plate',0.46,0.8);
+}
+function stepSpawn(rdt,t){
+  if(!SPN.on){if(spawnPts.pts.visible)spawnPts.pts.visible=false;return;}
+  spawnPts.pts.visible=true;
+  const dtH=SPN.play?SPN.rate*rdt/3600:0,dtS=dtH*3600;SPN.t=Math.min(24,SPN.t+dtH);const T=SPN.t;
+  /* setting: in the hour before release the bundles sit in the polyp mouths, showing as a pink speckle on the colony */
+  let k=0;
+  for(const c of SPN.col){
+    if(T<c.tr&&T>c.tr-0.75){const f=sstep(c.tr-0.75,c.tr-0.05,T),m=Math.round(14*f);
+      for(let j=0;j<m&&k<700;j++){const a=j*2.39996,rr=c.r*Math.sqrt((j+0.5)/14);const P=SPP[NSPN-1-(k++)];P.st=3;P.x=c.x+Math.cos(a)*rr;P.z=c.z+Math.sin(a)*rr;P.y=c.y+0.02;}}
+    if(T>=c.tr&&c.emit<c.n){const want=Math.min(c.n,Math.ceil(c.n*Math.min(1,(T-c.tr)/0.08)));
+      while(c.emit<want){const P=SPP[spNext];spNext=(spNext+1)%(NSPN-700);
+        const a=rnd()*6.28,rr=c.r*Math.sqrt(rnd());P.st=1;P.x=c.x+Math.cos(a)*rr;P.z=c.z+Math.sin(a)*rr;P.y=c.y+R(0,0.05);P.v=R(0.007,0.013);P.age=0;c.emit++;SPN.rel++;}}
+  }
+  for(let i=NSPN-700;i<NSPN-k;i++)SPP[i].st=0;
+  const top=-0.12;
+  for(let i=0;i<NSPN;i++){const P=SPP[i],o=i*3;
+    if(P.st===1){orbital(P.x,P.y,t,_u);P.y+=P.v*dtS+_u.y*rdt*0.6;P.x+=(_u.x*0.6+CUR.x*S.cur*0.5)*rdt;P.z+=(_u.z*0.6+CUR.z*S.cur*0.5)*rdt;
+      if(P.y>=top){P.y=top+R(-0.04,0.0);P.st=2;P.age=0;}}
+    else if(P.st===2){P.age+=dtH;P.x+=CUR.x*S.cur*0.5*rdt+Math.sin(t*0.3+i)*0.002;P.z+=CUR.z*S.cur*0.5*rdt;if(P.age>1.2)P.st=0;}
+    const vis=P.st>0;spawnPts.pos[o]=P.x;spawnPts.pos[o+1]=vis?P.y:-9999;spawnPts.pos[o+2]=P.z;
+    spawnPts.size[i]=!vis?0:P.st===3?0.026:P.st===2?0.026*(1-0.5*Math.min(1,P.age)):0.026;
+    spawnPts.sd[i]=(P.st===2?0.95-0.55*Math.min(1,P.age):0.95)+(i%9)*0.005;}
+  spawnPts.g.attributes.position.needsUpdate=true;spawnPts.g.attributes.aSize.needsUpdate=true;spawnPts.g.attributes.aSeed.needsUpdate=true;
+}
+function spawnPhase(){const T=SPN.t;return T<21?'setting':T<22?'release':T<23?'rise':'slick';}
+function spawnNote(){
+  const T=SPN.t,ph=spawnPhase(),hm=hhmm(T);
+  const txt={setting:'<b>“含卵”</b>：珊瑚虫把卵精束顶到口部，整块珊瑚表面布满粉红色的小点，随时准备释放。',
+    release:'<b>释放</b>：鹿角珊瑚一丛接一丛地放出卵精束。每个卵精束直径约 1–2 mm，里面裹着几十粒卵和成千上万个精子，因为卵富含脂质，比海水轻，便慢慢往上飘。',
+    rise:'<b>上浮</b>：卵精束以约每秒 1 cm 的速度上升，几分钟就能到达水面，在那里散开，卵和其他珊瑚的精子相遇受精。受精窗口只有约 2 小时。',
+    slick:'<b>浮层</b>：水面聚起一层粉红色的卵层。接下来几天，受精卵发育成幼虫，随海流漂走，再找一块礁石定居。'}[ph];
+  $('spNote').innerHTML=txt+' 已释放约 '+SPN.rel.toLocaleString('en-US')+' 个卵精束（画面中放大约 15 倍显示）。';
+  $('spTV').textContent=hm;if(document.activeElement!==$('sSp'))$('sSp').value=Math.round((T-20)*60);
+  [...$('spRate').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.r==='pause'?!SPN.play:(SPN.play&&+b.dataset.r===SPN.rate)));
+}
+function spawnReset(T){SPN.t=T;SPN.rel=0;spNext=0;SPP.forEach(P=>P.st=0);SPN.col.forEach(c=>{c.emit=0;});
+  /* jump forward: re-run the release history quickly so the water column matches the clock */
+  if(T>21.0){const tgt=T;SPN.t=20.99;const pl=SPN.play;SPN.play=true;const r=SPN.rate;SPN.rate=600;
+    while(SPN.t<tgt-1e-4){const step=Math.min(0.5,(tgt-SPN.t)*3600/600);stepSpawn(step,0);}SPN.rate=r;SPN.play=pl;}}
+
+/* =========================================================
+   14p. Under the sea ice, McMurdo Sound, Antarctica (~24 m, -1.9 °C, ice ~2 m). Light comes through the ice dimmed
+   to a few percent and browned by ice algae on its underside; a dive hole lets a full-strength beam in.
+   A loose layer of platelet ice hangs under the sheet. Bubbles from the diver collect under the ice.
+   ========================================================= */
+const ICE={on:false,h:2.1,hx:1.5,hz:-1.5,hr:0.62,T:0.035};
+const iceGroup=new THREE.Group();iceGroup.visible=false;scene.add(iceGroup);
+const iceUnderMat=new THREE.ShaderMaterial({uniforms:Object.assign({},U,{uHole:{value:new THREE.Vector3(ICE.hx,ICE.hz,ICE.hr)},uIceT:{value:ICE.T}}),side:THREE.DoubleSide,
+  vertexShader:'varying vec3 vWPos; varying vec2 vP; void main(){ vec3 p=position; vP=p.xz; vec4 wp=modelMatrix*vec4(p,1.0); vWPos=wp.xyz; gl_Position=projectionMatrix*viewMatrix*wp; }',
+  fragmentShader:WATER_PARS+`uniform vec3 uHole; uniform float uIceT; varying vec2 vP;
+  float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);}
+  float fb(vec2 p){return n2(p)*0.5+n2(p*2.1+3.1)*0.3+n2(p*4.7+7.7)*0.2;}
+  void main(){
+    float dh=length(vWPos.xz-uHole.xy); if(dh<uHole.z) discard;
+    float snow=fb(vWPos.xz*0.05); float tr=mix(1.6,0.35,smoothstep(0.35,0.7,snow));   /* thinner snow cover lets more light through */
+    float alg=smoothstep(0.42,0.75,fb(vWPos.xz*0.6+11.0))*0.85;                       /* patches of ice algae on the underside */
+    vec3 ice=vec3(0.55,0.8,1.0)*tr; ice=mix(ice,ice*vec3(0.62,0.48,0.26),alg);
+    ice*=1.0+0.25*(fb(vWPos.xz*3.0)-0.5);
+    ice+=vec3(0.9,1.0,1.1)*2.2*exp(-pow((dh-uHole.z)/0.9,2.0));                         /* glow around the hole edge */
+    vec3 c=ice*uSky*1.1;
+    float d=length(vWPos-cameraPosition); vec3 T=exp(-uC*d); c=c*T+bgCol(normalize(vWPos-cameraPosition))*(1.0-T);
+    gl_FragColor=vec4(c,1.0);
+  #include <tonemapping_fragment>
+  #include <encodings_fragment>
+  }`});
+const iceUnder=new THREE.Mesh(new THREE.PlaneGeometry(400,400,1,1).rotateX(Math.PI/2),iceUnderMat);iceUnder.frustumCulled=false;iceGroup.add(iceUnder);
+const iceWallGeo=new THREE.CylinderGeometry(ICE.hr,ICE.hr,ICE.h,32,1,true);
+const iceWall=new THREE.Mesh(iceWallGeo,new THREE.ShaderMaterial({uniforms:U,side:THREE.DoubleSide,
+  vertexShader:'varying vec3 vWPos; varying float vY; void main(){ vY=position.y; vec4 wp=modelMatrix*vec4(position,1.0); vWPos=wp.xyz; gl_Position=projectionMatrix*viewMatrix*wp; }',
+  fragmentShader:WATER_PARS+`varying float vY; void main(){ float k=0.5+vY/2.1; vec3 c=mix(vec3(0.35,0.7,0.95),vec3(1.0),k)*uSky*0.9*(0.3+0.7*k);
+    float d=length(vWPos-cameraPosition); vec3 T=exp(-uC*d); c=c*T+bgCol(normalize(vWPos-cameraPosition))*(1.0-T); gl_FragColor=vec4(c,1.0);
+  #include <tonemapping_fragment>
+  #include <encodings_fragment>
+  }`}));
+iceWall.position.set(ICE.hx,-ICE.h/2,ICE.hz);iceGroup.add(iceWall);
+/* platelet ice: thin hexagonal plates, a few cm across, in a loose layer below the sheet */
+const plateletGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.CylinderGeometry(1,1,0.04,6),null,()=>[0.92,0.96,1.0]);return finishGeo(acc);})();
+const platelets=new THREE.InstancedMesh(plateletGeo,waterify(lambert({transparent:true,opacity:0.75}),'platelet',{emit:'emit+=diffuseColor.rgb*vec3(0.55,0.8,1.0)*uSky*1.6;'}),2600);platelets.frustumCulled=false;iceGroup.add(platelets);
+{const c=new THREE.Color();for(let i=0;i<2600;i++){const r=Math.sqrt(rnd())*16,a=rnd()*6.28,x=Math.cos(a)*r,z=Math.sin(a)*r;
+  _q.setFromEuler(_e.set(R(-1.4,1.4),rnd()*6.28,R(-1.4,1.4)));_s.setScalar(R(0.02,0.07));_p.set(x,-ICE.h-Math.pow(rnd(),2)*0.45,z);_m.compose(_p,_q,_s);platelets.setMatrixAt(i,_m);
+  const al=rnd()<0.35;platelets.setColorAt(i,al?c.setRGB(0.75,0.6,0.38):c.setRGB(1,1,1));}}
+/* giant sea spiders (Pycnogonida) on the bottom */
+const pycnoGeo=(()=>{const acc=Acc(),col=()=>[0.85,0.55,0.3];
+  addGeo(acc,new THREE.CylinderGeometry(0.03,0.03,0.18,6),M4(0,0.12,0,Math.PI/2,0,0),col);
+  for(let k=0;k<4;k++)for(const sg of[1,-1]){const z=-0.06+k*0.04,a=sg*(0.9+k*0.05);
+    addGeo(acc,new THREE.CylinderGeometry(0.008,0.006,0.22,4),M4(sg*0.1,0.17,z,0,0,-a*0.6),col);
+    addGeo(acc,new THREE.CylinderGeometry(0.006,0.004,0.26,4),M4(sg*0.24,0.08,z+(k-1.5)*0.03,0,0,sg*0.35),col);}
+  return finishGeo(acc);})();
+const pycnos=new THREE.InstancedMesh(pycnoGeo,urchinMat,7);pycnos.frustumCulled=false;pycnos.count=0;scene.add(pycnos);
+/* icefish: scaleless, pale and translucent-looking, with a long flat snout; they rest on the bottom */
+makeDrift('icefish',{n:4,size:[0.38,0.48],spd:0.035,minAb:0.12,geo:(()=>{const g=buildFishGeo({h:0.13,w:0.1,tailH:0.1,dorsal:0.12,anal:0.05,eye:0.03,
+    col:(x,y,z,f)=>f?[0.82,0.82,0.78]:mixc([0.95,0.95,0.92],[0.62,0.62,0.6],sstep(-0.05,0.1,y)),
+    extra:(acc,ex0)=>{addGeo(acc,new THREE.SphereGeometry(1,12,6),M4(0,-0.01,0.47,0,0,0,0.07,0.03,0.12),()=>[0.9,0.9,0.86],ex0);}});return g;})()});
+DRIFT.icefish.upright=false;
+/* bald notothen (Pagothenia borchgrevinki): small fish living in the platelet layer right under the ice */
+makeDrift('borch',{n:10,size:[0.18,0.25],spd:0.08,minAb:1,maxY:-ICE.h-0.15,geo:buildFishGeo({h:0.2,w:0.09,tailH:0.13,dorsal:0.08,anal:0.05,
+    col:(x,y,z,f)=>f?[0.45,0.42,0.38]:mixc([0.85,0.83,0.78],[0.38,0.36,0.32],sstep(-0.1,0.2,y/0.2))})});
+/* Weddell seal (Leptonychotes weddellii): ~2.5–3 m, dark grey with pale blotches, passes under the ice */
+const SEAL=makeSwimmer('seal',(()=>{const acc=Acc();
+  const body=latheZ([[0.001,-0.5],[0.04,-0.44],[0.09,-0.32],[0.13,-0.12],[0.14,0.06],[0.12,0.22],[0.085,0.33],[0.07,0.4],[0.055,0.46],[0.02,0.5],[0.001,0.505]],18);
+  addGeo(acc,body,null,(x,y,z)=>{const sp=Math.sin(x*60+z*31)*Math.sin(y*55-z*23)>0.55;return y<-0.04?(sp?[0.7,0.7,0.68]:[0.5,0.52,0.52]):(sp?[0.62,0.63,0.62]:[0.22,0.24,0.26]);});
+  for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(1,8,5),M4(sg*0.14,-0.05,0.2,0,sg*0.6,0,0.1,0.015,0.05),()=>[0.25,0.26,0.28]);
+    addGeo(acc,triGeo([0,0,-0.48, sg*0.13,0.0,-0.62, sg*0.03,0,-0.6]),null,()=>[0.2,0.21,0.23]);
+    addGeo(acc,new THREE.SphereGeometry(0.012,6,4),M4(sg*0.04,0.03,0.46),()=>[0.02,0.02,0.02]);}
+  return finishGeo(acc);})(),{vBegin:'float bt=clamp(-0.1-position.z,0.0,1.0); transformed.x+=sin(aPhase-position.z*3.0)*0.12*bt*bt;'});
+const encSeal=new Enc({R0:22,fwd:[7,11],fwdDark:[6,9],y:[0,1.2],cool:[10,20],spd:1.4,len:2.7,minAb:1,yAbs:-ICE.h-1.6});
+function buildIce(on){
+  ICE.on=on;iceGroup.visible=on;if(!on){pycnos.count=0;return;}
+  iceUnder.position.y=-ICE.h;
+  let k=0;for(let i=0;i<7;i++){const a=rnd()*6.28,r=R(2,9),x=Math.cos(a)*r,z=Math.sin(a)*r;_q.setFromEuler(_e.set(0,rnd()*6.28,0));_s.setScalar(R(1.1,1.7));_p.set(x,floorY(x,z),z);_m.compose(_p,_q,_s);pycnos.setMatrixAt(k++,_m);}
+  pycnos.count=k;pycnos.instanceMatrix.needsUpdate=true;
+}
+
+/* =========================================================
+   14q. Røst Reef, off Lofoten, Norway: the largest known cold-water coral reef (~35–43 km long, discovered 2002).
+   Built by Desmophyllum pertusum (formerly Lophelia pertusa): no symbiotic algae, feeds on plankton; white and
+   orange colour morphs; linear growth only ~1–2.5 mm a year (in situ, Norwegian sites at 180–304 m, ~7.5 °C).
+   Living tips sit on mounds of dead coral framework and rubble; bubblegum coral, Geodia sponges, file clams, redfish.
+   ========================================================= */
+const ROST={on:false,centers:[[-1,-1],[3.5,2.5],[-4.5,3],[4,-4.5],[-3,-6],[7,1],[-7.5,-1.5]]};
+const lophGeo=(()=>{const acc=Acc();const cyl=new THREE.CylinderGeometry(0.011,0.014,1,5,1,true);cyl.translate(0,0.5,0);
+  const cup=new THREE.CylinderGeometry(0.02,0.012,0.035,7,1,true);cup.translate(0,0.0175,0);
+  const dead=[0.5,0.46,0.4],live=[1,1,1];
+  function grow(base,dir,len,depth){
+    const q=new THREE.Quaternion().setFromUnitVectors(UP,dir),col=depth<3?()=>dead:()=>live;
+    addGeo(acc,cyl,new THREE.Matrix4().compose(base,q,new THREE.Vector3(1,len,1)),col);
+    const end=base.clone().addScaledVector(dir,len);
+    if(depth>=2)addGeo(acc,cup,new THREE.Matrix4().compose(end,q,new THREE.Vector3(1,1,1)),col);
+    if(depth>=7)return;
+    const n=rnd()<0.55?1:2;
+    for(let i=0;i<n;i++){const sgn=(depth%2?1:-1)*(i?-1:1);const d=dir.clone().add(new THREE.Vector3(sgn*R(0.25,0.6),0.28,R(-0.5,0.5))).normalize();grow(end,d,len*R(0.88,1.04),depth+1);}
+  }
+  for(let i=0;i<4;i++){const a=i/4*6.28+rnd();grow(new THREE.Vector3(Math.cos(a)*0.05,0,Math.sin(a)*0.05),new THREE.Vector3(Math.cos(a)*0.45,1,Math.sin(a)*0.45).normalize(),0.075,0);}
+  return finishGeo(acc);})();
+const lophMat=waterify(lambert(),'loph');
+const lophs=new THREE.InstancedMesh(lophGeo,lophMat,90);lophs.frustumCulled=false;lophs.count=0;scene.add(lophs);
+/* dead-coral rubble */
+const rubbleGeo=(()=>{const acc=Acc();for(let k=0;k<5;k++)addGeo(acc,new THREE.CylinderGeometry(0.01,0.013,R(0.04,0.1),5),M4(R(-0.06,0.06),0.008,R(-0.06,0.06),Math.PI/2+R(-0.3,0.3),rnd()*3,R(-0.4,0.4)),()=>[0.42,0.4,0.37]);return finishGeo(acc);})();
+const rubble=new THREE.InstancedMesh(rubbleGeo,urchinMat,900);rubble.frustumCulled=false;rubble.count=0;scene.add(rubble);
+/* Geodia: massive round demosponges */
+const geodiaGeo=(()=>{const g=new THREE.SphereGeometry(1,20,14),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=1+0.08*Math.sin(x*6+z*5)*Math.sin(y*7);p.setXYZ(i,x*k,Math.max(y,-0.3)*k*0.8,z*k);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,(x,y,z)=>mixc([0.78,0.76,0.7],[0.62,0.6,0.56],sstep(-0.2,0.6,Math.sin(x*12)*Math.sin(z*11))));
+  for(let k=0;k<4;k++){const a=k*1.7;addGeo(acc,new THREE.CircleGeometry(0.07,10),M4(Math.cos(a)*0.35,0.62,Math.sin(a)*0.35,-1.2,0,0),()=>[0.25,0.24,0.22]);}
+  return finishGeo(acc);})();
+const geodias=new THREE.InstancedMesh(geodiaGeo,urchinMat,14);geodias.frustumCulled=false;geodias.count=0;scene.add(geodias);
+/* Acesta excavata: giant file clam, ~10–18 cm, orange mantle fringe, attached to the coral framework */
+const acestaGeo=(()=>{const acc=Acc();
+  addGeo(acc,new THREE.SphereGeometry(1,14,8),M4(0,0,0,0,0,0,0.4,0.12,0.5),(x,y)=>y>0?[0.9,0.86,0.76]:[0.85,0.8,0.7]);
+  for(let k=0;k<22;k++){const a=k/22*Math.PI*2;addGeo(acc,new THREE.CylinderGeometry(0.012,0.02,0.16,4),M4(Math.cos(a)*0.38,0,Math.sin(a)*0.48,Math.sin(a)*1.4,0,-Math.cos(a)*1.4),()=>[1,0.5,0.15]);}
+  return finishGeo(acc);})();
+const acestas=new THREE.InstancedMesh(acestaGeo,urchinMat,24);acestas.frustumCulled=false;acestas.count=0;scene.add(acestas);
+function buildRost(on){
+  ROST.on=on;if(!on){lophs.count=rubble.count=geodias.count=acestas.count=0;return;}
+  const cc=new THREE.Color();let k=0;ROST.col=[];
+  for(let i=0;i<90;i++){let x,z;if(i<72){const c=ROST.centers[i%ROST.centers.length];x=c[0]+R(-1,1)*R(0.3,2.4);z=c[1]+R(-1,1)*R(0.3,2.4);}else{const a=rnd()*6.28,r=R(5,16);x=Math.cos(a)*r;z=Math.sin(a)*r;}
+    const s=R(0.9,2.3);_q.setFromEuler(_e.set(R(-0.12,0.12),rnd()*6.28,R(-0.12,0.12)));_s.setScalar(s);_p.set(x,floorY(x,z)-0.03,z);_m.compose(_p,_q,_s);lophs.setMatrixAt(k,_m);
+    const orange=rnd()<0.3;lophs.setColorAt(k,orange?cc.setRGB(0.95,0.48,0.25):cc.setRGB(0.82,0.8,0.76));ROST.col.push({x,z,s});k++;}
+  lophs.count=k;lophs.instanceMatrix.needsUpdate=true;lophs.instanceColor.needsUpdate=true;
+  k=0;for(let i=0;i<900;i++){const c=ROST.centers[i%ROST.centers.length],x=c[0]+R(-1,1)*R(0,4.5),z=c[1]+R(-1,1)*R(0,4.5);
+    _q.setFromEuler(_e.set(0,rnd()*6.28,R(-0.3,0.3)));_s.setScalar(R(0.6,1.3));_p.set(x,floorY(x,z)+0.005,z);_m.compose(_p,_q,_s);rubble.setMatrixAt(k++,_m);}
+  rubble.count=k;rubble.instanceMatrix.needsUpdate=true;
+  k=0;for(let i=0;i<14;i++){const a=rnd()*6.28,r=R(2,12),x=Math.cos(a)*r,z=Math.sin(a)*r;_q.setFromEuler(_e.set(0,rnd()*6.28,0));_s.setScalar(R(0.25,0.55));_p.set(x,floorY(x,z)+0.05,z);_m.compose(_p,_q,_s);geodias.setMatrixAt(k++,_m);}
+  geodias.count=k;geodias.instanceMatrix.needsUpdate=true;
+  k=0;for(let i=0;i<24;i++){const c=ROST.col[i*3%ROST.col.length],a=rnd()*6.28,x=c.x+Math.cos(a)*0.25*c.s,z=c.z+Math.sin(a)*0.25*c.s;
+    _q.setFromEuler(_e.set(R(-0.8,0.8),rnd()*6.28,R(-0.8,0.8)));_s.setScalar(R(0.22,0.34));_p.set(x,floorY(x,z)+R(0.1,0.35)*c.s,z);_m.compose(_p,_q,_s);acestas.setMatrixAt(k++,_m);}
+  acestas.count=k;acestas.instanceMatrix.needsUpdate=true;
+}
+
+/* =========================================================
+   14r. Fujikawa Maru, Truk (Chuuk) Lagoon: 133 m aircraft transport sunk 17–18 Feb 1944 in Operation Hailstone.
+   Sits upright on sand at ~34 m; upper decks ~12–18 m; kingposts ~3 m below the surface, the aft mast breaks it.
+   Soft corals hang from masts, booms and rails; small hard-coral clumps, sponges, tunicates; baitfish swarm the decks,
+   jacks patrol, lionfish live at the stern; disassembled fighters lie in a forward hold.
+   ========================================================= */
+const TRUK={on:false,L:133,B:17.8,Hh:14,yaw:0.35,base:0,deck:0};
+const wreck=new THREE.Group();wreck.visible=false;scene.add(wreck);
+const HOLDS=[[49,8,10],[35,9,11],[21,9,11],[-27,9,11],[-41,9,10]];
+const hullMat=waterify(lambert({side:THREE.DoubleSide}),'hull',{defines:{CAUSTICS:''},
+  fHead:`float h3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+    float n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+      return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
+                 mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}`,
+  fColor:`{ vec3 q=vLocal*1.0; float a=n3(q*0.35)*0.5+n3(q*1.3)*0.3+n3(q*4.0)*0.2;
+    vec3 rust=mix(vec3(0.42,0.3,0.22),vec3(0.55,0.5,0.44),smoothstep(0.35,0.7,a));
+    float sp=smoothstep(0.68,0.74,n3(q*2.6+7.0)); float k=floor(n3(q*0.9+3.0)*4.0);
+    vec3 spc=k<1.0?vec3(0.95,0.45,0.35):k<2.0?vec3(0.95,0.75,0.25):k<3.0?vec3(0.7,0.4,0.75):vec3(0.35,0.6,0.85);
+    vec3 c=mix(rust,spc,sp*0.7);
+    float tun=smoothstep(0.75,0.8,n3(q*6.0+1.0)); c=mix(c,vec3(0.6,0.8,0.55),tun*0.6);
+    diffuseColor.rgb*=c*1.6; }`});
+function hullGeo(){
+  const L=TRUK.L/2,B=TRUK.B/2,sh=new THREE.Shape();
+  sh.moveTo(-L,-B*0.55);sh.quadraticCurveTo(-L-1.5,0,-L,B*0.55);sh.lineTo(-L+8,B);sh.lineTo(L-30,B);sh.quadraticCurveTo(L-6,B*0.8,L,0);sh.quadraticCurveTo(L-6,-B*0.8,L-30,-B);sh.lineTo(-L+8,-B);sh.lineTo(-L,-B*0.55);
+  for(const[hx,hw,hl]of HOLDS){const p=new THREE.Path();p.moveTo(hx-hl/2,-hw/2);p.lineTo(hx+hl/2,-hw/2);p.lineTo(hx+hl/2,hw/2);p.lineTo(hx-hl/2,hw/2);p.lineTo(hx-hl/2,-hw/2);sh.holes.push(p);}
+  const g=new THREE.ExtrudeGeometry(sh,{depth:TRUK.Hh,bevelEnabled:false,curveSegments:10});
+  g.rotateX(-Math.PI/2);g.computeVertexNormals();return g;
+}
+function addPart(geo,x,y,z,ry,col){const acc=Acc();addGeo(acc,geo,null,()=>col||[1,1,1]);const m=new THREE.Mesh(finishGeo(acc),hullMat);m.position.set(x,y,z);if(ry)m.rotation.y=ry;wreck.add(m);return m;}
+const wreckHull=new THREE.Mesh((()=>{const g=hullGeo();const acc=Acc();addGeo(acc,g,null,()=>[1,1,1]);return finishGeo(acc);})(),hullMat);wreck.add(wreckHull);
+const wreckParts=[];
+{
+  const H0=TRUK.Hh,P=(g,x,y,z,ry)=>{const m=addPart(g,x,y,z,ry);wreckParts.push(m);return m;};
+  for(const[hx,hw,hl]of HOLDS){P(new THREE.BoxGeometry(hl+0.6,1.2,0.35),hx,H0+0.6,-hw/2-0.17);P(new THREE.BoxGeometry(hl+0.6,1.2,0.35),hx,H0+0.6,hw/2+0.17);
+    P(new THREE.BoxGeometry(0.35,1.2,hw),hx-hl/2-0.17,H0+0.6,0);P(new THREE.BoxGeometry(0.35,1.2,hw),hx+hl/2+0.17,H0+0.6,0);
+    P(new THREE.BoxGeometry(hl,0.3,hw),hx,2.0,0);}
+  P(new THREE.BoxGeometry(16,7,14),-6,H0+3.5,0);P(new THREE.BoxGeometry(10,3,11),-4,H0+8.5,0);
+  P(new THREE.CylinderGeometry(2.2,2.5,7,16),-15,H0+3.5,0);
+  P(new THREE.BoxGeometry(12,3,15),-58,H0+1.5,0);P(new THREE.BoxGeometry(14,2.6,15),58,H0+1.3,0);
+  for(const sg of[1,-1])P(new THREE.BoxGeometry(100,0.9,0.12),0,H0+0.45,sg*(TRUK.B/2-0.1));
+  TRUK.masts=[[42,'mast'],[28,'king'],[-34,'mast']];
+}
+const mastMeshes=[];const boomSegs=[];
+function buildMasts(){
+  mastMeshes.forEach(m=>wreck.remove(m));mastMeshes.length=0;boomSegs.length=0;const H0=TRUK.Hh;
+  for(const[x,kind]of TRUK.masts){
+    const top=kind==='mast'?(-0.5-(TRUK.base+H0)):(-3-(TRUK.base+H0));const h=Math.max(4,top);
+    const posts=kind==='king'?[[x,-3.5],[x,3.5]]:[[x,0]];
+    for(const[px,pz]of posts){const m=addPart(new THREE.CylinderGeometry(0.28,0.42,h,10),px,H0+h/2,pz);mastMeshes.push(m);boomSegs.push([new THREE.Vector3(px,H0,pz),new THREE.Vector3(px,H0+h,pz)]);
+      for(const dir of[1,-1]){const a=new THREE.Vector3(px,H0+2.5,pz),b=new THREE.Vector3(px+dir*10,H0+6.5,pz*0.6);const len=a.distanceTo(b),mid=a.clone().add(b).multiplyScalar(0.5);
+        const g=new THREE.CylinderGeometry(0.16,0.2,len,8);const bm=addPart(g,mid.x,mid.y,mid.z);bm.quaternion.setFromUnitVectors(UP,b.clone().sub(a).normalize());mastMeshes.push(bm);boomSegs.push([a,b]);}}
+  }
+}
+/* soft corals and hard-coral clumps on the wreck */
+const wSoftT=new THREE.InstancedMesh(CORAL.soft.geo,coralMat,160);wSoftT.frustumCulled=false;wSoftT.count=0;wreck.add(wSoftT);
+const wHardT=new THREE.InstancedMesh(CORAL.massive.geo,coralMat,50);wHardT.frustumCulled=false;wHardT.count=0;wreck.add(wHardT);
+colorAll(wSoftT,[[0.98,0.45,0.65],[0.75,0.55,0.95],[1,0.55,0.3],[0.95,0.25,0.3],[1,0.6,0.7]]);
+colorAll(wHardT,[[0.7,0.56,0.37],[0.53,0.64,0.38],[0.78,0.7,0.36]]);
+/* fighters in hold 2 */
+const zeroGeo=(()=>{const acc=Acc(),c=()=>[0.42,0.45,0.36];
+  addGeo(acc,latheZ([[0.001,-4],[0.25,-3.6],[0.45,-1.5],[0.55,0.5],[0.6,2.2],[0.55,3.4],[0.3,3.6]],12),null,c);
+  addGeo(acc,new THREE.BoxGeometry(12,0.14,1.9),M4(0,-0.15,1.2),c);addGeo(acc,new THREE.BoxGeometry(3.4,0.1,0.9),M4(0,0.1,-3.6),c);addGeo(acc,new THREE.BoxGeometry(0.1,1.3,1),M4(0,0.65,-3.6),c);
+  return finishGeo(acc);})();
+const zeros=new THREE.InstancedMesh(zeroGeo,hullMat,2);zeros.frustumCulled=false;wreck.add(zeros);
+{_q.setFromEuler(_e.set(0,Math.PI/2,0.15));_s.setScalar(0.85);_p.set(35,3.3,-1.2);_m.compose(_p,_q,_s);zeros.setMatrixAt(0,_m);
+ _q.setFromEuler(_e.set(0.1,Math.PI/2+0.2,-0.3));_p.set(36,3.6,2.4);_m.compose(_p,_q,_s);zeros.setMatrixAt(1,_m);}
+function buildTruk(on){
+  TRUK.on=on;wreck.visible=on;if(!on)return;
+  TRUK.base=floorY0(0,0)-1.5;TRUK.deck=TRUK.base+TRUK.Hh;wreck.position.set(0,TRUK.base,0);wreck.rotation.y=TRUK.yaw;wreck.updateMatrixWorld(true);
+  buildMasts();mastMeshes.forEach(m=>{if(!PICK.includes(m))regPick(m,'wreck');});
+  let k=0;for(let i=0;i<160;i++){const sgm=boomSegs[i%boomSegs.length],t=rnd(),p=sgm[0].clone().lerp(sgm[1],t);const dir=new THREE.Vector3(R(-1,1),R(-1,0.2),R(-1,1)).normalize();
+    p.addScaledVector(dir,0.25);_q.setFromUnitVectors(UP,dir.clone().multiplyScalar(-1).add(new THREE.Vector3(0,-0.5,0)).normalize().multiplyScalar(-1));_s.setScalar(R(0.25,0.55));_m.compose(p,_q,_s);wSoftT.setMatrixAt(k++,_m);}
+  wSoftT.count=k;wSoftT.instanceMatrix.needsUpdate=true;
+  k=0;for(let i=0;i<50;i++){const x=R(-50,55),z=R(-7.5,7.5);if(HOLDS.some(([hx,hw,hl])=>Math.abs(x-hx)<hl/2+0.6&&Math.abs(z)<hw/2+0.6))continue;if(x>-15&&x<3)continue;
+    _q.setFromEuler(_e.set(0,rnd()*6.28,0));_s.setScalar(R(0.3,0.8));_p.set(x,TRUK.Hh-0.05,z);_m.compose(_p,_q,_s);wHardT.setMatrixAt(k++,_m);}
+  wHardT.count=k;wHardT.instanceMatrix.needsUpdate=true;
+  rocks.children.forEach(m=>{const lx=m.position.x*Math.cos(TRUK.yaw)-m.position.z*Math.sin(TRUK.yaw);if(Math.abs(lx)<75)m.visible=false;});
+}
+const TRUK_INFO={
+  wreck:['富士川丸','日本海军飞机运输舰 · 长 133 m · 1944 年沉没','1938 年建成的货船，后被日本海军征用来运输飞机。1944 年 2 月 17–18 日，美军航母舰载机对特鲁克泻湖发动“冰雹行动”，击沉 45 艘以上的舰船、摧毁近 300 架飞机，富士川丸被鱼雷击中后沉没。它直立着坐在约 34 m 深的沙底上，八十多年后成了一座人工鱼礁。','特鲁克泻湖'],
+  zero:['货舱里的战斗机','2 号货舱 · 拆解状态','前部货舱里至今躺着至少 9 架拆解的日本战斗机，其中 8 架是零式，另有 1 架是现存唯一的九六式舰载战斗机。','特鲁克泻湖']
+};
+Object.assign(CHIM_INFO,TRUK_INFO);
+function trukW(x,y,z){const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return{x:x*c+z*s,y:TRUK.base+y,z:-x*s+z*c};}
+
+/* =========================================================
+   14j. Tap to identify
+   ========================================================= */
+const FACTS={
+  coral:'珊瑚虫体内住着虫黄藻，靠光合作用为珊瑚提供大部分能量，所以造礁珊瑚只能活在有光的浅海。',
+  kelp:'每天最快能长约 60 cm，是地球上长得最快的生物之一；叶片基部的气囊让它漂向水面。',
+  anem:'触手上的刺细胞能蜇伤小鱼，但小丑鱼体表的黏液让它们不会被蜇。',
+  clown:'一群小丑鱼里最大的那条是雌鱼；雌鱼不在了，最大的雄鱼会变成雌鱼。',
+  clam:'外套膜里养着共生藻，像珊瑚一样靠阳光获得营养；那片蓝色来自会反光的虹彩细胞。',
+  fanS:'扇面垂直于海流生长，好拦截更多随水流来的浮游食物。',
+  fanD:'骨骼一节白一节深，像竹子；可以活几百年，被触碰时会发出蓝色光波。',
+  turtle:'名字里的“绿”来自体内脂肪的颜色，因为成年后主要吃海草和藻类。',
+  manta:'翼展可达 5 m，脑与体型之比在鱼类中名列前茅。',
+  whaleshark:'世界上最大的鱼，可长到 18 m 以上，却只吃浮游生物和小鱼。',
+  hammer:'锤状的头部布满电感受器，像金属探测器一样扫描海底找猎物；白天常成百上千地聚群。',
+  chromis:'遇到危险时会一起钻进枝状珊瑚的缝隙里。',
+  anthias:'群体里大多是雌鱼；雄鱼不在了，雌鱼会变性成雄鱼。',
+  butterfly:'眼睛藏在黑色条纹里，尾部的黑斑像假眼睛，用来迷惑捕食者。',
+  snapper:'白天成群停在珊瑚礁旁，夜里散开去觅食。',
+  parrot:'啃食珊瑚上的藻类时连骨骼一起咬碎，排出的就是细白沙；热带海滩的白沙很多来自鹦嘴鱼。',
+  sardine:'遇到捕食者时会挤成旋转的“鱼饵球”，让捕食者难以锁定某一条。',
+  rockfish:'可以活 40 多年，常在巨藻林中层成群悬停。',
+  urchinT:'数量失控时会把巨藻林啃成光秃秃的“海胆荒漠”，海獭是它们的主要天敌。',
+  urchinD:'细长的刺带有微毒，白天躲着，夜里出来啃食藻类。',
+  starT:'断掉的一条腕能长成一只完整的新海星。',
+  starC:'几乎什么都吃，会把胃翻出体外消化食物。',
+  moon:'伞中央四个马蹄形的是生殖腺；生命中有一段固着在岩石上的水螅体阶段。',
+  nettle:'触手可长到 4 m 以上，布满刺细胞，用来捕捉浮游动物。',
+  comb:'靠八列纤毛栉板划水，是用纤毛游泳的最大动物；彩虹色是纤毛衍射光线，不是发光。',
+  sperm:'有地球上最大的大脑（约 8 kg），能潜到 2,000 m 以下捕食大型乌贼，靠咔嗒声回声定位。',
+  lantern:'可能是数量最多的脊椎动物之一；夜里上浮到表层觅食，白天回到几百米深处。',
+  hatchet:'腹部的发光器发出和上方透下来一样亮的光，把自己的影子“抹掉”，这叫反照明。',
+  siph:'看起来像一只动物，其实是许多分工不同的个体连成的群体，有的长达数十米。',
+  squid:'眼睛直径约 27 cm，是动物界最大的眼睛之一；2012 年才第一次在自然环境中被拍到活体。',
+  vampire:'名字吓人，其实吃的是“海洋雪”；受威胁时会把披风般的腕翻过来罩住身体。',
+  atolla:'被攻击时让光沿伞缘一圈圈旋转闪烁，像防盗警报，可能招来更大的捕食者对付攻击者。你刚才点它，就相当于“碰”了它一下。',
+  gulper:'嘴能张得比身体还大，尾端有发光器，可能用来引诱猎物。',
+  cucumber:'能离开海底游泳的海参，身体半透明，能看见里面的消化道。',
+  angler:'头上“钓竿”末端住着发光细菌；在一些鮟鱇物种里，雄鱼会咬住雌鱼并和它长在一起。',
+  dumbo:'像大象耳朵的鳍是主要推进器；曾在近 7,000 m 深处被拍到，是已知最深的章鱼之一。',
+  sponge:'玻璃般的骨骼由二氧化硅构成；常有一对小虾幼年钻进去，长大后出不来，在里面过完一生。',
+  seep:'不靠阳光，靠体内共生细菌把甲烷或硫化物转化成能量。',
+  snail:'身体柔软半透明，骨骼没有完全钙化，能承受 800 多个大气压。',
+  amphi:'体内有能分解纤维素的酶，可能靠从陆地漂来、沉入海沟的植物残骸生活。',
+  holo:'海沟底部数量最多的大型动物之一，不停吞食沉积物，吸收里面的有机物。',
+  xeno:'单个细胞可以长到 10 cm 以上，是已知最大的单细胞生物之一。',
+  hagfish:'受惊时几秒钟内就能分泌出大量黏液，连鲨鱼的鳃都能堵住；会钻进腐肉里从内部吃起。',
+  sleeper:'游得很慢的冷水鲨鱼，能长到 4 m 以上，常在鲸落上撕咬鲸肉。',
+  osedax:'没有嘴也没有肠子，靠“根”分泌酸钻进鲸骨，再借共生细菌消化骨头里的营养；2002 年在蒙特雷峡谷 2,893 m 的灰鲸骨头上首次被发现。',
+  crab:'被腐肉的气味吸引而来的甲壳动物之一，会在骨头之间翻找残渣。',
+  rimicaris:'没有普通的眼睛，背上却有一块感光器官，科学家认为它可能用来感知热液口发出的极微弱的光；靠体内和鳃腔里的共生细菌获取养分。',
+  kiwa:'俗称“雪人蟹”，螯足上长满刚毛，上面养着细菌；龙旂的这一种是在这里首次发现的新种。',
+  scalyfoot:'脚上覆盖着数百片含硫化铁的鳞片，壳的外层也含硫化铁，是已知唯一把铁硫化物用进骨骼的动物；靠体内的共生细菌生活。2019 年被列为濒危，是第一种因深海采矿威胁而被列为濒危的物种。',
+  giga:'和铁甲蜗牛是近亲的大型热液螺，同样靠体内的共生细菌生活，在龙旂成片分布，2015 年才被命名。',
+  ventmussel:'鳃里住着共生细菌，把热液里的化学能转化成养分，在喷口外围成片生长。',
+  barnacle:'长在热液影响的最外圈，伸出羽状的蔓足从水里滤食。',
+  dendro:'没有坚硬骨骼的珊瑚，靠水压撑起身体，喜欢长在水流经过的高处，所以沉船的桅杆、吊杆和栏杆上挂满了它们，颜色从粉红、淡紫到橙红都有。',
+  baitfish:'成千上万的小鱼在甲板上方结成密集的鱼群，一起转向来迷惑捕食者。',
+  jack:'在沉船边缘巡游的掠食者，时不时冲进饵鱼群里捕食。',
+  lionfish:'鳍条上长着毒刺，动作缓慢，常在沉船船尾的阴影里伏击小鱼。它们原产印度—太平洋，在大西洋已成为严重的入侵物种。',
+  lophelia:'深水里最重要的造礁珊瑚。它没有共生藻，靠伸出触手捕食浮游生物，所以能活在没有阳光的冷水里；有白色和橙色两种颜色型。每年只长 1–2.5 mm 左右，礁体底部是层层堆积的死珊瑚骨架，只有顶端是活的。底拖网曾毁掉挪威大陆架约三到五成的珊瑚区。',
+  paragorgia:'一种长成小树的大型柳珊瑚，枝端圆鼓鼓的，像嚼过的泡泡糖，因此得名。颜色从白色到鲜红都有，能长到几米高。',
+  redfish:'北大西洋深水里的大眼红鱼，常静静悬停在冷水珊瑚礁上方。它们长得很慢、寿命很长，有的能活几十年以上。',
+  geodia:'大块的球形海绵，内部有硅质骨针，是北大西洋深海“海绵场”的主角，为许多小动物提供栖身之所。',
+  acesta:'贝壳可长到十几厘米的大型锉蛤，常附着在冷水珊瑚的骨架上，张开的壳缘伸出一圈橙色的触手。',
+  seal:'世界上最南端的哺乳动物之一，整个冬天都待在海冰下。它们用牙齿啃磨冰面来维持呼吸孔，成年个体约 400 kg，在冰下捕食南极鱼。',
+  icefish:'已知唯一成年后血液里没有血红蛋白的脊椎动物，血液几乎无色。氧气直接溶解在血浆里运输，靠的是冰冷海水溶氧多、心脏和血量都比别的鱼大好几倍。',
+  borch:'躲在海冰底下的片状冰层里生活，血液里有抗冻糖蛋白，能在 −1.9 °C 的海水里不被冻住。',
+  icealgae:'生活在海冰底部的微藻，春季冰下光照回升时大量繁殖，把冰底染成褐色，是南极食物网的起点之一。',
+  odontaster:'南极海底最常见的海星之一，颜色鲜红，什么都吃，包括海豹的粪便。',
+  sterechinus:'南极浅海最常见的海胆，常成堆聚集；冬天会被海底的“锚冰”冻住带离海底。',
+  pycno:'海蜘蛛不是蜘蛛，而是一类海洋节肢动物。南极的海蜘蛛长得特别大，腿展可达几十厘米，这种“极地巨型化”可能与冷水含氧多有关。',
+  rossella:'南极浅海的玻璃海绵，骨骼由二氧化硅骨针构成。它们长得极慢，有的个体可能已有上千岁。',
+  acropora:'造礁珊瑚里种类最多的一属。大多数鹿角珊瑚雌雄同体，每年只在少数几个夜里把卵和精子一起包成卵精束放出，在水里与其他珊瑚的配子相遇受精。',
+  childressi:'鳃里住着以甲烷为食的共生细菌，细菌再把养分供给贻贝。它们沿盐池的“湖岸”长成一圈：往里是没有氧气的卤水，往外甲烷又不够，只有岸边两样都有。',
+  krill:'身上有一排排会发蓝光的发光器。白天躲在几百米深的暗处，黄昏上浮到表层吃浮游植物，天亮前再沉回去。',
+  salp:'一个个透明的“小桶”连成长链，靠喷水前进，边游边滤食。它们每天要上下迁移几百米，粪粒沉得很快，把碳带进深海。',
+  ventanem:'住在热液区最外缘，那里水温已接近周围海水，食物却比普通深海海底丰富得多。'
+};
+const PICK=[];
+function regPick(o,key){o.userData.ck=key;PICK.push(o);}
+const raycaster=new THREE.Raycaster(),ndc=new THREE.Vector2();
+function chainVisible(o){for(let p=o;p;p=p.parent)if(!p.visible)return false;return true;}
+function resolveKey(k){if((ICE.on&&(k==='star'||k==='urchinT'||k==='sponge'))||(ROST.on&&k==='fan'))return catKey(k);if(k==='fan')return S.D>200?'fanD':'fanS';if(k==='star')return S.temp>=18?'starT':'starC';return k;}
+let infoT=0;
+function showInfo(k,dist){
+  if(CHIM_INFO[k]){const c=CHIM_INFO[k];if(k==='brine_surf')brineRing(lastPick.x,lastPick.z,0.035);$('infoN').textContent=c[0];$('infoL').textContent=c[3]||'龙旂热液区';$('infoD').textContent=c[1]+(dist?' · 距离你约 '+dist.toFixed(1)+' m':'');$('infoF').textContent=c[2];$('info').hidden=false;infoT=14;return;}
+  if(k==='whalebone'){const st=wfStages(WF.t);$('infoN').textContent='灰鲸遗骸';$('infoL').textContent='沉到海底 '+fmtYears(WF.t);
+    $('infoD').textContent='约 13 m 长 · 骨头里储存着上千公斤油脂';$('infoF').textContent='一头鲸沉到深海后，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物，其中至少 30 种在别处从未见过。';}
+  else{const c=CATMAP[k];if(!c)return;$('infoN').textContent=c[1];$('infoL').textContent=c[2];$('infoD').textContent='分布深度 '+c[3]+(dist?' · 距离你约 '+dist.toFixed(1)+' m':'');$('infoF').textContent=FACTS[k]||'';
+    if(SHARE.live){const n=SHARE.cnt[k]||0;$('infoD').textContent+=' · '+(n?'已有 '+n+' 位探险者遇见过':'你可能是第一个遇见它的探险者');}
+    if(!FOUND.has(k)){FOUND.add(k);try{localStorage.setItem('seafloor-found',JSON.stringify([...FOUND]));}catch(e){}renderCatalog();}}
+  $('info').hidden=false;infoT=12;
+}
+const lastPick=new THREE.Vector3();
+function pickAt(cx,cy){
+  if(VR.on)return;
+  const r=canvas.getBoundingClientRect();ndc.set((cx-r.left)/r.width*2-1,-((cy-r.top)/r.height)*2+1);
+  raycaster.setFromCamera(ndc,camera);raycaster.far=45;
+  const objs=PICK.filter(o=>chainVisible(o)&&(o.count===undefined||o.count>0));
+  const hits=raycaster.intersectObjects(objs,true);
+  const ckOf=h=>{let o=h.object;while(o&&!o.userData.ck)o=o.parent;return o?o.userData.ck:null;};
+  {const i=hits.findIndex(h=>ckOf(h)==='brine_surf'),j=hits.findIndex(h=>ckOf(h)==='brine_dead');if(i>=0&&j>i){const hd=hits[j];hits.splice(j,1);hits.splice(i,0,hd);}}
+  for(const h of hits){const ck=ckOf(h);if(!ck)continue;if(ck==='__occ')break;lastPick.copy(h.point);
+    if(ck==='atolla'&&h.instanceId!=null){const J=JELLY.atolla,i=h.instanceId*3;J.mesh.material.uniforms.uAlarm.value.set(J.p[i],J.p[i+1],J.p[i+2],U.uTime.value);}
+    if(ck==='fan'&&U.uDeepFan.value>0)FANHIT.uFanHit.value.set(h.point.x,h.point.y,h.point.z,U.uTime.value);showInfo(resolveKey(ck),h.distance);return;}
+  const tryPts=(pts,n,key,sz)=>{for(let i=0;i<n;i++){if(sz&&!sz[i])continue;_p.set(pts[i*3],pts[i*3+1],pts[i*3+2]).project(camera);
+    const px=(_p.x+1)/2*r.width,py=(1-_p.y)/2*r.height;if(_p.z<1&&Math.hypot(px-(cx-r.left),py-(cy-r.top))<16){showInfo(key,_p.set(pts[i*3],pts[i*3+1],pts[i*3+2]).distanceTo(camera.position));return true;}}return false;};
+  if(encSI.on&&tryPts(siph.pos,NSI,'siph',siph.size))return;
+  if(anglerOn&&tryPts(lure.pos,3,'angler',lure.size))return;
+  if(SPN.on&&tryPts(spawnPts.pos,NSPN,'spawn_bundle',spawnPts.size))return;
+}
+let downXY=null;
+canvas.addEventListener('pointerdown',e=>{downXY=[e.clientX,e.clientY,performance.now()];});
+canvas.addEventListener('pointerup',e=>{if(!downXY)return;const[x,y,t0]=downXY;downXY=null;if(Math.hypot(e.clientX-x,e.clientY-y)<6&&performance.now()-t0<500)pickAt(e.clientX,e.clientY);});
+function registerPickables(){
+  for(const k in FISH)regPick(FISH[k].mesh,k);for(const k in JELLY)regPick(JELLY[k].mesh,k);for(const k in DRIFT)regPick(DRIFT[k].mesh,k);
+  regPick(WSH.mesh,'whaleshark');regPick(SPW.mesh,'sperm');regPick(SQD.mesh,'squid');regPick(SLP.mesh,'sleeper');
+  mantas.forEach(m=>regPick(m,'manta'));turtles.forEach(g=>regPick(g,'turtle'));anglers.forEach(g=>regPick(g,'angler'));
+  for(const k in CORAL)regPick(CORAL[k].mesh,'coral');regPick(wSoft,'coral');regPick(kelp,'kelp');regPick(stipes,'kelp');
+  regPick(tents,'anem');anemBases.forEach(b=>regPick(b,'anem'));clamObjs.forEach(g=>regPick(g,'clam'));FANS.forEach(m=>regPick(m,'fan'));regPick(wFan,'fanS');
+  regPick(sponges,'sponge');regPick(wSponge,'sponge');regPick(urchinT,'urchinT');regPick(urchinD,'urchinD');regPick(stars,'star');regPick(wreckHull,'wreck');wreckParts.forEach(m=>regPick(m,'wreck'));regPick(zeros,'zero');regPick(wSoftT,'dendro');regPick(wHardT,'coral');regPick(lophs,'lophelia');regPick(geodias,'geodia');regPick(acestas,'acesta');regPick(rubble,'lophelia');regPick(pycnos,'pycno');regPick(iceUnder,'ice_under');regPick(platelets,'ice_under');regPick(SEAL.mesh,'seal');
+  regPick(mussels,'seep');regPick(tubes,'seep');regPick(wfMussels,'seep');regPick(holos,'holo');regPick(xenos,'xeno');
+  regPick(osedax,'osedax');regPick(crabs,'crab');regPick(bones,'whalebone');regPick(flesh,'whalebone');
+  chimMeshes.forEach(m=>regPick(m,m.userData.c.key));regPick(brMus,'childressi');regPick(brDead,'brine_dead');regPick(brFish,'brine_dead');regPick(brSurf,'brine_surf');regPick(brTerr,'__occ');for(const k in VFA)regPick(VFA[k],k);
+  regPick(floor,'__occ');regPick(wall,'__occ');regPick(rocks,'__occ');
+}
+
+/* =========================================================
+   15. Optics, habitat logic, rebuild
+   ========================================================= */
+function updateOptics(){
+  const w=WATER[S.water],zenA=(90-S.sun)*Math.PI/180,zenW=Math.asin(Math.sin(zenA)/N_WATER);
+  OPT.mu0=Math.cos(zenW);OPT.zenW=zenW;
+  OPT.sunDir.set(Math.sin(zenW)*0.8,Math.cos(zenW),Math.sin(zenW)*0.6).normalize();
+  for(let i=0;i<3;i++){const a=w.a[i],b=w.b[i];OPT.K[i]=Math.sqrt(a*a+0.256*a*b)/OPT.mu0;OPT.c[i]=a+b;}
+  U.uK.value.set(...OPT.K);U.uC.value.set(...OPT.c);
+  U.uWater.value.set(...[0,1,2].map(i=>0.6*w.b[i]/(w.a[i]+w.b[i])));
+  U.uSunDir.value.copy(OPT.sunDir);sunLight.position.copy(OPT.sunDir).multiplyScalar(100);
+  U.uShaft.value=(S.night?0:1)*(0.1+1.3*Math.sqrt(w.b[1]/0.4))*Math.min(1,0.4+S.H/1.5)*(S.loc==='ice'?0.32:1);
+}
+const H={};let habKey='';
+function rebuild(){
+  solveWave();CUR.x=Math.cos(S.dir*Math.PI/180);CUR.z=Math.sin(S.dir*Math.PI/180);updateOptics();
+  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);
+  const F=-S.D,lf=light(S.D,1),day=!S.night;
+  const sky=(day?1:0.02)*(ICE.on?ICE.T:1);U.uSky.value=sky;U.uDay.value=day?1:0;
+  sunLight.intensity=1.5*sky;sunLight.color.setRGB(day?1:0.75,day?1:0.85,1);hemi.intensity=0.65*sky;
+  U.uTorch.value=S.torch==='off'?0:(DIVE.on?2.6:1);U.uTorchCol.value.set(...(S.torch==='blue'?[0.08,0.28,1.6]:[1.1,1.0,0.88]));
+
+  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on;
+  H.kelp=S.temp<=20&&S.temp>=3&&S.D<=35&&lf>=0.01;
+  H.anem=H.coral&&S.temp>=20&&S.D<=40&&lf>=0.1;
+  H.clam=H.coral&&S.temp>=22&&S.D<=20&&lf>=0.2;
+  H.fan=S.cur>=0.03&&S.D>=3;
+  H.sponge=(S.D>=400&&S.D<=7000&&!brineOn)||ICE.on;
+  H.holo=S.D>=6000&&!DIVE.replay;H.xeno=H.holo;
+  H.urchinT=S.temp<18&&S.D<=200;
+  H.urchinD=S.temp>=18&&S.D<=70;
+  H.star=S.D<=200;
+  H.seep=S.seep&&S.D>=800;
+
+  const hab=ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
+  const key=hab+(H.seep?'s':'');
+  if(key!==habKey){habKey=key;paintFloor(hab);paintRocks(hab);}
+  floor.position.y=F;rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay;
+
+  const um=floorOrbitalMax(),uc1=S.cur*curProfile(1);S.ripKind='';
+  if(hab!=='deep'&&um>=uc1&&um>0.1){const d0=2*um/W.w;U.uRipL.value=d0<0.44?Math.max(0.62*d0,0.08):0.134;U.uRipAmp.value=Math.min(1,(um-0.1)/0.1);U.uRipDir.value.set(1,0);S.ripKind='wave';}
+  else if(hab!=='deep'&&uc1>0.2){U.uRipL.value=0.25;U.uRipAmp.value=Math.min(1,(uc1-0.2)/0.15);U.uRipDir.value.set(CUR.x,CUR.z);S.ripKind='current';}
+  else U.uRipAmp.value=0;
+  U.uCaustAmp.value=Math.min(1,S.H/1.2);
+
+  buildCoral(H.coral,lf);buildKelp(H.kelp);buildAnem(H.anem);buildClams(H.clam);buildFans(H.fan);buildSponges(H.sponge);
+  if(H.urchinT)placeOnFloor(urchinT,48,0,[0.04,0.06],true);else urchinT.count=0;
+  if(H.urchinD)placeOnFloor(urchinD,16,14,[0.05,0.07],false);else urchinD.count=0;
+  buildStars(H.star);buildSeep(H.seep);buildHadal(H.holo);buildWhaleFall(S.loc==='whalefall'&&!DIVE.on);buildVent(S.loc==='vent'&&!DIVE.on);if(wfOn)paintFloor(hab);
+  $('wfSec').hidden=!wfOn;
+  zoneUpdate();
+  rayRange=Math.max(4,Math.min(14,2.8/OPT.c[1]));for(let i=0;i<NR;i++){rayX[i]=camera.position.x+R(-1,1)*rayRange;rayZ[i]=camera.position.z+R(-1,1)*rayRange;}
+  for(const k in FISH)FISH[k].forceRespawn=false;
+  readouts();
+}
+const ZR={hammer:[10,300],lantern:[200,1200],hatchet:[200,1000],snail:[6000,8200],moon:[0,150],comb:[0,4000],atolla:[400,4000],cucumber:[500,5000],vampire:[600,1300],gulper:[500,3000],dumbo:[1000,7000]};
+function zoneUpdate(){
+  const dive=DIVE.on,F=-S.D,lf=light(S.D,1);
+  if(dive){
+    const z=DIVE.z,inz=k=>z>=ZR[k][0]&&z<=ZR[k][1];
+    Object.assign(H,{manta:z<=80,turtle:z<=60,whaleshark:z<=150,hammer:inz('hammer'),moon:inz('moon'),nettle:false,comb:inz('comb'),atolla:inz('atolla'),
+      lantern:inz('lantern'),hatchet:inz('hatchet'),sperm:z<=2000,squid:z>=300&&z<=1000,siph:z>=300&&z<=1000,vampire:inz('vampire'),gulper:inz('gulper'),
+      cucumber:inz('cucumber'),angler:z>=700&&z<=4000,dumbo:inz('dumbo'),snail:inz('snail'),amphi:S.D>=6000&&S.D-z<70,
+      sardine:false,chromis:false,anthias:false,butterfly:false,snapper:false,parrot:false,clown:false,rockfish:false,hagfish:false,sleeper:false,osedax:false,crab:false,rimicaris:false,kiwa:false,scalyfoot:false,giga:false,ventmussel:false,barnacle:false,ventanem:false,krill:false,salp:false,childressi:false,acropora:false,icefish:false,borch:false,seal:false,pycno:false,icealgae:false,redfish:false,lophelia:false,geodia:false,acesta:false,dendro:false});
+    if(DIVE.dvm)dvmH();
+    if(DIVE.bh)bhH();
+  }else{
+    H.krill=false;H.salp=false;H.childressi=S.loc==='brine';H.acropora=S.loc==='spawn';
+    H.manta=S.temp>=20&&S.D>=6&&S.D<=120&&lf>=0.01;H.turtle=S.temp>=18&&S.D>=4&&S.D<=60;H.angler=S.D>=700;
+    H.sardine=!H.coral&&S.temp<=24&&S.D<=200&&S.D>=5;H.chromis=H.coral&&lf>=0.15;H.anthias=H.coral;H.butterfly=H.coral&&S.D<=60;
+    H.snapper=H.coral&&S.D<=80;H.parrot=H.coral&&S.D<=30;H.clown=H.anem;H.rockfish=H.kelp||(S.temp<=16&&S.D>=8&&S.D<=150);
+    H.lantern=S.D>=200&&S.D<=1200;H.hatchet=S.D>=200&&S.D<=1000;H.moon=S.D<=150&&S.temp>=6;H.nettle=S.temp<=20&&S.D<=100;H.atolla=S.D>=400;H.comb=true;
+    H.whaleshark=S.temp>=22&&S.D>=8&&S.D<=200;H.hammer=S.temp>=20&&S.D>=15&&S.D<=300;
+    H.sperm=S.D>=300&&S.D<=2000;H.squid=S.D>=300&&S.D<=1000;H.siph=S.D>=300&&S.D<=1000;
+    H.vampire=S.D>=600&&S.D<=1300;H.gulper=S.D>=500&&S.D<=3000;H.cucumber=S.D>=500&&S.D<=5000;H.dumbo=S.D>=1000&&S.D<=7000;
+    H.snail=S.D>=6000&&S.D<=8200;H.amphi=S.D>=6000;
+    {const st=wfStages(WF.t),w=S.loc==='whalefall';H.hagfish=w&&st.scav>0.05;H.sleeper=w&&st.scav>0.3;H.osedax=w&&st.enrich>0.1;H.crab=w;}
+    H.dendro=TRUK.on;H.baitfish=TRUK.on;H.jack=TRUK.on;H.lionfish=TRUK.on;if(TRUK.on){H.manta=false;H.whaleshark=false;H.hammer=false;}
+    H.redfish=ROST.on;H.lophelia=ROST.on;H.geodia=ROST.on;H.acesta=ROST.on;
+    if(ICE.on){Object.assign(H,{sardine:false,rockfish:false,nettle:false,manta:false,turtle:false,hammer:false,whaleshark:false,moon:false,krill:true,icefish:true,borch:true,seal:!S.night,pycno:true,icealgae:true});}
+    else Object.assign(H,{icefish:false,borch:false,seal:false,pycno:false,icealgae:false});
+    {const v=S.loc==='vent';['rimicaris','kiwa','scalyfoot','giga','ventmussel','barnacle','ventanem'].forEach(k=>H[k]=v);}
+  }
+  mantaOn=H.manta;mantas.forEach(m=>m.visible=mantaOn);
+  turtleOn=H.turtle;turtles.forEach(g=>g.visible=turtleOn);
+  anglerOn=H.angler;anglers.forEach(g=>g.visible=anglerOn);if(!anglerOn){for(let i=0;i<3;i++)lure.size[i]=0;lure.g.attributes.aSize.needsUpdate=true;}
+  const C=controls.target,near=(ry,dy)=>({cx:C.x,cy:C.y+dy,cz:C.z,rx:9,ry:ry,rz:9});
+  const keep=(o,box)=>(dive&&o.active&&o.box)?o.box:box;
+  if(dive){
+    for(const k of['hammer','lantern','hatchet','snail']){const sp=FISH[k];sp.zr=ZR[k];setSchool(sp,H[k],keep(sp,near(k==='hammer'?4:2.5,k==='hammer'?-6:-1)));}
+    for(const k of['sardine','chromis','anthias','butterfly','snapper','parrot','clown','rockfish','redfish','baitfish','jack','lionfish'])setSchool(FISH[k],false,null);
+    for(const k in JELLY){const J=JELLY[k];J.zr=ZR[k]||[0,11000];setJelly(J,!!H[k],keep(J,near(4,-1)));}
+    for(const k in DRIFT){const D=DRIFT[k];D.zr=k==='amphi'?[S.D-70,S.D]:ZR[k];setDrift(D,!!H[k],keep(D,k==='amphi'?{cx:C.x,cy:F+1.5,cz:C.z,rx:7,ry:1.4,rz:7}:near(2.5,-1)));}
+    if(DIVE.dvm)dvmCounts();
+    if(DIVE.bh)bhSchools();
+  }else{
+  const br=CORAL.branch.spots[0];
+  setSchool(FISH.sardine,H.sardine,{cx:-4,cy:Math.min(F+Math.max(3,S.D*0.5),-2.5),cz:4,rx:3.5,ry:Math.min(2,S.D*0.18),rz:3.5});
+  setSchool(FISH.chromis,H.chromis,{cx:br.x*0.5,cy:F+1.2,cz:br.z*0.5,rx:2.5,ry:0.6,rz:2.5});
+  setSchool(FISH.anthias,H.anthias,{cx:1,cy:F+2.2,cz:0,rx:5.5,ry:1.2,rz:5.5});
+  setSchool(FISH.butterfly,H.butterfly,{cx:0,cy:F+0.9,cz:0,rx:11,ry:0.5,rz:11});
+  setSchool(FISH.snapper,H.snapper,{cx:BOMMIE[0][0]+1,cy:F+1.6,cz:BOMMIE[0][1],rx:2.2,ry:0.8,rz:2.2});
+  setSchool(FISH.parrot,H.parrot,{cx:0,cy:F+0.9,cz:0,rx:9,ry:0.5,rz:9});
+  setSchool(FISH.clown,H.clown,null,ANEM.map(a=>({x:a.x,y:floorY(a.x,a.z)+0.3,z:a.z})));
+  setSchool(FISH.rockfish,H.rockfish,{cx:0,cy:Math.min(F+4,-2),cz:0,rx:10,ry:Math.min(3,S.D/3),rz:10});
+  setSchool(FISH.lantern,H.lantern,{cx:0,cy:F+4,cz:0,rx:11,ry:3,rz:11});
+  setSchool(FISH.redfish,!!H.redfish,{cx:0,cy:F+1.6,cz:0,rx:8,ry:0.9,rz:8});
+  if(TRUK.on){const D=TRUK.Hh,b=trukW(38,D+3.5,0),j=trukW(30,D+6,4),l=trukW(-56,D+3.6,0),a=trukW(42,D+6,0),u=trukW(20,D+1,0);
+    setSchool(FISH.baitfish,true,{cx:b.x,cy:b.y,cz:b.z,rx:5,ry:1.6,rz:5});setSchool(FISH.jack,true,{cx:j.x,cy:j.y,cz:j.z,rx:11,ry:2.5,rz:11});
+    setSchool(FISH.lionfish,true,{cx:l.x,cy:l.y,cz:l.z,rx:3,ry:0.6,rz:3});setSchool(FISH.anthias,true,{cx:a.x,cy:a.y,cz:a.z,rx:3,ry:3,rz:3});
+    setSchool(FISH.butterfly,true,{cx:u.x,cy:u.y,cz:u.z,rx:8,ry:0.6,rz:5});}
+  else ['baitfish','jack','lionfish'].forEach(k=>setSchool(FISH[k],false,null));
+  setSchool(FISH.hammer,H.hammer,{cx:0,cy:Math.min(F+9,-6),cz:0,rx:14,ry:3,rz:14});
+  setSchool(FISH.hatchet,H.hatchet,{cx:0,cy:F+6,cz:0,rx:11,ry:4,rz:11});
+  setSchool(FISH.snail,H.snail,{cx:0,cy:F+2,cz:0,rx:8,ry:1.5,rz:8});
+  const jb={cx:0,cy:Math.min(F+S.D*0.5,F+7),cz:0,rx:13,ry:Math.min(S.D*0.45,6),rz:13};
+  for(const k in JELLY)setJelly(JELLY[k],!!H[k],jb);
+  for(const k in DRIFT)setDrift(DRIFT[k],!!H[k],ICE.on&&k==='krill'?{cx:0,cy:-ICE.h-1.3,cz:0,rx:6,ry:0.8,rz:6}:k==='borch'?{cx:ICE.hx,cy:-ICE.h-0.5,cz:ICE.hz,rx:7,ry:0.25,rz:7}:k==='icefish'?{cx:0,cy:floorY(0,0)+0.3,cz:0,rx:7,ry:0.2,rz:7}:k==='amphi'?{cx:0,cy:F+1.5,cz:0,rx:7,ry:1.4,rz:7}:k==='hagfish'?{cx:0,cy:floorY(0,0)+0.5,cz:0,rx:4,ry:0.45,rz:8}:{cx:0,cy:F+3,cz:0,rx:10,ry:2.5,rz:10});
+  }
+  const z=zEff();
+  diverOn=!dive&&S.D<=60;
+  sparkleOn=S.night&&z<=150;deepFlashOn=z>=150;
+  rays.visible=!S.night&&(dive?z<200:(lf>0.002&&S.D<=200));
+  if(bloom){const glow=S.night||z>200;bloom.strength=glow?0.7:0.3;bloom.threshold=glow?0.7:0.85;bloom.radius=glow?0.35:0.3;}
+  if(dive&&!DIVE.manualTorch){const want=z>(DIVE.bh?55:250)?'white':'off';if(S.torch!==want){S.torch=want;U.uTorch.value=want==='off'?0:2.6;U.uTorchCol.value.set(1.1,1.0,0.88);
+    [...$('torchSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===S.torch));}}
+}
+function applyDepth(newD){
+  const old=S.D;S.D=newD;const dy=old-newD;
+  camera.position.y+=dy;controls.target.y+=dy;
+  for(let i=0;i<NS;i++)snow.pos[i*3+1]+=dy;
+  for(const k in FISH){const sp=FISH[k];if(sp.active)for(let i=0;i<sp.n;i++)sp.p[i*3+1]+=dy;}
+  for(const k in JELLY){const J=JELLY[k];if(J.active){for(let i=0;i<J.n;i++)J.p[i*3+1]+=dy;J.resetT=true;}}
+  bubbles.forEach(b=>b.on=false);sparkAge.fill(99);
+  rebuild();
+}
+
+/* =========================================================
+   16. UI
+   ========================================================= */
+const DMIN=3,DMAX=2000;
+const toSlider=d=>Math.round(1000*Math.log(d/DMIN)/Math.log(DMAX/DMIN)),fromSlider=v=>DMIN*Math.pow(DMAX/DMIN,v/1000);
+const fmtD=d=>d<20?d.toFixed(1):Math.round(d).toLocaleString('en-US');
+function pct(v){if(v>=0.1)return(v*100).toFixed(0)+'%';if(v>=0.001)return(v*100).toFixed(1)+'%';if(v<1e-12)return'≈0';const e=Math.floor(Math.log10(v*100));return(v*100/Math.pow(10,e)).toFixed(1)+'e'+e+'%';}
+const SPECIES=[
+  ['coral','造礁珊瑚'],['kelp','巨藻'],['anem','公主海葵'],['clown','小丑鱼'],['clam','长砗磲'],['fan',()=>ROST.on?'泡泡糖珊瑚':S.D>200?'竹珊瑚':'柳珊瑚'],
+  ['turtle','绿海龟'],['manta','阿氏前口蝠鲼'],['chromis','蓝绿光鳃鱼'],['anthias','丝鳍拟花鲈'],['butterfly','月斑蝴蝶鱼'],
+  ['snapper','四线笛鲷'],['parrot','蓝点鹦嘴鱼'],['sardine','太平洋沙丁鱼'],['rockfish','蓝平鲉'],['urchinT',()=>ICE.on?'南极海胆':'紫球海胆'],['urchinD','冠海胆'],['star',()=>ICE.on?'南极红海星':S.temp>=18?'蓝指海星':'蝙蝠海星'],
+  ['moon','海月水母'],['nettle','太平洋金黄水母'],['comb','栉水母'],['lantern','灯笼鱼'],['atolla','冠水母'],['angler','黑鮟鱇'],
+  ['sponge',()=>ICE.on?'南极玻璃海绵':'偕老同穴（玻璃海绵）'],['seep','深海贻贝、管栖蠕虫、细菌席'],
+  ['whaleshark','鲸鲨'],['hammer','路氏双髻鲨'],['sperm','抹香鲸'],['hatchet','银斧鱼'],['siph','巨型管水母'],['squid','大王乌贼'],['vampire','幽灵蛸'],
+  ['gulper','宽咽鱼'],['cucumber','游泳海参'],['dumbo','烟灰蛸'],['snail','马里亚纳狮子鱼'],['amphi','巨型钩虾'],['holo','超深渊海参'],['xeno','巨型单细胞生物'],
+  ['hagfish','太平洋盲鳗'],['sleeper','太平洋睡鲨'],['osedax','食骨蠕虫'],['crab','深海石蟹'],
+  ['rimicaris','盲虾'],['kiwa','雪人蟹'],['scalyfoot','铁甲蜗牛'],['giga','盾巨螺'],['ventmussel','深海偏顶蛤'],['barnacle','柄藤壶'],['ventanem','深海海葵'],['krill','磷虾'],['salp','樽海鞘'],['childressi','墨西哥湾甲烷贻贝'],['acropora','鹿角珊瑚（产卵中）'],['dendro','软珊瑚'],['baitfish','小型饵鱼群'],['jack','鲹'],['lionfish','魔鬼蓑鲉'],['lophelia','深水石珊瑚'],['redfish','挪威平鲉'],['geodia','球海绵'],['acesta','大锉蛤'],['seal','威德尔海豹'],['icefish','冰鱼'],['borch','秃南极鱼'],['icealgae','冰藻'],['pycno','巨型海蜘蛛']
+];
+const catKey=k=>ROST.on&&k==='fan'?'paragorgia':ICE.on&&k==='star'?'odontaster':ICE.on&&k==='urchinT'?'sterechinus':ICE.on&&k==='sponge'?'rossella':k==='fan'?(S.D>200?'fanD':'fanS'):k==='star'?(S.temp>=18?'starT':'starC'):k;
+function readouts(){
+  $('vDepth').textContent=fmtD(S.D)+' m';
+  $('rK').textContent=OPT.K.map(k=>k.toFixed(3)).join(' / ')+' m⁻¹';
+  $('rEu').textContent=(4.605/OPT.K[1]).toFixed(0)+' m';
+  $('rVis').textContent=(3.9/OPT.c[1]).toFixed(0)+' m';
+  $('rSun').textContent=(OPT.zenW*180/Math.PI).toFixed(1)+'°（空气中 '+(90-S.sun)+'°）';
+  $('rL').textContent=W.L.toFixed(0)+' m'+(W.k*S.D<Math.PI?'（受海底影响）':'');
+  const um=floorOrbitalMax();$('rU').textContent=um<1e-3?'≈0（波浪影响不到海底）':um.toFixed(2)+' m/s';
+  $('rCur').textContent=(S.cur*curProfile(1)).toFixed(2)+' m/s';
+  $('rRip').textContent=S.ripKind==='wave'?'波成沙纹 '+(U.uRipL.value*100).toFixed(0)+' cm':S.ripKind==='current'?'流成沙纹 '+(U.uRipL.value*100).toFixed(0)+' cm':'无';
+  $('rMu').textContent=(viscosity(S.temp)*1000).toFixed(2)+' mPa·s';
+  const Pf=pressure(S.D);$('rBub').textContent=(riseSpeed(1e-3)*100).toFixed(0)+' cm/s';
+  $('rBub2').textContent='2 mm → '+(2*Math.cbrt(Pf/PATM)).toFixed(1)+' mm';
+  $('vTemp').textContent=S.temp+' °C';$('vCur').textContent=S.cur.toFixed(2)+' m/s';$('vDir').textContent=S.dir+'°';
+  $('vH').textContent=S.H.toFixed(1)+' m';$('vT').textContent=S.T+' s';$('vSun').textContent=S.sun+'°';
+  updSite();
+  $('hLoc').textContent=(S.loc?LOC[S.loc].name:'自定义参数')+(SPN.on?' · 当地时间 '+hhmm(SPN.t):'')+(DIVE.dvm?' · 当地时间 '+hhmm(DVM.t):S.night?' · 夜':'');
+  [...$('locSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===S.loc));
+  [...$('waterSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.w===S.water));
+  [...$('timeSeg').children].forEach(b=>b.setAttribute('aria-pressed',(b.dataset.t==='night')===S.night));
+  [...$('torchSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===S.torch));
+  {const here=SPECIES.filter(s=>H[s[0]]);const known=here.filter(s=>FOUND.has(catKey(s[0])));const unk=here.length-known.length;
+   $('species').innerHTML=known.map(s=>'<span class="sp">'+(typeof s[1]==='function'?s[1]():s[1])+'</span>').join('')+(unk?'<span class="sp unk">还有 '+unk+' 种未遇见</span>':'');}
+  const lf=light(S.D,1);let h='';
+  if(DIVE.on&&DIVE.bh){const z=DIVE.z;
+    h+=z<70?'<p><span class="tag">含氧层</span>洞口一带是珊瑚礁，科考人员在龙洞上部记录到二十多种鱼。洞里的水和外面的海水几乎不交换，越往下越“老”。</p>'
+      :z<100?'<p><span class="tag">化学跃层</span>氧气在这 30 m 里迅速耗尽，细菌开始改用硝酸盐、再用硫酸盐来“呼吸”。洞里约六成的氮在这一层被细菌转化成氮气流失。</p>'
+      :'<p><span class="tag">无氧层</span>这里没有氧气，硫酸盐还原菌把硫酸盐变成硫化氢，硫化氢一直累积到约 150 m 后保持稳定。没有鱼、没有藻类，只有微生物；科研人员从龙洞里分离出的厌氧细菌中，约两成可能是新物种。</p>';
+    if(z>95&&z<165)h+='<p><span class="tag">浑浊层</span>氧化和还原的交界处是硫氧化细菌的乐园，它们在 100–140 m 占了微生物的约九成；再加上悬浮的有机颗粒，这一层的海水明显发浑，手电光被散射成一片雾。</p>';
+    h+='<p><span class="tag">传说</span>当地渔民称它为“南海之眼”。</p>';
+    $('eco').innerHTML=h;return;}
+  if(DIVE.on){const z=DIVE.z;
+    h+=z<200?'<p><span class="tag">透光层</span>阳光充足，大型动物在开阔的蓝水里巡游。往下看，海水一直蓝到看不见底。</p>'
+      :z<1000?'<p><span class="tag">暮光层</span>只剩微弱的蓝光。很多动物腹部长着发光器，把自己的影子“擦掉”，躲开下方的捕食者。</p>'
+      :z<4000?'<p><span class="tag">午夜层</span>没有一丝阳光。这一层大约四分之三的动物都会发光。</p>'
+      :z<6000?'<p><span class="tag">深渊层</span>水温约 1.5 °C，食物主要靠上方飘落的海洋雪。生物稀少而缓慢。</p>'
+      :'<p><span class="tag">超深渊</span>海沟里的世界。'+(z<8200?'狮子鱼在这里活动，它们是最深处的鱼。':'这里已经低于鱼类能生存的极限。')+'</p>';
+    if(DIVE.dvm)h+='<p><span class="tag">迁移</span>二战时海军声呐在几百米深处发现一层会反射声波的“假海底”，白天在深处、夜里升到表层，后来才知道是成群的灯笼鱼、磷虾等动物。一些旧海图上至今还标着当年被误认成浅滩的地方。</p>';
+    if(S.D-z<60)h+=DIVE.replay?'<p><span class="tag">海沟底部</span>卡梅隆描述这里是“完全没有起伏”的柔软平原，只看到小小的端足类。</p>':'<p><span class="tag">海沟底部</span>细软的沉积物上住着巨型钩虾、海参和巨型单细胞生物。1960 年的的里雅斯特号和 2012 年卡梅隆都到过这里。</p>';
+    $('eco').innerHTML=h;return;}
+  if(H.coral)h+='<p><span class="tag">珊瑚</span>'+coralForm+'。海底有 '+pct(lf)+' 的绿光供共生藻光合作用。</p>';
+  else if(S.D<=150)h+='<p><span class="tag">珊瑚</span>无造礁珊瑚：'+(S.temp<18?'水温 '+S.temp+' °C，低于约 18 °C':'光照只剩 '+pct(lf))+'。</p>';
+  if(!H.kelp&&S.D<=35)h+='<p><span class="tag">巨藻</span>无：'+(S.temp>20?'水温高于约 20 °C，巨藻是冷水种':'光照不足')+'。</p>';
+  if(H.fan)h+='<p><span class="tag">海扇</span>'+(S.D>200?'竹珊瑚被触碰时会沿枝条传出蓝色光波。':'扇面垂直于海流方向生长，最大化截留流过的浮游食物。')+'</p>';
+  if(H.comb)h+='<p><span class="tag">栉水母</span>彩虹是纤毛衍射'+(S.D>200&&S.torch==='off'?'，这里没有光，打开手电才能看到。':'入射光形成的，不是自己发光。')+'</p>';
+  if(S.night&&S.D<=150)h+='<p><span class="tag">夜光</span>夜光藻被扰动时会闪蓝光，鱼群、海龟游过会留下光迹。'+(S.torch==='blue'?'蓝光手电激发出珊瑚和海葵触手的绿色、橙红色荧光。':'试试蓝光手电看珊瑚荧光。')+'</p>';
+  if(S.D>200)h+='<p><span class="tag">深海</span>这里没有阳光。看到的光点都是生物发光：灯笼鱼的发光器、冠水母的报警光环、'+(H.angler?'鮟鱇的诱饵、':'')+'被扰动的浮游生物。</p>';
+  if(ventOn)h+='<p><span class="tag">热液</span>这里的生命不靠阳光：细菌把热液里硫化氢等物质的化学能转化成养分（化能合成），整个群落都建立在它们之上。龙旂已记录 21 类大型动物，其中 7 种是新种。</p>';
+  if(TRUK.on)h+='<p><span class="tag">沉船鱼礁</span>1944 年 2 月的“冰雹行动”在这片泻湖里击沉了 45 艘以上的舰船。八十多年后，钢铁船体成了珊瑚、海绵和海鞘附着的基底：软珊瑚挂满高处的桅杆和吊杆，因为那里水流最好；甲板上结着成群的小鱼，船尾住着蓑鲉。</p>';
+  if(ROST.on)h+='<p><span class="tag">冷水珊瑚</span>这里没有阳光，珊瑚也没有共生藻，全靠洋流送来的浮游生物为生，所以冷水珊瑚礁总长在水流强的陆坡和海脊上。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁，2002 年才被发现，同年周围约 300 km² 海域禁止底拖网。</p>';
+  if(ICE.on)h+='<p><span class="tag">冰下</span>头顶约 2 m 厚的海冰挡住了大部分阳光，只有冰洞里照下一道光柱。冬天之后的海水几乎没有浮游生物，清澈得能看到很远；水温 −1.9 °C，是海水的冰点。你呼出的气泡会贴在冰底聚成一片片“水银”。</p><p><span class="tag">抗冻</span>这里的鱼血液里有抗冻糖蛋白，冰鱼甚至连血红蛋白都没有，血几乎是透明的。</p>';
+  if(SPN.on)h+='<p><span class="tag">产卵</span>珊瑚不能移动，只好把繁殖押在“同时”上：整片礁在同一夜、同一小时释放配子，让卵和精子在水里相遇的机会最大，也让捕食者一时吃不完。1981 年科学家在大堡礁第一次记录到这种集体产卵，当时有 32 种珊瑚同时排放。</p>';
+  if(brineOn)h+='<p><span class="tag">盐池</span>海底下方埋着古老的盐层，盐溶进渗出的流体，形成比海水重得多的卤水，在海底积成一个湖。湖里几乎没有氧气，误入的动物会死去；岸边却挤满了靠甲烷生活的贻贝。这个盐池 1989 年由美国海军的核动力研究潜艇 NR-1 首次探访，因此得名。</p>';
+  if(wfOn)h+='<p><span class="tag">鲸落</span>据估计任何时候全球海底都躺着约 69 万具鲸骨，平均每隔约 12 km 就有一具；它们像深海里的绿洲，让生物得以在其间“跳岛”扩散。</p>';
+  if(H.seep)h+='<p><span class="tag">冷泉</span>海底渗出甲烷，细菌把它当能量来源，形成白色细菌席，养活贻贝床和管栖蠕虫。这里的气泡是甲烷，不是潜水员呼出的。</p>';
+  if(H.sardine)h+='<p><span class="tag">鱼群</span>沙丁鱼绕圈游成“鱼饵球”，翻身时银色鳞片会闪光。</p>';
+  $('eco').innerHTML=h;
+}
+function hud(){
+  const z=Math.max(-camera.position.y,0);
+  $('hDepth').textContent='−'+fmtD(z);
+  $('hZone').textContent=z<200?'透光层 · 上层带':z<1000?'暮光层 · 中层带':z<4000?'午夜层 · 深层带':z<6000?'深渊层':'超深渊层 · 海沟';
+  $('hTemp').textContent='水温 '+(DIVE.on?(DIVE.bh?bhTemp(z):tempAt(z)):S.temp).toFixed(1)+' °C'+(DIVE.bh?(bhO2(z)>0.5?' · 有氧':bhO2(z)>0?' · 氧气稀薄':' · 无氧 · 含硫化氢'):'');
+  const P=pressure(z);$('hPress').textContent=(P/PATM).toFixed(2)+' atm · '+Math.round(P/1000)+' kPa';
+  const sE=DIVE.dvm?surfE(DVM.t):(S.night?0:1);[['bR','tR'],['bG','tG'],['bB','tB']].forEach(([b,tx],i)=>{const v=light(z,i)*sE;$(b).style.width=Math.max(0,Math.min(100,(Math.log10(Math.max(v,1e-9))+6)/6*100))+'%';$(tx).textContent=S.night&&!DIVE.dvm?'夜间':pct(v);});
+}
+function frameCamera(){
+  const F=-S.D,deep=S.D>200,dist=deep?7:9.5;
+  if(S.loc==='monterey'){controls.target.set(0,F+1.2,0);camera.position.set(4,F+2.4,7);return;}
+  if(S.loc==='truk'){const D=TRUK.Hh,b0=floorY0(0,0)-1.5;const tw=(x,y,z)=>{const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return new THREE.Vector3(x*c+z*s,b0+y,-x*s+z*c);};controls.target.copy(tw(36,D+2.5,0));camera.position.copy(tw(22,D+8,16));return;}
+  if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
+  if(S.loc==='ice'){controls.target.set(ICE.hx,-5.5,ICE.hz);camera.position.set(ICE.hx+7,-9,ICE.hz+9.5);return;}
+  if(S.loc==='spawn'){const b=BOMMIE[0],y=floorY(b[0],b[1]),tg=new THREE.Vector3(b[0],y+1.6,b[1]);let best=null,bs=-1;
+    for(let k=0;k<12;k++){const an=k/12*6.283,cp=new THREE.Vector3(b[0]+Math.cos(an)*4.3,y+1.4,b[1]+Math.sin(an)*4.3);let m=1e9;
+      rocks.children.forEach(r=>{if(!r.visible)return;const p=r.position.clone();p.y=F+r.userData.base;for(let u=0;u<=1;u+=0.1){const q=cp.clone().lerp(tg,u);m=Math.min(m,q.distanceTo(p)-r.scale.x*1.1);}});
+      if(m>bs){bs=m;best=cp;}}
+    controls.target.copy(tg);camera.position.copy(best);return;}
+  if(S.loc==='brine'){const y=floorY0(0,BR.zc)+BR.L;controls.target.set(0,y,BR.zc-2.5);camera.position.set(5.0,y+0.9,BR.zc+6.0);return;}
+  if(S.loc==='vent'){const y=floorY(0,-1);controls.target.set(0,y+3.6,-1);camera.position.set(3.6,y+4.4,4.2);return;}
+  if(S.loc==='whalefall'){controls.target.set(0,floorY(0,0)+0.3,0.5);camera.position.set(5.2,floorY(0,0)+3.4,5.6);return;}
+  controls.target.set(0,F+(deep?1.3:1.5),0);camera.position.set(dist*0.5,F+(deep?2.2:2.9),dist*0.87);
+}
+function applyLocation(id){
+  exitPilot();
+  if(id!=='spawn'&&SPN.on){SPN.on=false;S.night=SPN.prevNight;$('spSec').hidden=true;}
+  if(id==='spawn'&&!SPN.on){SPN.prevNight=S.night;S.night=true;}
+  if(id!=='brine'&&brineOn)buildBrine(false);
+  if(id==='dvm'){if(DIVE.on)exitDive();enterDVM();return;}
+  if(id==='bluehole'){if(DIVE.on)exitDive();enterBH();return;}
+  if(DIVE.on&&(DIVE.dvm||DIVE.bh))exitDive();
+  if(id==='dive'||id==='replay'){enterDive(id==='replay');return;}
+  if(DIVE.on)exitDive();
+  const L=LOC[id];S.loc=id;
+  Object.assign(S,{water:L.water,temp:L.temp,H:L.H,T:L.T,cur:L.cur,dir:L.dir,sun:L.sun,seep:!!L.seep,torch:S.night&&L.torch==='off'?'white':L.torch});
+  $('sDepth').value=toSlider(L.D);$('sTemp').value=S.temp;$('sH').value=S.H;$('sT').value=S.T;$('sSun').value=S.sun;$('sCur').value=S.cur;$('sDir').value=S.dir;
+  for(const k in FISH)FISH[k].active=false;for(const k in JELLY)JELLY[k].active=false;for(const k in DRIFT)DRIFT[k].active=false;
+  [encWS,encSW,encSQ,encSI].forEach(e=>{e.on=false;e.cool=R(3,8);});
+  S.D=L.D;frameCamera();applyDepth(L.D);
+  if(id==='spawn'){SPN.on=true;SPN.play=true;SPN.rate=10;spawnColonies();spawnReset(20.95);$('spSec').hidden=false;spawnNote();zoneUpdate();readouts();}
+}
+const SITE={
+  dive:['关岛礁壁 → 马里亚纳海沟','从关岛的礁壁出发，一路下潜到地球海洋最深处 10,935 m。沿途经过透光层、暮光层、午夜层、深渊层和海沟，各层的生物、水温、压强和光线都按实测资料变化。','左侧剖面里，珠穆朗玛峰按比例放进了海沟；可以在下方调倍速，或直接拖动深度条。'],
+  replay:['重走 2012 · 深海挑战者号','按詹姆斯·卡梅隆 2012 年 3 月 26 日的真实时间线：05:15 出发，下潜 2 小时 36 分，在海底停留三个多小时，再上浮回到水面。','留意右下角的当地时间和字幕，它们对应当天的真实记录。'],
+  dvm:['北太平洋开阔大洋 · 昼夜垂直迁移','在一天 24 小时里看暮光层的动物黄昏上浮、黎明下沉。这是地球上规模最大的动物迁移，二战时的声呐曾把它误认成海底。','点击下面的回声测深图跳到 19:00、50 m，看发光的迁移层从脚下升起。'],
+  bluehole:['三沙永乐龙洞 · 蓝洞','西沙永乐环礁上的一口海底竖井，深约 301 m。沿洞壁从珊瑚礁一直下到洞底，穿过含氧层、化学跃层和充满硫化氢的无氧层。','100–150 m 的浑浊细菌层里能见度骤降；左侧剖面画的是洞的真实形状。'],
+  xisha:['南海西沙群岛珊瑚礁 · 10 m','热带珊瑚礁：水清、光足，枝状和块状珊瑚长满礁石，海葵里住着小丑鱼，鹦嘴鱼和蝴蝶鱼在礁间觅食。','切到“夜潜”，关掉手电，用手指或鼠标在水里快速划一划，看夜光藻闪光；打开蓝光手电则能看到珊瑚荧光。'],
+  truk:['密克罗尼西亚特鲁克泻湖 · 富士川丸','一艘 133 m 长的二战日本飞机运输舰，1944 年在“冰雹行动”中被击沉，至今直立着坐在约 34 m 深的沙底上，后桅几乎伸出水面。','十几米深处红光已被海水吸收，软珊瑚看上去发暗；打开白光手电，它们才显出粉红、橙红的本色。从舱口往 2 号货舱里看，还能找到拆解的战斗机。'],
+  rost:['挪威罗弗敦外海 · 勒斯特冷水珊瑚礁 · 320 m','已知最大的冷水珊瑚礁，全长三四十公里。白色和橙色的深水石珊瑚长成一丛丛灌木，下面是层层堆积的死珊瑚骨架和碎屑；红色的泡泡糖珊瑚顺着海流张开，大眼的挪威平鲉悬停在礁上。','点击珊瑚看它每年只长几毫米；关掉手电，这片礁就完全沉入黑暗。'],
+  ice:['南极麦克默多湾 · 海冰之下','头顶是约 2 m 厚的海冰，阳光只透下百分之几，冰底被冰藻染成褐色，冰洞里照下一道光柱。水温 −1.9 °C，海底有红海星、南极海胆、玻璃海绵和巨型海蜘蛛，威德尔海豹不时从冰下游过。','抬头看冰底的片状冰和贴在冰下的气泡；在海底找一找趴着不动、几乎透明的冰鱼。'],
+  spawn:['海南三亚鹿回头 · 珊瑚产卵之夜','春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。','把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。'],
+  monterey:['加州蒙特雷湾巨藻林 · 12 m','冷水上升流养出的海底森林。巨藻随涌浪整片摆动，水温约 12 °C，对造礁珊瑚来说太冷了。','在“环境参数”里调大有效波高或波周期，看巨藻和海底沙纹怎样变化。'],
+  eilat:['红海埃拉特中光层礁 · 55 m','红海的海水极清，55 m 深处仍有几个百分点的阳光。光越弱，珊瑚越长成扁平的盘状，好接住更多光。','看面板里的“此处剩余阳光”：红光几乎为零，所以这里的一切都是蓝绿色。'],
+  slope:['南海北部陆坡 · 600 m','暮光层的底部，阳光几乎耗尽，只有手电照亮的一小片海底。灯笼鱼、银斧鱼在这一带活动，竹珊瑚被触碰时会沿枝条传出蓝光。','关掉手电，剩下的光点全部来自生物发光。'],
+  deep:['南海海马冷泉 · 1,390 m','海底渗出甲烷，细菌把它当作能量来源，养活了贻贝床、管栖蠕虫和白色的细菌席。这里冒出的气泡是甲烷。','点击贻贝、管栖蠕虫和细菌席，看它们怎样靠化学能生活。'],
+  brine:['墨西哥湾 NR1 海底盐池 · 650 m','比海水重得多的卤水在海底积成一个湖，有清晰的湖面和湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。','点击湖面会荡开慢慢的波纹；贴近湖面斜看，湖面才会像镜子一样倒映出对岸。'],
+  whalefall:['蒙特雷峡谷鲸落 · 1,800 m','一头灰鲸沉到海底后，几十年里会依次养活食腐动物、食骨蠕虫和靠硫化物生活的细菌群落。','拖动面板里“经过的时间”滑块，从几周快进到几十年。'],
+  vent:['西南印度洋龙旂热液区 · 2,800 m','300 多摄氏度的热液从黑烟囱喷出。周围的盲虾、铁甲蜗牛、雪人蟹完全不靠阳光，而是靠细菌把热液里的化学能转化成养分。','点击烟囱和动物，看它们分别住在离热源多远的地方。']
+};
+function updSite(){const d=S.loc?SITE[S.loc]:null;$('siteT').textContent=d?d[0]:'自定义参数';$('siteD').textContent=d?d[1]:'在“环境参数”里改深度、水温、水质、海流和波浪，场景会按同样的物理和生态规则重新生成。';$('siteTip').innerHTML='<b>看点</b>'+(d?d[2]:'把深度拖到 200 m 以下，看珊瑚和阳光怎样消失。');}
+const custom=()=>{S.loc=null;};
+$('sDepth').value=toSlider(S.D);
+$('sDepth').addEventListener('input',e=>{custom();applyDepth(fromSlider(+e.target.value));});
+$('locSeg').addEventListener('click',e=>{const l=e.target.dataset.l;if(l)applyLocation(l);});
+$('timeSeg').addEventListener('click',e=>{const t=e.target.dataset.t;if(!t)return;if(SPN.on&&t==='day'){showCaption('珊瑚只在夜里产卵','这一场景固定在夜里；想看白天的珊瑚礁，请选“西沙 · 珊瑚礁”。',5);return;}if(DIVE.dvm){DVM.t=t==='night'?22:12;dvmLight();zoneUpdate();drawEcho();dvmNote();readouts();return;}S.night=t==='night';if(S.night&&S.torch==='off')S.torch='white';rebuild();});
+$('torchSeg').addEventListener('click',e=>{const k=e.target.dataset.k;if(!k)return;S.torch=k;if(DIVE.on)DIVE.manualTorch=true;rebuild();});
+$('diveCta').addEventListener('click',()=>applyLocation('dive'));
+const WF_MIN=Math.log10(1/52),WF_MAX=Math.log10(60);
+$('sWF').value=Math.round((Math.log10(WF.t)-WF_MIN)/(WF_MAX-WF_MIN)*1000);
+$('sWF').addEventListener('input',e=>{WF.t=Math.pow(10,WF_MIN+(+e.target.value/1000)*(WF_MAX-WF_MIN));applyWF();paintFloor(S.D>=6000?'hadal':'deep');zoneUpdate();readouts();});
+$('infoX').addEventListener('click',()=>{$('info').hidden=true;});
+$('dPlay').addEventListener('click',()=>{if(DIVE.replay?DIVE.rphase==='done':DIVE.z>=S.D-2.3)return;DIVE.play=!DIVE.play;updDiveUI();});
+$('dSpeed').addEventListener('click',e=>{const v=e.target.dataset.s;if(!v)return;DIVE.speed=v;updDiveUI();diveInfo();});
+$('dProg').addEventListener('input',e=>{setDiveZ(+e.target.value);zoneUpdate();});
+$('dSound').addEventListener('click',()=>setSound(!AUD.on));
+$('sSp').addEventListener('input',e=>{spawnReset(20+(+e.target.value)/60);spawnNote();readouts();});
+$('spRate').addEventListener('click',e=>{const r=e.target.dataset.r;if(!r)return;if(r==='pause')SPN.play=!SPN.play;else{SPN.rate=+r;SPN.play=true;}spawnNote();});
+function dvmRefresh(){dvmLight();zoneUpdate();drawEcho();dvmNote();readouts();}
+$('sDvmT').addEventListener('input',e=>{DVM.t=(+e.target.value)/60;dvmRefresh();});
+$('sDvmZ').addEventListener('input',e=>{setDiveZ(+e.target.value);DVM.z=DIVE.z;dvmRefresh();});
+$('dvmRate').addEventListener('click',e=>{const r=e.target.dataset.r;if(!r)return;if(r==='pause')DVM.play=!DVM.play;else{DVM.rate=+r;DVM.play=true;}dvmNote();});
+{const cv=$('echo');let drag=false;const go=e=>{const b=cv.getBoundingClientRect(),k=b.width/ECHO.W,x=(e.clientX-b.left)/k-ECHO.left,y=(e.clientY-b.top)/k-ECHO.top;
+  if(ECHO.pw&&x>=0&&x<=ECHO.pw)DVM.t=Math.min(23.99,x/ECHO.pw*24);
+  if(ECHO.ph&&y>=0&&y<=ECHO.ph){setDiveZ(Math.max(5,Math.min(900,y/ECHO.ph*ECHO.zmax)));DVM.z=DIVE.z;}
+  dvmRefresh();};
+  cv.addEventListener('pointerdown',e=>{drag=true;cv.setPointerCapture(e.pointerId);go(e);});
+  cv.addEventListener('pointermove',e=>{if(drag)go(e);});
+  cv.addEventListener('pointerup',()=>{drag=false;});cv.addEventListener('pointercancel',()=>{drag=false;});}
+
+$('cSound').addEventListener('change',e=>setSound(e.target.checked));
+$('waterSeg').addEventListener('click',e=>{const w=e.target.dataset.w;if(!w)return;S.water=w;custom();rebuild();});
+[['sTemp','temp'],['sCur','cur'],['sDir','dir'],['sH','H'],['sT','T'],['sSun','sun']].forEach(([id,k])=>$(id).addEventListener('input',e=>{S[k]=+e.target.value;custom();rebuild();}));
+$('cAdapt').addEventListener('change',e=>{S.adapt=e.target.checked;});
+$('cTour').addEventListener('change',e=>{S.tour=e.target.checked;});
+function setPanel(open){$('panelBody').hidden=!open;$('panel').classList.toggle('closed',!open);$('toggle').textContent=open?'收起':'展开';}
+$('toggle').addEventListener('click',()=>setPanel($('panelBody').hidden));
+let lastTouch=-1e9;controls.addEventListener('start',()=>{lastTouch=performance.now();});
+
+function resize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<760?70:58;camera.updateProjectionMatrix();
+  if(composer){composer.setSize(w,h);}
+  const pr=renderer.getPixelRatio();
+  U.uScale.value=h*pr/(2*Math.tan(camera.fov*Math.PI/360));
+  vrResize();
+}
+window.addEventListener('resize',resize);
+
+/* =========================================================
+   14s. Free piloting: a tethered ROV (or a diver) under thrust and water drag.
+   Thrust ~0.9 m/s², quadratic drag gives a top speed of ~1 m/s (typical small ROV / swimming diver).
+   The water itself moves you: tidal/ambient current (log-law profile near the bottom) and wave surge (linear wave orbits).
+   A 60 m tether limits how far you can go from where you started.
+   ========================================================= */
+const PILOT={on:false,yaw:0,pitch:0,v:new THREE.Vector3(),pos:new THREE.Vector3(),home:new THREE.Vector3(),tether:60,hudT:0,joy:{x:0,y:0},vb:0,drag:false,lx:0,ly:0,warn:0};
+const KEYS={};
+const _pd=new THREE.Vector3(),_pr=new THREE.Vector3(),_pa=new THREE.Vector3(),_pw=new THREE.Vector3();
+function enterPilot(){
+  if(DIVE.on)return;PILOT.on=true;controls.enabled=false;
+  camera.getWorldDirection(_pd);PILOT.yaw=Math.atan2(-_pd.x,-_pd.z);PILOT.pitch=Math.asin(Math.max(-0.99,Math.min(0.99,_pd.y)));
+  PILOT.pos.copy(camera.position);PILOT.v.set(0,0,0);PILOT.home.set(controls.target.x,0,controls.target.z);
+  $('pilotBar').hidden=false;$('pilotBtn').hidden=true;$('diveCta').hidden=true;$('cardBtn').style.bottom=window.innerWidth<760?'200px':'140px';$('joyWrap').hidden=!matchMedia('(pointer: coarse)').matches;
+  if(window.innerWidth<760)setPanel(false);
+  showCaption('自由驾驶','推进器加速度约 0.9 m/s²，最高速度约 1 m/s；海流和波浪会推着你漂。缆绳长 60 m。',6);
+}
+function exitPilot(){
+  if(!PILOT.on)return;PILOT.on=false;controls.enabled=true;
+  camera.getWorldDirection(_pd);controls.target.copy(camera.position).addScaledVector(_pd,3);controls.update();
+  $('pilotBar').hidden=true;$('pilotBtn').hidden=DIVE.on;$('diveCta').hidden=DIVE.on;$('cardBtn').style.bottom='';$('joyWrap').hidden=true;
+}
+function pilotDir(out){const cp=Math.cos(PILOT.pitch);return out.set(-Math.sin(PILOT.yaw)*cp,Math.sin(PILOT.pitch),-Math.cos(PILOT.yaw)*cp);}
+function stepPilot(rdt,t){
+  const dt=Math.min(rdt,0.25),K=KEYS;
+  const turn=(K.arrowleft?1:0)-(K.arrowright?1:0);PILOT.yaw+=turn*1.1*dt;
+  const f=Math.max(-1,Math.min(1,(K.w||K.arrowup?1:0)-(K.s||K.arrowdown?1:0)+PILOT.joy.y));
+  const r=Math.max(-1,Math.min(1,(K.d?1:0)-(K.a?1:0)+PILOT.joy.x));
+  const u=Math.max(-1,Math.min(1,(K.e||K[' ']?1:0)-(K.q||K.c?1:0)+PILOT.vb));
+  pilotDir(_pd);_pr.set(Math.cos(PILOT.yaw),0,-Math.sin(PILOT.yaw));
+  _pa.set(0,0,0).addScaledVector(_pd,f).addScaledVector(_pr,r);_pa.y+=u;if(_pa.lengthSq()>1)_pa.normalize();_pa.multiplyScalar(0.9);
+  const sp=PILOT.v.length();PILOT.v.addScaledVector(_pa,dt).multiplyScalar(1/(1+0.9*sp*dt+0.15*dt));
+  /* water motion: current with the bottom boundary layer, plus wave orbital surge */
+  const p=PILOT.pos,alt=Math.max(0.05,p.y-floorY(p.x,p.z));orbital(p.x,p.y,t,_u);
+  const cu=S.cur*curProfile(Math.min(alt,S.D));_pw.set(CUR.x*cu+_u.x,_u.y,CUR.z*cu+_u.z);
+  p.addScaledVector(PILOT.v,dt).addScaledVector(_pw,dt);
+  /* tether */
+  const dx=p.x-PILOT.home.x,dz=p.z-PILOT.home.z,dh=Math.hypot(dx,dz);
+  if(dh>PILOT.tether){p.x=PILOT.home.x+dx/dh*PILOT.tether;p.z=PILOT.home.z+dz/dh*PILOT.tether;const vr=(PILOT.v.x*dx+PILOT.v.z*dz)/dh;if(vr>0){PILOT.v.x-=vr*dx/dh;PILOT.v.z-=vr*dz/dh;}PILOT.warn=2;}
+  /* bottom, surface or ice */
+  const fy=floorY(p.x,p.z)+0.5;if(p.y<fy){p.y=fy;if(PILOT.v.y<0)PILOT.v.y=0;}
+  const top=ICE.on?-ICE.h-0.5:-0.4;if(p.y>top){p.y=top;if(PILOT.v.y>0)PILOT.v.y=0;}
+  if(brineOn&&brineQ(p.x,p.z)<1.02&&p.y<BR.base+BR.L+0.3){p.y=BR.base+BR.L+0.3;if(PILOT.v.y<0)PILOT.v.y=0;}
+  camera.position.copy(p);_pa.copy(p).add(pilotDir(_pd));camera.lookAt(_pa);controls.target.copy(p).addScaledVector(_pd,4);
+  PILOT.hudT+=rdt;if(PILOT.hudT>0.2){PILOT.hudT=0;
+    let hd=((-PILOT.yaw*180/Math.PI)%360+360)%360;const nm=['北','东北','东','东南','南','西南','西','西北'][Math.round(hd/45)%8];
+    PILOT.warn=Math.max(0,PILOT.warn-0.2);
+    $('pilotInfo').textContent='速度 '+PILOT.v.length().toFixed(2)+' m/s · 航向 '+Math.round(hd)+'° '+nm+' · 离底 '+(p.y-floorY(p.x,p.z)).toFixed(1)+' m · 缆绳 '+Math.round(Math.min(dh,PILOT.tether))+' / '+PILOT.tether+' m'+(PILOT.warn>0?' · 缆绳已放到头':'')+(_pw.length()>0.05?' · 水流 '+_pw.length().toFixed(2)+' m/s':'');}
+}
+window.addEventListener('keydown',e=>{if(!PILOT.on)return;const tg=e.target;if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))return;const k=e.key.toLowerCase();
+  if(k==='escape'){exitPilot();return;}if(['w','a','s','d','q','e','c',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){KEYS[k]=true;e.preventDefault();}});
+window.addEventListener('keyup',e=>{KEYS[e.key.toLowerCase()]=false;});
+window.addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false;});
+canvas.addEventListener('pointerdown',e=>{if(!PILOT.on)return;PILOT.drag=true;PILOT.lx=e.clientX;PILOT.ly=e.clientY;});
+window.addEventListener('pointermove',e=>{if(!PILOT.on||!PILOT.drag)return;const dx=e.clientX-PILOT.lx,dy=e.clientY-PILOT.ly;PILOT.lx=e.clientX;PILOT.ly=e.clientY;
+  PILOT.yaw-=dx*0.005;PILOT.pitch=Math.max(-1.35,Math.min(1.35,PILOT.pitch-dy*0.005));});
+window.addEventListener('pointerup',()=>{PILOT.drag=false;});
+{const pad=$('joy'),knob=$('joyKnob');let id=null;
+  const upd=e=>{const b=pad.getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2,R=b.width/2;let x=(e.clientX-cx)/R,y=(e.clientY-cy)/R;const l=Math.hypot(x,y);if(l>1){x/=l;y/=l;}
+    PILOT.joy.x=x;PILOT.joy.y=-y;knob.style.transform='translate('+(x*R*0.6)+'px,'+(y*R*0.6)+'px)';};
+  pad.addEventListener('pointerdown',e=>{id=e.pointerId;pad.setPointerCapture(id);upd(e);e.stopPropagation();});
+  pad.addEventListener('pointermove',e=>{if(e.pointerId===id)upd(e);});
+  const end=e=>{if(e.pointerId!==id)return;id=null;PILOT.joy.x=PILOT.joy.y=0;knob.style.transform='';};
+  pad.addEventListener('pointerup',end);pad.addEventListener('pointercancel',end);
+  for(const[bid,v]of[['joyUp',1],['joyDn',-1]]){const b=$(bid);b.addEventListener('pointerdown',e=>{PILOT.vb=v;b.setPointerCapture(e.pointerId);});
+    const st=()=>{PILOT.vb=0;};b.addEventListener('pointerup',st);b.addEventListener('pointercancel',st);}}
+$('pilotBtn').addEventListener('click',enterPilot);$('pilotX').addEventListener('click',exitPilot);
+
+/* =========================================================
+   14t. Exploration missions: goals built on the field guide and on where you have been
+   ========================================================= */
+const MS={visited:new Set(),maxD:0,dist:0,flags:{},done:new Set(),t:0,last:null};
+try{const o=JSON.parse(localStorage.getItem('seafloor-missions')||'{}');if(o.v)o.v.forEach(x=>MS.visited.add(x));MS.maxD=o.m||0;MS.dist=o.d||0;MS.flags=o.f||{};if(o.done)o.done.forEach(x=>MS.done.add(x));}catch(e){}
+function saveMS(){try{localStorage.setItem('seafloor-missions',JSON.stringify({v:[...MS.visited],m:MS.maxD,d:Math.round(MS.dist),f:MS.flags,done:[...MS.done]}));}catch(e){}}
+const cnt=keys=>keys.filter(k=>FOUND.has(k)).length;
+const MISSIONS=[
+  {id:'reef',t:'珊瑚礁新手',d:'在热带珊瑚礁认识 5 种生物。',go:'xisha',n:5,p:()=>cnt(['coral','anem','clown','clam','chromis','anthias','butterfly','snapper','parrot','urchinD','starT','turtle','manta','fanS']),
+    w:'珊瑚礁只占海底面积的不到 1%，却养活了约四分之一的海洋物种。'},
+  {id:'glow',t:'会发光的深海',d:'找到 3 种会发光的生物（深海、夜里或冰下都有）。',go:'slope',n:3,p:()=>cnt(['lantern','hatchet','atolla','angler','vampire','gulper','siph','krill','fanD']),
+    w:'在深海的水层里，约四分之三的动物会发光，大多发出海水最透明的蓝光。'},
+  {id:'chemo',t:'不靠阳光的生命',d:'找到 3 种靠化学能（甲烷或硫化物）生活的生物。',go:'vent',n:3,p:()=>cnt(['seep','rimicaris','scalyfoot','kiwa','giga','ventmussel','childressi']),
+    w:'1977 年在加拉帕戈斯热液区的发现，让人们第一次知道整个生态系统可以不依赖阳光。'},
+  {id:'giants',t:'遇见巨兽',d:'在下潜途中遇见鲸鲨、抹香鲸和大王乌贼。',go:'dive',n:3,p:()=>cnt(['whaleshark','sperm','squid']),
+    w:'抹香鲸能下潜到两千米以下捕食大王乌贼，两者的搏斗至今没有人亲眼见过。'},
+  {id:'bottom',t:'到达最深处',d:'下潜到挑战者深渊，10,900 m 以下。',go:'dive',n:1,p:()=>MS.maxD>=10900?1:0,
+    w:'到过挑战者深渊的人，比登上月球的人还少。'},
+  {id:'whale',t:'鲸落的三幕',d:'在鲸落找齐盲鳗、睡鲨和食骨蠕虫（拖动时间滑块）。',go:'whalefall',n:3,p:()=>cnt(['hagfish','sleeper','osedax']),
+    w:'一头鲸的遗体能在深海养活一个群落几十年。'},
+  {id:'dvm',t:'夜里的迁移',d:'在昼夜垂直迁移场景里，夜里在 100 m 以浅遇见灯笼鱼。',go:'dvm',n:1,p:()=>MS.flags.dvm?1:0,
+    w:'中层鱼类的总重量可能超过一百亿吨，它们每晚上下迁移，把表层的碳带进深海。'},
+  {id:'extreme',t:'极端之地',d:'到过热液喷口、海底盐池、蓝洞的无氧层和南极海冰之下。',go:'brine',n:4,p:()=>['vent','brine','anoxic','ice'].filter(k=>MS.visited.has(k)).length,
+    w:'这些地方的高温、高盐、无氧或冰冷，让科学家思考：地外海洋里会不会也有生命。'},
+  {id:'ice',t:'冰下的生命',d:'在南极海冰下遇见冰鱼和威德尔海豹。',go:'ice',n:2,p:()=>cnt(['icefish','seal']),
+    w:'冰鱼的血里没有血红蛋白，是唯一这样的脊椎动物。'},
+  {id:'spawn',t:'一年一度的夜',d:'看到鹿角珊瑚集体产卵。',go:'spawn',n:1,p:()=>cnt(['acropora']),
+    w:'珊瑚集体产卵直到 1981 年才被科学家第一次完整记录。'},
+  {id:'pilot',t:'自由驾驶员',d:'用自由驾驶累计游出 50 m。',go:null,n:50,p:()=>Math.min(50,Math.floor(MS.dist)),
+    w:'系缆式水下机器人（ROV）是今天深海科考的主力工具之一。'},
+  {id:'all',t:'图鉴达人',d:'图鉴收集 50 种生物。',go:null,n:50,p:()=>Math.min(50,FOUND.size),
+    w:'科学家估计海洋里约九成的物种还没有被描述过。'}
+];
+function stepMissions(rdt){
+  if(S.loc)MS.visited.add(S.loc);
+  if(DIVE.on){MS.maxD=Math.max(MS.maxD,camZ());if(DIVE.bh&&DIVE.z>100)MS.visited.add('anoxic');
+    if(DIVE.dvm&&S.night&&DIVE.z<100&&FISH.lantern.active)MS.flags.dvm=1;}
+  if(PILOT.on){if(MS.last)MS.dist+=MS.last.distanceTo(camera.position);MS.last=(MS.last||new THREE.Vector3()).copy(camera.position);}else MS.last=null;
+  MS.t+=rdt;if(MS.t<1)return;MS.t=0;
+  let changed=false;
+  for(const m of MISSIONS){if(MS.done.has(m.id))continue;if(m.p()>=m.n){MS.done.add(m.id);changed=true;toastQ.push({mission:m});if(!TOUR.on)showCaption('任务完成：'+m.t,m.w,7);}}
+  if(changed)saveMS();
+  renderMissions();
+}
+let msHTML='';
+function renderMissions(){
+  const h=MISSIONS.map(m=>{const v=Math.min(m.n,m.p()),dn=MS.done.has(m.id);
+    return '<li class="'+(dn?'done':'')+'"><div class="mt"><b>'+(dn?'✓ ':'')+m.t+'</b><span>'+v+' / '+m.n+'</span></div><p>'+m.d+(dn?'':m.go&&S.loc!==m.go?' <button type="button" data-go="'+m.go+'">前往</button>':'')+'</p><div class="prog"><div style="width:'+(v/m.n*100)+'%"></div></div></li>';}).join('');
+  if(h!==msHTML){msHTML=h;$('missions').innerHTML=h;}
+  $('msN').textContent='已完成 '+MS.done.size+' / '+MISSIONS.length;
+}
+$('missions').addEventListener('click',e=>{const g=e.target.dataset&&e.target.dataset.go;if(g)applyLocation(g);});
+
+/* =========================================================
+   14u. Touch-triggered bioluminescence. Dinoflagellates (and, deeper, small crustaceans) flash when the shear stress
+   of moving water exceeds ~0.1–0.3 Pa (Latz et al.). For a hand-sized body (L≈0.1 m) moving at speed U the wall shear
+   is roughly tau = mu*U/delta with a laminar boundary layer delta = 5*sqrt(nu*L/U); that crosses the threshold near
+   0.3 m/s. Flashes are only visible when ambient light is very low (night, or the deep sea).
+   ========================================================= */
+const STIR={on:false,prev:null,lastT:0,hint:0};
+const _sr=new THREE.Raycaster(),_sv=new THREE.Vector2(),_sp1=new THREE.Vector3();
+function shearPa(U,L){const mu=viscosity(S.temp),nu=mu/RHO;if(U<=1e-4)return 0;const d=5*Math.sqrt(nu*L/U);return mu*U/d;}
+function isDark(){return S.night||light(camZ(),1)*U.uSky.value<2e-3;}
+function stirFlash(a,b,U,L){
+  const tau=shearPa(U,L),k=tau/0.15-1;if(k<=0)return 0;
+  const len=a.distanceTo(b),n=Math.min(30,Math.ceil(Math.min(k,4)*len*14));
+  for(let i=0;i<n;i++){const t=rnd();emitSpark(a.x+(b.x-a.x)*t+R(-0.06,0.06),a.y+(b.y-a.y)*t+R(-0.06,0.06),a.z+(b.z-a.z)*t+R(-0.06,0.06),R(0.15,0.45),R(0.007,0.016));}
+  return n;
+}
+function pointerWorld(e,dist,out){const r=canvas.getBoundingClientRect();_sv.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);_sr.setFromCamera(_sv,camera);return out.copy(_sr.ray.origin).addScaledVector(_sr.ray.direction,dist);}
+canvas.addEventListener('pointerdown',e=>{if(VR.on)return;STIR.on=true;STIR.prev=pointerWorld(e,1.6,new THREE.Vector3());STIR.lastT=performance.now();});
+window.addEventListener('pointerup',()=>{STIR.on=false;STIR.prev=null;});
+canvas.addEventListener('pointermove',e=>{
+  if(!STIR.on||!STIR.prev)return;const now=performance.now(),dt=Math.max(0.008,(now-STIR.lastT)/1000);STIR.lastT=now;
+  const p=pointerWorld(e,1.6,_sp1),U=p.distanceTo(STIR.prev)/dt;
+  if(isDark()){stirFlash(STIR.prev,p,Math.min(U,3),0.1);}
+  else if(U>0.3&&STIR.hint<=0){STIR.hint=60;showCaption('这里太亮了','生物发光很微弱，白天在浅水里看不到。切到“夜潜”，或者到 200 m 以下，再用手指或鼠标在水里划一划。',5);}
+  STIR.prev.copy(p);
+});
+function stepStir(rdt){
+  if(STIR.hint>0)STIR.hint-=rdt;
+  /* the ROV hull and thrusters stir the water too */
+  if(PILOT.on&&isDark()){const U=PILOT.v.length();if(U>0.15){pilotDir(_pd);const c=camera.position;
+    const a=_sp1.copy(c).addScaledVector(_pd,0.6);a.x+=R(-0.5,0.5);a.y+=R(-0.4,0.3);a.z+=R(-0.5,0.5);
+    const b=a.clone().addScaledVector(_pd,-U*rdt*4);stirFlash(a,b,U,0.5);}}
+}
+
+/* =========================================================
+   14v. SOFAR channel. Sound speed from Mackenzie's (1981) nine-term equation, using the dive route's temperature
+   profile (TPROF, western Pacific) and salinity 34.6: warm water makes sound fast near the surface, pressure makes it
+   fast near the bottom, so speed has a minimum near ~1 km. Rays obey Snell's law cos(theta)/c = const and bend
+   toward slower water, so rays launched near the axis are trapped and travel thousands of km.
+   ========================================================= */
+const SOF={zmax:5000,rmax:300e3,src:1000,spread:12,c:null,axis:0,rays:[],arr:[]};
+function mackenzie(T,Sal,z){const s=Sal-35;return 1448.96+4.591*T-5.304e-2*T*T+2.374e-4*T*T*T+1.340*s+1.630e-2*z+1.675e-7*z*z-1.025e-2*T*s-7.139e-13*T*z*z*z;}
+(function(){const n=SOF.zmax/10+1;SOF.c=new Float32Array(n);let mn=1e9;for(let i=0;i<n;i++){const z=i*10,c=mackenzie(tempAt(z),34.6,z);SOF.c[i]=c;if(c<mn){mn=c;SOF.axis=z;}}SOF.cmin=mn;})();
+function sofC(z){const f=Math.max(0,Math.min(SOF.zmax,z))/10,i=Math.min(SOF.c.length-2,Math.floor(f)),t=f-i;return SOF.c[i]*(1-t)+SOF.c[i+1]*t;}
+function traceRay(z0,ang,rmax,ds){
+  const pts=[[0,z0]];let z=z0,r=0,dir=ang>=0?1:-1,xi=Math.cos(ang*Math.PI/180)/sofC(z0),t=0,hits=0,st=0;
+  while(r<rmax){let c=sofC(z),cs=xi*c;if(cs>=1){dir=-dir;cs=0.99999;}const sn=Math.sqrt(1-cs*cs);
+    const dz=dir*sn*ds,dr=cs*ds;z+=dz;r+=dr;t+=ds/c;
+    if(z<0){z=-z;dir=1;hits++;}if(z>SOF.zmax){z=2*SOF.zmax-z;dir=-1;hits++;}
+    st++;if(pts.length<4000&&st%2===0)pts.push([r,z]);}
+  pts.push([r,z]);return{pts,t,hits};
+}
+function sofCompute(){
+  SOF.rays=[];const n=25;
+  for(let k=0;k<n;k++){const a=-SOF.spread+2*SOF.spread*k/(n-1);SOF.rays.push(Object.assign(traceRay(SOF.src,a,SOF.rmax,250),{a}));}
+  /* arrivals at 1,000 km for the timing sound */
+  SOF.arr=[];for(let k=0;k<n;k++){const a=-SOF.spread+2*SOF.spread*k/(n-1);const r=traceRay(SOF.src,a,1000e3,500);if(r.hits===0)SOF.arr.push(r.t);}
+}
+function sofDraw(){
+  const cv=$('sofCv');if(!cv)return;const pr=Math.min(2,window.devicePixelRatio||1),W=cv.clientWidth,Hh=cv.clientHeight;cv.width=W*pr;cv.height=Hh*pr;
+  const g=cv.getContext('2d');g.setTransform(pr,0,0,pr,0,0);g.clearRect(0,0,W,Hh);
+  const L=46,T=14,pw=110,gap=24,rw=W-L-pw-gap-12,ph=Hh-T-28,y=z=>T+z/SOF.zmax*ph;
+  const fm=getComputedStyle(document.body).getPropertyValue('--f-mono');g.font='10px '+fm;
+  /* water */
+  g.fillStyle='#071b26';g.fillRect(L,T,pw,ph);g.fillRect(L+pw+gap,T,rw,ph);
+  /* sound speed profile */
+  const cx=c=>L+(c-1475)/(1560-1475)*pw;g.strokeStyle='#62d4e3';g.lineWidth=1.5;g.beginPath();
+  for(let z=0;z<=SOF.zmax;z+=20){const X=cx(sofC(z)),Y=y(z);z?g.lineTo(X,Y):g.moveTo(X,Y);}g.stroke();
+  g.fillStyle='#86a7ae';g.textAlign='right';for(let z=0;z<=SOF.zmax;z+=1000){g.fillText(z+' m',L-4,y(z)+3);}
+  g.textAlign='center';g.fillText('声速 m/s',L+pw/2,Hh-4);for(const c of[1480,1520,1560]){g.fillText(c,cx(c),T+ph+12);}
+  /* axis */
+  g.setLineDash([4,4]);g.strokeStyle='rgba(255,214,120,.8)';g.beginPath();g.moveTo(L,y(SOF.axis));g.lineTo(L+pw+gap+rw,y(SOF.axis));g.stroke();g.setLineDash([]);
+  g.fillStyle='rgba(255,214,120,.95)';g.textAlign='left';g.fillText('声道轴 约 '+Math.round(SOF.axis/10)*10+' m · '+SOF.cmin.toFixed(0)+' m/s',L+pw+gap+6,y(SOF.axis)-5);
+  /* rays */
+  const rx=r=>L+pw+gap+r/SOF.rmax*rw;let trapped=0;
+  for(const ry of SOF.rays){const ok=ry.hits===0;if(ok)trapped++;g.strokeStyle=ok?'rgba(98,212,227,.85)':'rgba(160,170,175,.35)';g.lineWidth=ok?1.1:0.8;g.beginPath();
+    ry.pts.forEach((p,i)=>{const X=rx(p[0]),Y=y(p[1]);i?g.lineTo(X,Y):g.moveTo(X,Y);});g.stroke();}
+  g.fillStyle='#ff7a63';g.beginPath();g.arc(rx(0),y(SOF.src),4,0,6.283);g.fill();
+  g.fillStyle='#86a7ae';g.textAlign='center';for(let r=0;r<=300;r+=100)g.fillText(r+' km',Math.max(L+pw+gap+16,Math.min(rx(r*1000),L+pw+gap+rw-14)),T+ph+12);
+  $('sofStat').textContent='声源深度 '+SOF.src+' m · 25 条声线中有 '+trapped+' 条被困在声道里（不碰海面也不碰海底），可以一直传下去；灰色的声线撞到海面或海底，每撞一次都会损失能量。';
+}
+function sofPlay(){
+  if(!audioStart()||!AUD.ctx){$('sofStat').textContent='这个浏览器不支持网页音频。';return;}
+  const ctx=AUD.ctx,arr=SOF.arr.slice().sort((a,b)=>a-b);if(!arr.length){$('sofStat').textContent='这个声源深度下，没有声线能不碰海面和海底地传到 1,000 km 外。把声源移到声道轴附近再试。';return;}
+  const t0=arr[0],span=arr[arr.length-1]-t0,k=span>6?6/span:1,now=ctx.currentTime+0.15;
+  arr.forEach((ta,i)=>{const at=now+(ta-t0)*k,o=ctx.createOscillator(),gn=ctx.createGain();o.type='sine';o.frequency.value=180+40*Math.random();
+    gn.gain.setValueAtTime(0,at);gn.gain.linearRampToValueAtTime(0.18,at+0.005);gn.gain.exponentialRampToValueAtTime(0.0005,at+0.25);o.connect(gn).connect(ctx.destination);o.start(at);o.stop(at+0.3);});
+  $('sofStat').textContent='1,000 km 外的接收器先听到斜着走的声线（它们穿过更快的水层，先到），最后才是沿声道轴走的声线，所以声音越来越密、在最后戛然而止，这正是 1944 年 Ewing 和 Worzel 第一次听到的“SOFAR 信号”。到达时间跨度约 '+span.toFixed(1)+' 秒'+(k<1?'（这里压缩到 6 秒播放）':'')+'。';
+}
+function openSofar(){$('sofar').hidden=false;sofCompute();requestAnimationFrame(sofDraw);}
+$('sofOpen').addEventListener('click',openSofar);$('sofX').addEventListener('click',()=>{$('sofar').hidden=true;});
+$('sofSrc').addEventListener('input',e=>{SOF.src=+e.target.value;$('sofSrcV').textContent=SOF.src+' m';sofCompute();sofDraw();});
+$('sofPlay').addEventListener('click',sofPlay);window.addEventListener('resize',()=>{if(!$('sofar').hidden)sofDraw();});
+MILESTONES.push([Math.round(SOF.axis/10)*10,'约 '+(Math.round(SOF.axis/10)*10).toLocaleString('en-US')+' m · 深海声道轴','这里的声速最慢（约 '+SOF.cmin.toFixed(0)+' m/s）。上面的水暖、下面的水压高，声音都会被“折”回这一层，低频声音能沿着它传几千公里，鲸的叫声也能借它远距离传播。']);
+MILESTONES.sort((a,b)=>a[0]-b[0]);
+
+
+/* =========================================================
+   14w. Pressure experiment. P = P_atm + rho*g*z. Compared:
+   - an air balloon: Boyle's law V/V0 = P0/P, springs back on the way up;
+   - a foam cup: expanded polystyrene is ~95 % air in small cells. Simple model (assumptions stated on the page):
+     cell walls start to give way above ~6 atm, then the gas inside is squeezed per Boyle while the 5 % solid stays;
+     the crushed walls do not recover, so the cup keeps its smallest size;
+   - a bottle of water: compressibility ~4.6e-10 /Pa, so even at the trench bottom it loses only ~5 % of its volume.
+   ========================================================= */
+const PX={z:0,minV:1,anim:null};
+function pressAtm(z){return pressure(z)/PATM;}
+function foamV(P){const phi=0.05,Py=6;return phi+(1-phi)*Math.min(1,Py/P);}
+function pressSlider2z(v){return v<=0?0:Math.round(10*Math.pow(10935/10,v/1000));}
+function pressZ2slider(z){return z<=10?0:Math.round(1000*Math.log(z/10)/Math.log(10935/10));}
+function pressDraw(){
+  const z=PX.z,P=pressAtm(z),bal=1/P,cupNow=foamV(P);PX.minV=Math.min(PX.minV,cupNow);const cup=PX.minV;const wat=1-4.6e-10*(pressure(z)-PATM);
+  const ls=v=>Math.cbrt(v);const svg=$('pxSvg');const W=600,H=230,base=200;
+  const cupS=ls(cup),balS=ls(bal),watS=ls(wat);
+  const cupPath=(cx,s)=>{const h=110*s,tw=80*s,bw=52*s;return 'M'+(cx-tw/2)+','+(base-h)+' L'+(cx+tw/2)+','+(base-h)+' L'+(cx+bw/2)+','+base+' L'+(cx-bw/2)+','+base+' Z';};
+  let h='<rect x="0" y="0" width="600" height="230" fill="#05141c"/>';
+  h+='<path d="'+cupPath(100,1)+'" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
+  h+='<path d="'+cupPath(100,cupS)+'" fill="#e9e4d8" stroke="#bfb8a8"/><text x="100" y="222" text-anchor="middle" class="pt">泡沫杯</text>';
+  const br=48;h+='<circle cx="300" cy="'+(base-br)+'" r="'+br+'" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
+  h+='<circle cx="300" cy="'+(base-br*balS)+'" r="'+Math.max(1.5,br*balS)+'" fill="#ff7a63" opacity=".85"/><text x="300" y="222" text-anchor="middle" class="pt">装空气的气球</text>';
+  const bw=56,bh=100;h+='<rect x="'+(500-bw/2)+'" y="'+(base-bh)+'" width="'+bw+'" height="'+bh+'" rx="8" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
+  h+='<rect x="'+(500-bw*watS/2)+'" y="'+(base-bh*watS)+'" width="'+(bw*watS)+'" height="'+(bh*watS)+'" rx="8" fill="#5ea8ff" opacity=".8"/><text x="500" y="222" text-anchor="middle" class="pt">装满水的瓶子</text>';
+  svg.innerHTML=h;
+  $('pxZ').textContent=z.toLocaleString('en-US')+' m';
+  const kg=pressure(z)*1e-4/9.81;
+  $('pxNum').innerHTML='<b>'+P.toFixed(1)+' 个大气压</b>，相当于每平方厘米上压着 <b>'+(kg<1000?kg.toFixed(kg<10?2:0)+' kg':(kg/1000).toFixed(2)+' 吨')+'</b>。<br>气球体积：原来的 <b>'+(bal*100).toFixed(bal<0.01?2:1)+'%</b>（回到水面会恢复）；泡沫杯：原来的 <b>'+(cup*100).toFixed(1)+'%</b>，高度约原来的 <b>'+(cupS*100).toFixed(0)+'%</b>（回到水面也不会恢复）；水：原来的 <b>'+(wat*100).toFixed(2)+'%</b>。';
+}
+function pressSet(z){PX.z=z;$('pxS').value=pressZ2slider(z);pressDraw();}
+$('pxOpen').addEventListener('click',()=>{$('press').hidden=false;PX.minV=1;pressSet(0);});
+$('pxX').addEventListener('click',()=>{$('press').hidden=true;cancelAnimationFrame(PX.anim);});
+$('press').addEventListener('click',e=>{if(e.target.id==='press'){$('press').hidden=true;cancelAnimationFrame(PX.anim);}});
+$('pxS').addEventListener('input',e=>{cancelAnimationFrame(PX.anim);pressSet(pressSlider2z(+e.target.value));});
+function pressAnim(to){cancelAnimationFrame(PX.anim);const from=PX.z,t0=performance.now(),dur=5000;
+  const step=now=>{const k=Math.min(1,(now-t0)/dur),e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;pressSet(Math.round(from+(to-from)*e));if(k<1)PX.anim=requestAnimationFrame(step);};PX.anim=requestAnimationFrame(step);}
+$('pxDown').addEventListener('click',()=>pressAnim(10935));$('pxUp').addEventListener('click',()=>pressAnim(0));
+$('pxReset').addEventListener('click',()=>{cancelAnimationFrame(PX.anim);PX.minV=1;pressSet(0);});
+const ETOPO_B64=window.ETOPO_B64;
+
+/* =========================================================
+   14x. World ocean floor overview from real measured data: ETOPO 20-arc-minute global relief (NOAA, public domain,
+   as distributed with the basemap examples), quantized to 8 bits (~60 m steps). Each cell is ~37 km across, so narrow
+   trenches are averaged shallower than they really are (Mariana: ~9,000 m here vs 10,935 m measured).
+   ========================================================= */
+const MAP={W:1080,H:540,h:null,img:null,sel:[],prof:null};
+const SITE_LL={xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
+  eilat:[29.5,34.95],brine:[27.7,-91.3],vent:[-37.8,49.65],dvm:[22.75,-158],ice:[-77.8,166.6],rost:[67.5,9.4],truk:[7.4,151.8],dive:[13.4,144.7],replay:[11.37,142.59]};
+function mapDecode(){if(MAP.h)return;const b=atob(ETOPO_B64),n=b.length,h=new Float32Array(n);for(let i=0;i<n;i++)h[i]=b.charCodeAt(i)/255*15400-9100;MAP.h=h;}
+function mapH(lat,lon){const fr=Math.max(0,Math.min(MAP.H-1.001,(89.8333-lat)*3)),fc=(lon+179.8333)*3,r=Math.floor(fr),c=Math.floor(fc),tr=fr-r,tc=fc-c,W=MAP.W,cc=k=>((k%W)+W)%W,h=MAP.h;
+  const a=h[r*W+cc(c)],b=h[r*W+cc(c+1)],d=h[(r+1)*W+cc(c)],e=h[(r+1)*W+cc(c+1)];return (a*(1-tc)+b*tc)*(1-tr)+(d*(1-tc)+e*tc)*tr;}
+function mapColor(h){
+  const sea=[[-9000,[6,18,42]],[-6000,[14,40,82]],[-4000,[24,66,118]],[-2000,[42,104,160]],[-200,[92,160,205]],[0,[160,212,230]]];
+  const land=[[0,[118,140,96]],[500,[150,150,104]],[2000,[180,166,128]],[4000,[226,220,208]]];
+  const t=h<0?sea:land;if(h<=t[0][0])return t[0][1];
+  for(let i=1;i<t.length;i++)if(h<=t[i][0]){const[a,ca]=t[i-1],[b,cb]=t[i],f=(h-a)/(b-a);return ca.map((c,j)=>c+(cb[j]-c)*f);}return t[t.length-1][1];}
+function mapRender(){
+  mapDecode();if(MAP.img)return;const cv=document.createElement('canvas');cv.width=MAP.W;cv.height=MAP.H;const g=cv.getContext('2d'),id=g.createImageData(MAP.W,MAP.H),H=MAP.h,W=MAP.W;
+  for(let r=0;r<MAP.H;r++)for(let c=0;c<W;c++){const i=r*W+c,h=H[i],hx=H[r*W+(c+1)%W]-H[r*W+(c+W-1)%W],hy=H[Math.min(MAP.H-1,r+1)*W+c]-H[Math.max(0,r-1)*W+c];
+    const sh=Math.max(0.45,Math.min(1.35,1-(hx*0.7-hy*0.7)/(h<0?2600:3500)));const col=mapColor(h),o=i*4;
+    id.data[o]=Math.min(255,col[0]*sh);id.data[o+1]=Math.min(255,col[1]*sh);id.data[o+2]=Math.min(255,col[2]*sh);id.data[o+3]=255;}
+  g.putImageData(id,0,0);MAP.img=cv;
+}
+function mapXY(lat,lon,w,h){return[(lon+180)/360*w,(90-lat)/180*h];}
+function mapDraw(){
+  const cv=$('mapCv'),pr=Math.min(2,window.devicePixelRatio||1),w=cv.clientWidth,h=w/2;cv.style.height=h+'px';cv.width=w*pr;cv.height=h*pr;
+  const g=cv.getContext('2d');g.setTransform(pr,0,0,pr,0,0);g.imageSmoothingEnabled=true;g.drawImage(MAP.img,0,0,w,h);
+  g.font='10px '+getComputedStyle(document.body).getPropertyValue('--f-body');
+  for(const k in SITE_LL){const[x,y]=mapXY(...SITE_LL[k],w,h);const cur=S.loc===k;g.fillStyle=cur?'#ffd678':'#ff7a63';g.strokeStyle='#04121a';g.lineWidth=1.5;g.beginPath();g.arc(x,y,cur?5:3.5,0,6.283);g.fill();g.stroke();}
+  if(MAP.sel.length){g.strokeStyle='#ffd678';g.lineWidth=1.6;g.beginPath();MAP.sel.forEach((p,i)=>{const[x,y]=mapXY(p[0],p[1],w,h);i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();
+    MAP.sel.forEach(p=>{const[x,y]=mapXY(p[0],p[1],w,h);g.fillStyle='#ffd678';g.beginPath();g.arc(x,y,3,0,6.283);g.fill();});}
+}
+function profDraw(){
+  const cv=$('profCv'),pr=Math.min(2,window.devicePixelRatio||1),w=cv.clientWidth,h=cv.clientHeight;cv.width=w*pr;cv.height=h*pr;const g=cv.getContext('2d');g.setTransform(pr,0,0,pr,0,0);
+  g.fillStyle='#04121a';g.fillRect(0,0,w,h);if(MAP.sel.length<2){g.fillStyle='#86a7ae';g.font='12px '+getComputedStyle(document.body).getPropertyValue('--f-body');g.textAlign='center';g.fillText('在地图上点两个点，就能画出这两点之间的海底剖面',w/2,h/2);return;}
+  const[a,b]=MAP.sel,N=300,pts=[];let mn=1e9,mx=-1e9;
+  const R=6371,toR=Math.PI/180,dist=R*Math.acos(Math.min(1,Math.sin(a[0]*toR)*Math.sin(b[0]*toR)+Math.cos(a[0]*toR)*Math.cos(b[0]*toR)*Math.cos((b[1]-a[1])*toR)));
+  let dl=b[1]-a[1];if(dl>180)dl-=360;if(dl<-180)dl+=360;
+  for(let i=0;i<=N;i++){const t=i/N,la=a[0]+(b[0]-a[0])*t,lo=a[1]+dl*t,z=mapH(la,lo);pts.push(z);mn=Math.min(mn,z);mx=Math.max(mx,z);}
+  const top=Math.max(mx,0)+200,bot=Math.min(mn,-200)-200,L=46,Rr=10,T=12,B=22,pw=w-L-Rr,ph=h-T-B,y=z=>T+(top-z)/(top-bot)*ph;
+  g.fillStyle='#0c2f48';g.fillRect(L,y(0),pw,ph-(y(0)-T));
+  g.beginPath();g.moveTo(L,T+ph);pts.forEach((z,i)=>g.lineTo(L+i/N*pw,y(z)));g.lineTo(L+pw,T+ph);g.closePath();g.fillStyle='#b9a27a';g.fill();
+  g.strokeStyle='rgba(217,236,239,.5)';g.beginPath();g.moveTo(L,y(0));g.lineTo(L+pw,y(0));g.stroke();
+  g.fillStyle='#86a7ae';g.font='10px '+getComputedStyle(document.body).getPropertyValue('--f-mono');g.textAlign='right';
+  for(let z=Math.ceil(bot/2000)*2000;z<=top;z+=2000)g.fillText(z+' m',L-4,y(z)+3);
+  g.textAlign='center';g.fillText('0 km',L+10,h-6);g.fillText(Math.round(dist)+' km',L+pw-20,h-6);
+  const ve=Math.round((dist*1000/pw)/((top-bot)/ph));
+  $('profNote').textContent='剖面长约 '+Math.round(dist).toLocaleString('en-US')+' km，最深处水深约 '+Math.round(-mn).toLocaleString('en-US')+' m，'+(mx<0?'最浅处水深约 '+Math.round(-mx).toLocaleString('en-US')+' m':'最高处海拔约 '+Math.round(mx).toLocaleString('en-US')+' m')+'。图里的竖直方向被放大了约 '+ve+' 倍；按真实比例画，几千米的起伏放在几百上千公里宽的剖面上，几乎就是一条平线。';
+}
+function mapOpen(){$('mapOv').hidden=false;mapRender();if(!MAP.sel.length)MAP.sel=[[15,141],[8,143.5]];requestAnimationFrame(()=>{mapDraw();profDraw();});}
+$('mapOpen').addEventListener('click',mapOpen);$('mapX').addEventListener('click',()=>{$('mapOv').hidden=true;});
+$('mapOv').addEventListener('click',e=>{if(e.target.id==='mapOv')$('mapOv').hidden=true;});
+$('mapCv').addEventListener('click',e=>{const cv=$('mapCv'),b=cv.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top,w=b.width,h=b.height;
+  for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){$('mapOv').hidden=true;applyLocation(k);return;}}
+  const lat=90-y/h*180,lon=x/w*360-180;if(MAP.sel.length>=2)MAP.sel=[];MAP.sel.push([lat,lon]);mapDraw();profDraw();});
+$('mapCv').addEventListener('mousemove',e=>{const cv=$('mapCv'),b=cv.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top,w=b.width,h=b.height,lat=90-y/h*180,lon=x/w*360-180;
+  let near='';for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){near=LOC[k].name+'（点击前往）';break;}}
+  const z=mapH(lat,lon);$('mapRead').textContent=(near?near+' · ':'')+Math.abs(lat).toFixed(1)+'°'+(lat>=0?'N':'S')+' '+Math.abs(lon).toFixed(1)+'°'+(lon>=0?'E':'W')+' · '+(z<0?'水深约 '+Math.round(-z).toLocaleString('en-US')+' m':'海拔约 '+Math.round(z).toLocaleString('en-US')+' m');});
+$('mapPreset').addEventListener('click',e=>{const p=e.target.dataset.p;if(!p)return;MAP.sel={mariana:[[15,141],[8,143.5]],atl:[[30,-80],[20,-15]],sio:[[-30,45],[-45,55]],scs:[[22,110],[12,120]]}[p];mapDraw();profDraw();});
+window.addEventListener('resize',()=>{if(!$('mapOv').hidden){mapDraw();profDraw();}});
+
+/* =========================================================
+   14y. Postcard: grab the current frame and lay out a card with the place, depth, temperature and pressure.
+   Saving goes through the platform's download confirmation when available.
+   ========================================================= */
+const CARD={blob:null,url:null,dl:undefined};
+(async()=>{try{CARD.dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;}catch(e){CARD.dl=null;}})();
+function makeCard(){
+  if(composer)composer.render();else renderer.render(scene,camera);
+  const src=renderer.domElement,W=1600,H=1000,band=230,ph=H-band,g0=document.createElement('canvas');g0.width=W;g0.height=H;const g=g0.getContext('2d');
+  g.fillStyle='#03121a';g.fillRect(0,0,W,H);
+  const sw=src.width,sh=src.height,ar=W/ph;let cw=sw,chh=sw/ar;if(chh>sh){chh=sh;cw=sh*ar;}
+  g.drawImage(src,(sw-cw)/2,(sh-chh)/2,cw,chh,0,0,W,ph);
+  const gr=g.createLinearGradient(0,ph-80,0,ph);gr.addColorStop(0,'rgba(3,18,26,0)');gr.addColorStop(1,'rgba(3,18,26,1)');g.fillStyle=gr;g.fillRect(0,ph-80,W,80);
+  const z=camZ(),T=DIVE.on?(DIVE.bh?bhTemp(z):tempAt(z)):S.temp,P=pressure(z)/PATM,css=getComputedStyle(document.body);
+  const fd=css.getPropertyValue('--f-display'),fb=css.getPropertyValue('--f-body'),fm=css.getPropertyValue('--f-mono');
+  const site=S.loc?(SITE[S.loc]?SITE[S.loc][0]:LOC[S.loc].name):'自定义参数';
+  g.fillStyle='#d9ecef';g.font='700 46px '+fd;g.fillText(site,60,ph+70);
+  g.fillStyle='#62d4e3';g.font='600 30px '+fm;
+  const d=new Date(),ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  g.fillText('−'+fmtD(z)+' m  ·  '+T.toFixed(1)+' °C  ·  '+P.toFixed(P<10?2:0)+' atm  ·  '+ds,60,ph+122);
+  let line=S.loc&&SITE[S.loc]?SITE[S.loc][1]:'';const dot=line.indexOf('。');if(dot>0)line=line.slice(0,dot+1);if(line.length>52)line=line.slice(0,51)+'…';
+  g.fillStyle='#86a7ae';g.font='26px '+fb;g.fillText(line,60,ph+172);
+  g.textAlign='right';g.fillStyle='#62d4e3';g.font='600 22px '+fd;g.fillText('海底物理世界',W-60,ph+70);
+  g.fillStyle='#86a7ae';g.font='18px '+fb;g.fillText('按真实地点与实测数据模拟',W-60,ph+100);
+  g.strokeStyle='rgba(120,190,205,.35)';g.lineWidth=2;g.strokeRect(20,20,W-40,H-40);
+  return g0;
+}
+function openCard(){
+  let cv;try{cv=makeCard();}catch(e){showCaption('拍不了明信片','这个浏览器不允许读取三维画面。',5);return;}
+  const url=cv.toDataURL('image/png');$('cardImg').src=url;
+  const bin=atob(url.split(',')[1]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);CARD.blob=new Blob([u8],{type:'image/png'});
+  $('card').hidden=false;$('cardSave').hidden=!CARD.dl&&!!window.claude;
+  $('cardTip').textContent=!window.claude?'点“保存图片”会把这张明信片下载到你的设备；手机上也可以长按图片保存。':CARD.dl?'点“保存图片”会弹出确认框，确认后图片会保存到你的设备。':'这里不能直接保存文件：电脑上右键图片“另存为”，手机上长按图片保存。';
+}
+$('cardBtn').addEventListener('click',openCard);$('cardX').addEventListener('click',()=>{$('card').hidden=true;});
+$('card').addEventListener('click',e=>{if(e.target.id==='card')$('card').hidden=true;});
+$('cardSave').addEventListener('click',async()=>{if(!CARD.blob)return;const nm='海底明信片-'+(S.loc||'custom')+'-'+Math.round(camZ())+'m.png';
+  if(!CARD.dl){const u=URL.createObjectURL(CARD.blob),a=document.createElement('a');a.href=u;a.download=nm;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);$('cardTip').textContent='已交给浏览器下载。';return;}
+  try{await CARD.dl.save({filename:nm,data:CARD.blob});$('cardTip').textContent='已交给浏览器保存。';}
+  catch(e){const c=e&&e.code;$('cardTip').textContent=c==='declined'?'已取消保存。':c==='rate_limited'?'已有一个保存确认框，请先处理它。':'这里暂时不能保存：电脑上右键图片“另存为”，手机上长按图片保存。';if(c==='unavailable'||c==='not_granted')$('cardSave').hidden=true;}});
+$('helpBtn').addEventListener('click',()=>{$('help').hidden=false;});$('helpX').addEventListener('click',()=>{$('help').hidden=true;});
+$('welGo').addEventListener('click',()=>{$('welcome').hidden=true;});$('welHelp').addEventListener('click',()=>{$('welcome').hidden=true;$('help').hidden=false;});
+for(const id of['help','sofar','welcome'])$(id).addEventListener('click',e=>{if(e.target.id===id)$(id).hidden=true;});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){for(const id of['help','sofar','welcome','press','mapOv','card'])$(id).hidden=true;if(VR.on&&!VR.xr)exitVR();else if(TOUR.on)exitTour();}});
+try{if(!localStorage.getItem('seafloor-welcome')){$('welcome').hidden=false;localStorage.setItem('seafloor-welcome','1');}}catch(e){$('welcome').hidden=false;}
+
+/* =========================================================
+   14z. Shared field guide (db + user capabilities)
+   Each viewer writes only explorers/<their id> = {found:[keys], n, updatedAt}.
+   Everyone reads the whole collection and the page counts per species.
+   ========================================================= */
+const CATKEYS=new Set(CAT.map(c=>c[0]));
+function shareRender(){
+  const box=$('shareBox');if(!SHARE.live){box.hidden=true;return;}
+  box.hidden=false;
+  $('shareN').textContent=SHARE.n?'· 共 '+SHARE.n+' 位探险者':'· 还没有人留下记录';
+  // rarest species this viewer has met
+  let best=null;for(const k of FOUND){if(!CATKEYS.has(k))continue;const n=SHARE.cnt[k]||0;if(n&&(!best||n<best[1]))best=[k,n];}
+  $('shareRare').textContent=!best?'':(SHARE.state==='ok'&&best[1]===1)?'你遇见过的生物里，「'+CATMAP[best[0]][1]+'」目前只有你一个人见过。':'你遇见过的生物里，最少人见过的是「'+CATMAP[best[0]][1]+'」：共 '+best[1]+' 人遇见过。';
+  const me=$('shareMe');me.classList.remove('warn');
+  if(SHARE.state==='readonly'){me.classList.add('warn');me.textContent='你可以看到大家的数字，但你的发现只保存在这台设备上、没有计入共享图鉴：分享这个页面的人给你的权限是“查看者”。想被计入，请对方在“分享”里把你设为“参与者（Contributor）”。';}
+  else if(SHARE.state==='noid'){me.classList.add('warn');me.textContent='登录 Claude 后打开，你的发现才会计入共享图鉴；现在只保存在这台设备上。';}
+  else if(SHARE.state==='full'){me.classList.add('warn');me.textContent='共享图鉴的存储已满，你的新发现暂时没能计入。';}
+  else if(SHARE.state==='ok')me.textContent='你的 '+FOUND.size+' 种发现已计入共享图鉴（只记录遇见了哪些生物，不记录名字或位置）。';
+  else me.textContent='遇见第一种生物后，你的发现会自动计入共享图鉴（只记录遇见了哪些生物，不记录名字或位置）。';
+}
+function shareOnSnap(snap){
+  const cnt={};let n=0;
+  for(const d of snap.docs){const b=d.data();if(!b||!Array.isArray(b.found)||!b.found.length)continue;n++;
+    for(const k of b.found)if(CATKEYS.has(k))cnt[k]=(cnt[k]||0)+1;}
+  SHARE.cnt=cnt;SHARE.n=n;SHARE.live=true;renderCatalog();
+}
+async function shareSync(){
+  if(!SHARE.db||!SHARE.uid||SHARE.busy||SHARE.state==='readonly'||SHARE.state==='full')return;
+  const keys=[...FOUND].filter(k=>CATKEYS.has(k)).sort();if(!keys.length)return;
+  const sig=keys.join(',');if(sig===SHARE.sent)return;
+  SHARE.busy=true;
+  try{await SHARE.db.doc('explorers/'+SHARE.uid).set({found:keys,n:keys.length,updatedAt:new Date().toISOString()});SHARE.sent=sig;SHARE.state='ok';}
+  catch(e){const c=e&&e.code;
+    if(c==='invalid_argument'||c==='transform_error')SHARE.state='readonly';
+    else if(c==='quota_exceeded')SHARE.state='full';
+    else if(c==='revoked'||c==='not_granted'||c==='capability_disabled'||c==='capability_removed'){SHARE.db=null;SHARE.live=false;}
+    /* unavailable / resource_exhausted: the 5 s timer simply tries again */}
+  SHARE.busy=false;shareRender();
+}
+(async()=>{
+  try{
+    const C=window.claude;if(!C||!C.use)return;
+    const [db,user]=await Promise.all([C.use('db'),C.use('user')]);
+    if(!db)return;SHARE.db=db;
+    db.collection('explorers').onSnapshot(shareOnSnap,e=>{SHARE.live=false;renderCatalog();});
+    if(!user){SHARE.state='noid';shareRender();return;}
+    const [uid,cw]=await Promise.all([user.id(),user.can('data.write')]);
+    SHARE.uid=uid;SHARE.canWrite=cw;
+    if(!uid)SHARE.state='noid';else if(cw===false)SHARE.state='readonly';
+    shareRender();shareSync();setInterval(shareSync,5000);
+  }catch(e){}
+})();
+
+/* =========================================================
+   14za. VR: phone split-screen stereo (Cardboard-style) and WebXR headsets
+   Stereo uses THREE.StereoCamera with a 64 mm eye separation; each eye is
+   rendered through the same post chain into its half of the screen.
+   ========================================================= */
+const VR={on:false,xr:false,gyro:false,glide:false,yaw:0,pitch:0,off:new THREE.Quaternion(),offSet:false,dev:null,
+  home:new THREE.Vector3(),fs:false,hintT:0,lblT:0,drag:null,rig:new THREE.Group(),wp:new THREE.Vector3(),snapT:0};
+const stereo=new THREE.StereoCamera();stereo.eyeSep=0.064;
+const _vq=new THREE.Quaternion(),_ve=new THREE.Euler(),_vv=new THREE.Vector3(),_vz=new THREE.Vector3(0,0,1),
+  _vq1=new THREE.Quaternion(-Math.sqrt(0.5),0,0,Math.sqrt(0.5)),_vy=new THREE.Vector3(0,1,0);
+function vrResize(){
+  if(!VR.on||VR.xr)return;
+  const w=window.innerWidth,h=window.innerHeight;
+  camera.aspect=(w/2)/h;camera.fov=w/2<h?80:70;camera.updateProjectionMatrix();
+  if(composer)composer.setSize(w/2,h);
+  U.uScale.value=h*renderer.getPixelRatio()/(2*Math.tan(camera.fov*Math.PI/360));
+}
+function renderStereo(){
+  const w=window.innerWidth,h=window.innerHeight,rp=composer?composer.passes[0]:null;
+  camera.updateMatrixWorld();stereo.update(camera);
+  renderer.setScissorTest(true);
+  [[stereo.cameraL,0],[stereo.cameraR,w/2]].forEach(([cam,x])=>{
+    renderer.setScissor(x,0,w/2,h);renderer.setViewport(x,0,w/2,h);
+    if(rp){rp.camera=cam;composer.render();}else renderer.render(scene,cam);});
+  if(rp)rp.camera=camera;
+  renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);
+}
+function vrHint(html,sec){const e=$('vrHint');e.innerHTML=html;e.classList.remove('off');VR.hintT=sec||8;}
+function onDevOri(e){if(e.alpha==null&&e.beta==null)return;VR.dev=e;VR.gyro=true;}
+function devQuat(out){
+  const e=VR.dev,d=Math.PI/180,ang=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*d;
+  _ve.set((e.beta||0)*d,(e.alpha||0)*d,-(e.gamma||0)*d,'YXZ');out.setFromEuler(_ve);out.multiply(_vq1);
+  out.multiply(_vq.setFromAxisAngle(_vz,-ang));return out;
+}
+function enterVR(){
+  if(VR.on)return;
+  if(PILOT.on)exitPilot();
+  VR.on=true;VR.xr=false;VR.glide=false;VR.offSet=false;VR.gyro=false;VR.dev=null;
+  camera.getWorldDirection(_vv);VR.yaw=Math.atan2(-_vv.x,-_vv.z);VR.pitch=Math.asin(Math.max(-0.99,Math.min(0.99,_vv.y)));
+  VR.home.set(controls.target.x,0,controls.target.z);
+  controls.enabled=false;controls.autoRotate=false;
+  document.body.classList.add('vr');$('vrUI').hidden=false;$('info').hidden=true;
+  const de=document.documentElement;
+  try{const p=de.requestFullscreen&&de.requestFullscreen();if(p&&p.then)p.then(()=>{VR.fs=true;try{const q=screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape');if(q&&q.catch)q.catch(()=>{});}catch(e){}}).catch(()=>{});}catch(e){}
+  const start=()=>{window.addEventListener('deviceorientation',onDevOri);};
+  try{if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')start();}).catch(()=>{});else start();}catch(e){}
+  resize();
+  vrHint('<b>手机分屏 VR</b>：把手机横过来；有纸盒眼镜就放进去，没有也可以直接看。<br>转动手机（或用手指拖动）看四周，<b>轻点屏幕</b>开始或停止朝视线方向游动。',9);
+  setTimeout(()=>{if(VR.on&&!VR.xr&&!VR.gyro)vrHint('这个页面读不到手机的陀螺仪（浏览器不支持，或者没有允许访问“动作与方向”），画面不会跟着手机转。<b>用手指左右上下拖动</b>来看四周，轻点屏幕开始或停止游动。',10);},2200);
+}
+function exitVR(){
+  if(!VR.on)return;
+  if(VR.xr){const s=renderer.xr.getSession&&renderer.xr.getSession();if(s){s.end();return;}}
+  VR.on=false;VR.glide=false;
+  window.removeEventListener('deviceorientation',onDevOri);
+  document.body.classList.remove('vr');$('vrUI').hidden=true;
+  if(VR.fs&&document.fullscreenElement){try{document.exitFullscreen();}catch(e){}}VR.fs=false;
+  controls.enabled=true;camera.getWorldDirection(_vv);controls.target.copy(camera.position).addScaledVector(_vv,3);controls.update();
+  lastTouch=performance.now();resize();
+}
+function vrMove(dir,dist){
+  if(DIVE.on){dir.y=0;if(dir.lengthSq()<1e-6)return;dir.normalize();}
+  camera.position.addScaledVector(dir,dist);controls.target.addScaledVector(dir,dist);
+  const dx=camera.position.x-VR.home.x,dz=camera.position.z-VR.home.z,r=Math.hypot(dx,dz),R=40;
+  if(r>R){camera.position.x=VR.home.x+dx/r*R;camera.position.z=VR.home.z+dz/r*R;}
+}
+function stepVR(rdt){
+  if(VR.hintT>0){VR.hintT-=rdt;if(VR.hintT<=0)$('vrHint').classList.add('off');}
+  if(VR.xr){stepXRInput(rdt);return;}
+  if(VR.gyro&&VR.dev){
+    devQuat(_vq);
+    if(!VR.offSet){_vv.set(0,0,-1).applyQuaternion(_vq);VR.off.setFromAxisAngle(_vy,VR.yaw-Math.atan2(-_vv.x,-_vv.z));VR.offSet=true;}
+    camera.quaternion.copy(VR.off).multiply(_vq);
+  }else{_ve.set(VR.pitch,VR.yaw,0,'YXZ');camera.quaternion.setFromEuler(_ve);}
+  if(VR.glide){camera.getWorldDirection(_vv);vrMove(_vv,0.5*Math.min(rdt,0.25));}
+  VR.lblT-=rdt;if(VR.lblT<=0){VR.lblT=0.3;
+    const z=Math.max(-camera.position.y,0),top='−'+fmtD(z)+' m · '+$('hZone').textContent+(VR.glide?' · 游动中':'');
+    const cap=$('cap').classList.contains('on')?$('capT').textContent:'';
+    document.querySelectorAll('#vrUI .vt').forEach(e=>e.textContent=top);document.querySelectorAll('#vrUI .vc').forEach(e=>e.textContent=cap);
+    document.querySelectorAll('#vrUI .dot').forEach(e=>e.classList.toggle('go',VR.glide));}
+}
+canvas.addEventListener('pointerdown',e=>{if(!VR.on||VR.xr)return;VR.drag={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,t:performance.now()};});
+canvas.addEventListener('pointermove',e=>{const d=VR.drag;if(!VR.on||!d)return;
+  const k=0.0045,dx=e.clientX-d.lx,dy=e.clientY-d.ly;d.lx=e.clientX;d.ly=e.clientY;
+  if(VR.gyro){VR.off.premultiply(_vq.setFromAxisAngle(_vy,dx*k));}
+  else{VR.yaw+=dx*k;VR.pitch=Math.max(-1.45,Math.min(1.45,VR.pitch+dy*k));}});
+window.addEventListener('pointerup',e=>{const d=VR.drag;VR.drag=null;if(!VR.on||!d)return;
+  if(Math.hypot(e.clientX-d.x,e.clientY-d.y)<8&&performance.now()-d.t<400){VR.glide=!VR.glide;VR.lblT=0;}});
+$('vrSplit').addEventListener('click',enterVR);
+$('vrX').addEventListener('click',exitVR);
+
+/* ---- WebXR headset ---- */
+function vrXRPre(){ /* the XR camera pose is local to the rig: convert to world so every other system sees world coordinates */
+  camera.position.applyQuaternion(VR.rig.quaternion).add(VR.rig.position);VR.wp.copy(camera.position);
+}
+function vrXRPost(){ /* whatever moved the camera this frame (swimming, descent, floor) moves the rig instead */
+  VR.rig.position.add(_vv.copy(camera.position).sub(VR.wp));VR.rig.updateMatrixWorld(true);
+}
+function stepXRInput(rdt){
+  const s=renderer.xr.getSession&&renderer.xr.getSession();if(!s)return;
+  const dt=Math.min(rdt,0.1);VR.snapT-=dt;
+  for(const src of s.inputSources){const g=src.gamepad;if(!g||!g.axes)continue;
+    const ax=g.axes.length>=4?g.axes[2]:g.axes[0]||0,ay=g.axes.length>=4?g.axes[3]:g.axes[1]||0;
+    if(src.handedness==='right'){
+      if(Math.abs(ax)>0.7&&VR.snapT<=0){VR.rig.rotateY(ax>0?-Math.PI/6:Math.PI/6);VR.snapT=0.35;}
+      if(Math.abs(ay)>0.2){_vv.set(0,-ay,0);vrMove(_vv,0.8*dt);}
+    }else if(Math.abs(ay)>0.15||Math.abs(ax)>0.15){
+      camera.getWorldDirection(_vv);const fwd=_vv.clone(),right=new THREE.Vector3().crossVectors(fwd,_vy).normalize();
+      _vv.copy(fwd).multiplyScalar(-ay).addScaledVector(right,ax);const m=Math.min(1,_vv.length());if(m>0){_vv.normalize();vrMove(_vv,1.2*m*dt);}
+    }
+  }
+}
+function enterXR(){
+  if(!navigator.xr||VR.on)return;
+  if(PILOT.on)exitPilot();
+  navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor']}).then(async sess=>{
+    renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local');
+    await renderer.xr.setSession(sess);
+    camera.getWorldDirection(_vv);
+    VR.rig.position.copy(camera.position);VR.rig.rotation.set(0,Math.atan2(-_vv.x,-_vv.z),0);
+    scene.add(VR.rig);VR.rig.add(camera);camera.position.set(0,0,0);camera.quaternion.identity();
+    VR.home.set(controls.target.x,0,controls.target.z);
+    VR.on=true;VR.xr=true;controls.enabled=false;
+    sess.addEventListener('end',()=>{
+      renderer.setAnimationLoop(null);
+      camera.updateMatrixWorld(true);camera.matrixWorld.decompose(camera.position,camera.quaternion,_vv);
+      scene.add(camera);renderer.xr.enabled=false;VR.xr=false;VR.on=false;
+      controls.enabled=true;camera.getWorldDirection(_vv);controls.target.copy(camera.position).addScaledVector(_vv,3);controls.update();
+      resize();last=performance.now();requestAnimationFrame(frame);
+      $('vrNote').textContent='已退出头显 VR。';
+    });
+    last=performance.now();renderer.setAnimationLoop(frame);
+  }).catch(err=>{$('vrNote').textContent='没能进入头显 VR：'+(err&&err.message?err.message:'浏览器拒绝了请求')+'。可以改用上面的手机分屏 VR。';});
+}
+$('vrXR').addEventListener('click',enterXR);
+(function vrCheck(){
+  const no='这台设备的浏览器没有提供头显 VR（WebXR），所以这里只有手机分屏模式。用 VR 头显时，请在头显自带的浏览器里打开这个页面。';
+  try{if(navigator.xr&&navigator.xr.isSessionSupported)navigator.xr.isSessionSupported('immersive-vr').then(ok=>{$('vrXR').hidden=!ok;$('vrNote').textContent=ok?'检测到 VR 头显，可以用“进入头显 VR”。头显模式里没有泛光和白平衡后期处理，颜色会比屏幕上偏蓝一些。':no;}).catch(()=>{$('vrNote').textContent=no;});
+  else $('vrNote').textContent=no;}catch(e){$('vrNote').textContent=no;}
+})();
+
+/* =========================================================
+   14zb. Exhibition mode: an automatic guided tour of the whole ocean
+   ========================================================= */
+const TOUR_STOPS=[
+  {l:'xisha',d:20,t:'海洋覆盖地球 71% 的表面',s:'导览从南海西沙 10 m 深的珊瑚礁出发。珊瑚礁只占海底面积不到 1%，却养活了约四分之一的海洋物种。'},
+  {l:'monterey',d:18,t:'巨藻林：海底的森林',s:'加州蒙特雷湾的冷水上升流带来养分，巨藻长成十几米高的森林，随涌浪整片摆动。'},
+  {l:'truk',d:20,t:'沉船变成的鱼礁',s:'富士川丸 1944 年沉没，八十年后船身已被软珊瑚和鱼群占据。十几米深处，红光已被海水吸收，一切都偏蓝绿。'},
+  {l:'ice',d:20,t:'南极海冰之下',s:'水温 −1.9 °C，海水因为含盐而不结冰。头顶两米厚的海冰只透下百分之几的阳光，冰底的冰藻是南大洋食物链的起点。'},
+  {l:'spawn',d:24,t:'珊瑚产卵之夜',s:'一年中只有满月前后的几个夜里，珊瑚同时释放红色的卵精束，缓缓上浮，像一场倒着下的雪。'},
+  {l:'rost',d:20,t:'320 m：没有阳光的珊瑚礁',s:'挪威外海的冷水珊瑚不靠阳光，靠捕食海流带来的浮游生物。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁。'},
+  {l:'deep',d:18,t:'1,390 m：靠甲烷生活',s:'南海海马冷泉从海底渗出甲烷，细菌把它变成养分，养活了贻贝床、管栖蠕虫和白色的细菌席。'},
+  {l:'brine',d:18,t:'650 m：海底的湖',s:'比海水重得多的卤水在海底积成湖，有湖面也有湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。'},
+  {l:'whalefall',d:18,t:'1,800 m：鲸落',s:'一头鲸沉到深海，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物。'},
+  {l:'vent',d:20,t:'2,800 m：热液喷口',s:'300 多摄氏度的热液从黑烟囱喷出。周围的盲虾和雪人蟹完全不靠阳光，靠细菌把化学能变成养分。'},
+  {l:'dive',d:95,dive:true,t:'最后一站：马里亚纳海沟',s:'从关岛礁壁出发，一路下潜到地球海洋最深处。光、水温和生物会随深度一层层改变；左侧剖面显示你的位置。'}
+];
+const TOUR={on:false,i:0,t:0,paused:false,prevSpeed:0.35};
+const TOUR_TOTAL=TOUR_STOPS.reduce((a,b)=>a+b.d,0);
+function tourShow(){
+  const st=TOUR_STOPS[TOUR.i];
+  $('tourI').textContent=(TOUR.i+1)+' / '+TOUR_STOPS.length;$('tourN').textContent=LOC[st.l].name;
+  $('tourPause').textContent=TOUR.paused?'继续':'暂停';$('tourPrev').disabled=TOUR.i===0;
+  $('tourNext').textContent=TOUR.i===TOUR_STOPS.length-1?'结束':'下一站';
+}
+function goStop(i){
+  TOUR.i=Math.max(0,Math.min(TOUR_STOPS.length-1,i));TOUR.t=0;
+  const st=TOUR_STOPS[TOUR.i];
+  if(st.l!=='spawn'&&S.night&&!SPN.on){S.night=false;}
+  applyLocation(st.l);
+  if(st.dive){DIVE.play=false;updDiveUI();$('diveBar').hidden=true;}
+  showCaption(st.t,st.s,st.dive?9:Math.min(st.d-2,12));
+  tourShow();updSite();
+}
+function startTour(){
+  if(VR.on)exitVR();if(PILOT.on)exitPilot();
+  for(const id of['help','sofar','welcome','press','mapOv','card'])$(id).hidden=true;
+  TOUR.on=true;TOUR.paused=false;TOUR.prevSpeed=controls.autoRotateSpeed;controls.autoRotateSpeed=0.9;lastTouch=-1e9;
+  document.body.classList.add('tour');$('tourBar').hidden=false;
+  if(S.night&&!SPN.on){S.night=false;}
+  goStop(0);
+}
+function exitTour(msg){
+  if(!TOUR.on)return;TOUR.on=false;
+  controls.autoRotateSpeed=TOUR.prevSpeed;document.body.classList.remove('tour');$('tourBar').hidden=true;
+  updDiveUI();
+  showCaption(msg?'导览结束':'已退出展览模式',msg||'现在可以自由探索：拖动画面看四周，点击生物看它是谁，控制台里还有蓝洞、昼夜迁移等场景。',8);
+}
+function stepTour(rdt){
+  if(TOUR.paused)return;
+  const st=TOUR_STOPS[TOUR.i];TOUR.t+=rdt;
+  if(st.dive&&DIVE.on){
+    const u=Math.min(1,TOUR.t/(st.d-15));const e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+    setDiveZ(5*Math.pow((S.D-2.2)/5,e));
+    if(u>=1&&!TOUR.bottom){TOUR.bottom=true;showCaption('10,935 m：地球海洋最深处','这里的压力超过 1,000 个大气压，水温只有 2 °C 多。即使到了今天，人类对深海的了解仍然非常有限。',14);}
+  }else{TOUR.bottom=false;
+    /* a gentle push-in toward the subject while the camera circles */
+    const off=_vv.copy(camera.position).sub(controls.target),len=off.length();
+    if(len>controls.minDistance+1)camera.position.copy(controls.target).addScaledVector(off,1-0.012*Math.min(rdt,0.1));
+  }
+  const before=TOUR_STOPS.slice(0,TOUR.i).reduce((a,b)=>a+b.d,0);
+  $('tourP').style.width=Math.min(100,(before+TOUR.t)/TOUR_TOTAL*100)+'%';
+  if(TOUR.t>=st.d){if(TOUR.i<TOUR_STOPS.length-1)goStop(TOUR.i+1);else exitTour('你从 10 m 的珊瑚礁一路走到了 10,935 m 的海沟底。现在可以自由探索：控制台里还有蓝洞、昼夜垂直迁移等场景，也可以开着水下机器人四处看看。');}
+}
+$('tourBtn').addEventListener('click',startTour);
+$('welTour').addEventListener('click',startTour);
+$('tourX').addEventListener('click',()=>exitTour());
+$('tourPause').addEventListener('click',()=>{TOUR.paused=!TOUR.paused;tourShow();});
+$('tourPrev').addEventListener('click',()=>{TOUR.bottom=false;goStop(TOUR.i-1);});
+$('tourNext').addEventListener('click',()=>{if(TOUR.i===TOUR_STOPS.length-1)exitTour();else{TOUR.bottom=false;goStop(TOUR.i+1);}});
+
+/* =========================================================
+   17. Main loop
+   ========================================================= */
+resize();
+if(window.innerWidth<760)setPanel(false);
+registerPickables();
+applyLocation('xisha');
+renderCatalog();updDiveUI();
+const reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last=performance.now(),t=0,hudAcc=1,expo=1,discT=0;
+function frame(now){
+  const rdt=Math.min((now-last)/1000,0.5),dt=Math.min(rdt,1/25);last=now;t+=dt;
+  if(VR.xr)vrXRPre();
+  controls.autoRotate=TOUR.on?!reduceMotion&&!TOUR.paused&&(now-lastTouch>4000):S.tour&&!reduceMotion&&(now-lastTouch>8000)&&!wall.visible;
+  if(DIVE.on){
+    if(DIVE.replay){if(DIVE.play)replayStep(rdt);}
+    else if(DIVE.play){const dz=diveSpeed()*rdt;DIVE.elapsed+=Math.min(dz,S.D-2.2-DIVE.z);setDiveZ(DIVE.z+dz);}
+    stepDVM(rdt);stepWall();updProfile();
+    DIVE.zoneT+=rdt;if(DIVE.zoneT>0.25){DIVE.zoneT=0;zoneUpdate();if(DIVE.dvm)drawEcho();}
+    DIVE.infoT+=rdt;if(DIVE.infoT>0.5){DIVE.infoT=0;diveInfo();readouts();updDiveUI();if(DIVE.dvm)dvmNote();}
+  }
+  if(capTimer>0){capTimer-=rdt;if(capTimer<=0)$('cap').classList.remove('on');}
+  if(TOUR.on)stepTour(rdt);
+  if(VR.on)stepVR(rdt);else if(PILOT.on)stepPilot(rdt,t);else controls.update();
+  stepMissions(rdt);stepStir(rdt);
+  const fy=floorY(camera.position.x,camera.position.z)+0.4;
+  camera.position.y=Math.min(Math.max(camera.position.y,fy),ICE.on?-ICE.h-0.5:-0.3);
+  if(brineOn&&brineQ(camera.position.x,camera.position.z)<1.05)camera.position.y=Math.max(camera.position.y,BR.base+BR.L+0.3);
+  U.uTime.value=t;U.uCamDepth.value=-camera.position.y;U.uCamPos.value.copy(camera.position);camera.getWorldDirection(U.uCamDir.value);
+  sky.position.copy(camera.position);
+  orbital(0,-S.D+0.2,t,_u);U.uFlow.value.set(Math.max(-1.5,Math.min(1.5,_u.x/0.3)),Math.max(-1.5,Math.min(1.5,_u.z/0.3)));
+  stepKelp(dt/2,t);stepKelp(dt/2,t+dt/2);drawKelp(t);
+  for(const k in FISH)stepSchool(FISH[k],dt,t);
+  for(const k in JELLY)stepJelly(JELLY[k],dt,t);
+  stepMantas(dt,t);stepTurtles(dt,t);stepAnglers(dt,t);
+  for(const k in DRIFT)stepDrift(DRIFT[k],dt,t);
+  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);
+  if(infoT>0){infoT-=rdt;if(infoT<=0)$('info').hidden=true;}
+  discT+=rdt;if(discT>0.5){discT=0;checkDiscover();if(SPN.on){spawnNote();readouts();}}stepToast(rdt);
+  FANS.forEach(m=>{if(!m.visible)return;const u=m.userData;m.rotation.set(0.12*(U.uFlow.value.x*Math.sin(u.yaw)+U.uFlow.value.y*Math.cos(u.yaw))*0.5+0.03*Math.sin(t*0.8+u.ph),u.yaw,0);});
+  stepBubbles(dt,t);stepSnow(dt,t);stepSparks(dt,t);stepRays(dt,t);
+  const z=-camera.position.y;
+  const L=(0.3*light(z,0)+0.5*light(z,1)+0.2*light(z,2))*U.uSky.value;
+  let target=S.adapt?Math.min(40,Math.max(1,Math.pow(L+1e-12,-0.5))):1;
+  if(S.adapt&&(S.night||z>200))target=Math.min(target,S.torch==='off'?10:(z>200?4:2.6));
+  expo+=(target-expo)*Math.min(1,rdt*2);renderer.toneMappingExposure=expo*0.9;
+  if(wbPass){let g=[1,1,1];
+    if(S.adapt&&!S.night&&z<200){const a=[0,1,2].map(i=>light(z,i)*Math.exp(-OPT.c[i]*3)),m=(a[0]+a[1]+a[2])/3;
+      g=a.map(v=>Math.min(5,Math.max(0.5,Math.pow(m/Math.max(v,1e-6),0.5))));const n=(g[0]*a[0]+g[1]*a[1]+g[2]*a[2])/(a[0]+a[1]+a[2]);g=g.map(v=>Math.min(2.4,v/n));}
+    if(S.torch==='blue'&&(S.night||z>=200))g=[1.15,1.1,0.22];
+    {/* deep white lamps: the camera balances to its own lamps over ~2 m of water each way, as on an ROV (applied to lamp-lit light only, the water stays dark blue) */
+      let tw=[1,1,1];if(S.torch==='white'&&z>=200){tw=[0,1,2].map(i=>Math.exp(OPT.c[i]*4.0));const n=0.3*tw[0]+0.59*tw[1]+0.11*tw[2];tw=tw.map(v=>Math.min(3.5,v/n));}
+      U.uTorchWB.value.lerp(_p.set(tw[0],tw[1],tw[2]),Math.min(1,rdt*2));}
+    WB.lerp(_p.set(g[0],g[1],g[2]),Math.min(1,rdt*2));wbPass.uniforms.uWB.value.copy(WB);
+    wbPass.uniforms.uVig.value=Math.min(0.6,Math.max(0,(z-120)/700));
+    const hz=U.uTorch.value*Math.min(1,0.25+WATER[S.water].b[1]*3)*0.06*(DIVE.bh?1+5*bhHaze(DIVE.z):1)*Math.max(0,1-light(z,1)*U.uSky.value*30);
+    wbPass.uniforms.uHaze.value.set(U.uTorchCol.value.x*hz*Math.exp(-OPT.c[0]*4),U.uTorchCol.value.y*hz*Math.exp(-OPT.c[1]*4),U.uTorchCol.value.z*hz*Math.exp(-OPT.c[2]*4));}
+  hudAcc+=dt;if(hudAcc>0.2){hudAcc=0;hud();}
+  if(VR.xr){vrXRPost();renderer.render(scene,camera);}
+  else if(VR.on)renderStereo();
+  else if(composer)composer.render();else renderer.render(scene,camera);
+  if(!VR.xr)requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();

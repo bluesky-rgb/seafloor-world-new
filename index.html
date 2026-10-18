@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>海底物理世界</title>
+<meta name="description" content="按真实地点和实测数据搭建的三维海底世界：从 10 m 的珊瑚礁一路下潜到 10,935 m 的马里亚纳海沟。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="gl" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放"></canvas>
+
+<div id="hud">
+  <h1>海底物理世界</h1>
+  <div class="depth"><span id="hDepth">−8.0</span><small>m</small></div>
+  <div class="zone" id="hZone">透光层 · 上层带</div>
+  <div class="press" id="hPress">1.79 atm · 182 kPa</div>
+  <div id="hTemp">水温 28 °C</div>
+  <div id="hLoc">南海西沙群岛珊瑚礁</div>
+</div>
+<svg id="prof" viewBox="0 0 96 400" hidden aria-label="下潜深度剖面，珠穆朗玛峰按比例放在海沟中"></svg>
+<div id="cap" aria-live="polite"><div id="capT"></div><div id="capS"></div></div>
+<div id="toast" aria-live="polite"></div>
+<div id="info" hidden aria-live="polite"><button id="infoX" type="button" aria-label="关闭">×</button><div id="infoN"></div><div id="infoL"></div><div id="infoD"></div><p id="infoF"></p></div>
+<button id="tourBtn" type="button" aria-label="展览模式：自动导览整片海洋"><b>▶</b> 展览模式</button>
+<div id="tourBar" hidden><div class="tr"><span class="tn"><i id="tourI"></i><span id="tourN"></span></span><button id="tourPrev" type="button">上一站</button><button id="tourPause" type="button">暂停</button><button id="tourNext" type="button">下一站</button><button id="tourX" type="button" class="x">退出（Esc）</button></div><div class="tp"><div id="tourP"></div></div><p class="th">镜头会自动环绕，你也可以随时拖动画面。每站约 20 秒，最后一站一路下潜到海沟底。</p></div>
+<button id="cardBtn" type="button" aria-label="把当前画面做成明信片">拍明信片</button>
+<button id="pilotBtn" type="button">自由驾驶</button>
+<div id="pilotBar" hidden><div class="row"><b>自由驾驶</b><span id="pilotInfo"></span><button id="pilotX" type="button">退出驾驶（Esc）</button></div><div class="keys">W/S 前进后退 · A/D 左右平移 · Q/E 下潜上浮 · ←/→ 转向 · 拖动画面转头 · 点击生物仍可识别</div><div class="mkeys">左下摇杆移动 · 右侧按钮上浮/下潜 · 拖动画面转头</div></div>
+<div id="joyWrap" hidden><div id="joy"><div id="joyKnob"></div></div><div id="joyV"><button id="joyUp" type="button" aria-label="上浮">▲</button><button id="joyDn" type="button" aria-label="下潜">▼</button></div></div>
+<button id="diveCta" type="button">开始下潜<b>↓ 10,935 m</b></button>
+<div id="diveBar" hidden>
+  <div class="row">
+    <button id="dPlay" type="button">暂停</button>
+    <div class="seg" id="dSpeed">
+      <button type="button" data-s="auto" aria-pressed="true">自动倍速</button>
+      <button type="button" data-s="1" aria-pressed="false">×1 真实</button>
+      <button type="button" data-s="10" aria-pressed="false">×10</button>
+      <button type="button" data-s="60" aria-pressed="false">×60</button>
+      <button type="button" data-s="300" aria-pressed="false">×300</button>
+    </div>
+    <button id="dSound" type="button">声音：关</button>
+  </div>
+  <input id="dProg" type="range" min="2" max="10933" step="1" value="5" aria-label="下潜深度">
+  <div id="dInfo"></div>
+  <div class="dTip">拖动进度条可直接跳到任意深度；“自动倍速”在生物多的浅处放慢、在空旷的深处加快。</div>
+</div>
+
+<aside id="panel">
+  <div id="panelHead"><span>控制台</span><span class="ph"><button id="helpBtn" type="button">玩法说明</button><button id="toggle" type="button">收起</button></span></div>
+  <div id="panelBody">
+    <section>
+      <p id="about">这里的每个场景都按真实地点和实测数据搭建：光在水里怎样衰减、波浪和海流怎样推动海藻与水母、哪种生物会出现在哪个深度和水温。拖动画面转动视角，滚轮或双指缩放，点击生物可以看它是谁。</p>
+      <h2>真实地点</h2>
+      <div class="seg" id="locSeg">
+        <button type="button" data-l="dive" class="dive" aria-pressed="false">下潜：关岛礁壁 → 马里亚纳海沟 10,935 m</button>
+        <button type="button" data-l="replay" class="dive" aria-pressed="false">重走 2012：卡梅隆独自下潜挑战者深渊</button>
+        <button type="button" data-l="dvm" class="dive" aria-pressed="false">北太平洋开阔大洋 · 昼夜垂直迁移（24 小时快进）</button>
+        <button type="button" data-l="bluehole" class="dive" aria-pressed="false">下潜：三沙永乐龙洞 · 蓝洞 301 m</button>
+        <button type="button" data-l="xisha" aria-pressed="false">西沙 · 珊瑚礁</button>
+        <button type="button" data-l="spawn" aria-pressed="false">三亚 · 珊瑚产卵之夜</button>
+        <button type="button" data-l="ice" aria-pressed="false">南极 · 海冰之下</button>
+        <button type="button" data-l="monterey" aria-pressed="false">蒙特雷 · 巨藻林</button>
+        <button type="button" data-l="truk" aria-pressed="false">特鲁克 · 沉船鱼礁</button>
+        <button type="button" data-l="eilat" aria-pressed="false">红海 · 中光层礁</button>
+        <button type="button" data-l="rost" aria-pressed="false">挪威 · 冷水珊瑚礁 320 m</button>
+        <button type="button" data-l="slope" aria-pressed="false">南海陆坡 600 m</button>
+        <button type="button" data-l="deep" aria-pressed="false">海马冷泉 1390 m</button>
+        <button type="button" data-l="whalefall" aria-pressed="false">蒙特雷峡谷 · 鲸落 1800 m</button>
+        <button type="button" data-l="brine" aria-pressed="false">墨西哥湾 · 海底盐池 650 m</button>
+        <button type="button" data-l="vent" aria-pressed="false">西南印度洋 · 龙旂热液区 2800 m</button>
+      </div>
+      <div id="siteCard"><b id="siteT"></b><p id="siteD"></p><p id="siteTip"></p></div>
+    </section>
+
+    <section id="spSec" hidden>
+      <h2>珊瑚产卵之夜</h2>
+      <div class="ctl">
+        <label for="sSp">当地时间 <b id="spTV">20:57</b></label>
+        <input id="sSp" type="range" min="0" max="240" step="1" value="57">
+      </div>
+      <div class="seg" id="spRate">
+        <button type="button" data-r="pause" aria-pressed="false">暂停</button>
+        <button type="button" data-r="10" aria-pressed="true">×10</button>
+        <button type="button" data-r="30" aria-pressed="false">×30</button>
+        <button type="button" data-r="120" aria-pressed="false">×120</button>
+      </div>
+      <p class="note" id="spNote"></p>
+    </section>
+
+    <section id="wfSec" hidden>
+      <h2>鲸落：沉到海底之后</h2>
+      <div class="ctl">
+        <label for="sWF">经过的时间 <b id="wfV">3 个月</b></label>
+        <input id="sWF" type="range" min="0" max="1000" step="1">
+      </div>
+      <p class="note" id="wfStage"></p>
+    </section>
+
+    <section id="dvmSec" hidden>
+      <h2>昼夜垂直迁移 · 回声测深图</h2>
+      <canvas id="echo" width="288" height="170" role="img" aria-label="24 小时回声测深图：横轴是一天中的时间，纵轴是 0 到 1000 米深度，暖色是动物密集的声散射层。点击可跳到对应的时间和深度。"></canvas>
+      <p class="note">模拟船上 38 kHz 测深仪看到的画面：暖色是动物密集的“声散射层”，主要来自灯笼鱼的鳔。顶部色条是太阳高度，白线是现在，虚线是你所在的深度。点击图上任意位置，可以跳到那个时间和深度。</p>
+      <div class="ctl">
+        <label for="sDvmT">当地时间 <b id="dvmTV">17:30</b></label>
+        <input id="sDvmT" type="range" min="0" max="1439" step="1" value="1050">
+      </div>
+      <div class="ctl">
+        <label for="sDvmZ">你所在的深度 <b id="dvmZV">50 m</b></label>
+        <input id="sDvmZ" type="range" min="5" max="900" step="1" value="50">
+      </div>
+      <div class="seg" id="dvmRate">
+        <button type="button" data-r="pause" aria-pressed="false">暂停</button>
+        <button type="button" data-r="0.0167" aria-pressed="false">×60</button>
+        <button type="button" data-r="0.1" aria-pressed="true">×360</button>
+        <button type="button" data-r="0.4" aria-pressed="false">×1440</button>
+      </div>
+      <p class="note" id="dvmNote"></p>
+    </section>
+
+    <section>
+      <h2>时间与照明</h2>
+      <div class="seg" id="timeSeg">
+        <button type="button" data-t="day" aria-pressed="true">白天</button>
+        <button type="button" data-t="night" aria-pressed="false">夜潜</button>
+      </div>
+      <div class="seg" id="torchSeg">
+        <button type="button" data-k="off" aria-pressed="true">手电关</button>
+        <button type="button" data-k="white" aria-pressed="false">白光手电</button>
+        <button type="button" data-k="blue" aria-pressed="false">蓝光手电</button>
+      </div>
+      <p class="note">白光手电照亮约十来米。蓝光手电配黄色滤镜（荧光潜水的标准做法）：滤掉反射的蓝光，只剩珊瑚、海葵自己发出的荧光，夜里最明显。在黑暗里（夜潜或 200 m 以下）用手指或鼠标快速划过画面，能看到浮游生物被惊扰发出的蓝光。拖动画面可转动视角，镜头空闲时会自动缓慢环绕。</p>
+      <label class="check"><input id="cTour" type="checkbox" checked> 自动漫游镜头</label>
+      <label class="check"><input id="cSound" type="checkbox"> 声音（合成模拟：浪声、呼吸与气泡、抹香鲸的咔嗒声、深海低鸣）</label>
+    </section>
+
+    <section>
+      <h2>图鉴 <span id="catN"></span></h2>
+      <div class="prog"><div id="catBar"></div></div>
+      <div class="chips" id="cat"></div>
+      <p class="note">点击画面中的生物，可以看它是谁。遇见过的生物才会显示名字。科学家估计海洋物种总数约 220 万，其中九成左右还没有被描述过。</p>
+      <div id="shareBox" hidden>
+        <p class="shareHead">共享图鉴 <span id="shareN"></span></p>
+        <p class="note">打开这个页面的人共用一本图鉴。每个名字后面的小数字，是有多少位探险者遇见过它；数字越小越稀罕。没遇见过的生物也会显示人数，可以当作线索。</p>
+        <p class="note" id="shareRare"></p>
+        <p class="note" id="shareMe"></p>
+      </div>
+    </section>
+
+    <section>
+      <h2>探险任务 <span id="msN"></span></h2>
+      <p class="note">每个任务都有进度；没完成的任务旁有“前往”按钮，点一下直接去对应地点。完成时会显示一条科学事实。进度只保存在这台设备的浏览器里。</p>
+      <ul id="missions"></ul>
+    </section>
+
+    <section>
+      <h2>地图与物理实验</h2>
+      <button id="mapOpen" type="button" class="exp">海底地形总览：真实测深数据<span>把海水抽干后的地球，以及各个地点在哪里</span></button>
+      <button id="sofOpen" type="button" class="exp">声音实验：深海声道（SOFAR）<span>为什么鲸的叫声能传几千公里</span></button>
+      <button id="pxOpen" type="button" class="exp">压力实验：把泡沫杯带到海底<span>同样是压力，气球、泡沫杯和一瓶水为什么结果完全不同</span></button>
+    </section>
+
+    <section>
+      <h2>VR 模式</h2>
+      <button id="vrSplit" type="button" class="exp">手机分屏 VR<span>画面分成左右两半，分别给左眼和右眼看。把手机横放进纸盒 VR 眼镜（Cardboard 一类）就有立体感</span></button>
+      <button id="vrXR" type="button" class="exp" hidden>进入头显 VR<span>在 Quest 等 VR 头显的浏览器里可用：转头看四周，左摇杆朝视线方向游动，右摇杆转身和升降</span></button>
+      <p class="note">成年人两眼平均相距约 6.3 cm，两只眼看到的画面略有不同，大脑靠这点差别判断远近。VR 模式按 6.4 cm 的眼距分别渲染左右眼。当前地点、下潜和时间设置都会保留，在 VR 里也能一路潜到海沟底。</p>
+      <p class="note" id="vrNote"></p>
+    </section>
+
+    <section>
+      <h2>此处可见</h2>
+      <div class="chips" id="species"></div>
+      <div class="eco" id="eco"></div>
+    </section>
+
+    <section>
+      <h2>此处剩余阳光（相对水面）</h2>
+      <div class="bars">
+        <div class="bar"><span>红 650nm</span><div class="track"><div class="fill" id="bR" style="background:var(--ch-r)"></div></div><span class="v" id="tR"></span></div>
+        <div class="bar"><span>绿 550nm</span><div class="track"><div class="fill" id="bG" style="background:var(--ch-g)"></div></div><span class="v" id="tG"></span></div>
+        <div class="bar"><span>蓝 450nm</span><div class="track"><div class="fill" id="bB" style="background:var(--ch-b)"></div></div><span class="v" id="tB"></span></div>
+      </div>
+      <p class="note">对数刻度（10⁻⁶ – 100%）。红光最先被水吸收，所以越深越蓝。</p>
+    </section>
+
+    <details id="envDet">
+      <summary>环境参数（可自行调整）</summary>
+      <div class="inner">
+        <div class="ctl">
+          <label for="sDepth">海底深度 <b id="vDepth">10 m</b></label>
+          <input id="sDepth" type="range" min="0" max="1000" step="1">
+        </div>
+        <div class="ctl">
+          <label for="sTemp">海水温度 <b id="vTemp">28 °C</b></label>
+          <input id="sTemp" type="range" min="0" max="31" step="0.5" value="28">
+        </div>
+        <div class="seg" id="waterSeg">
+          <button type="button" data-w="clear" aria-pressed="true">清澈大洋</button>
+          <button type="button" data-w="ocean" aria-pressed="false">一般大洋</button>
+          <button type="button" data-w="temperate" aria-pressed="false">温带近岸</button>
+          <button type="button" data-w="coastal" aria-pressed="false">近岸浑水</button>
+        </div>
+        <div class="ctl">
+          <label for="sCur">海流速度 <b id="vCur">0.15 m/s</b></label>
+          <input id="sCur" type="range" min="0" max="1" step="0.01" value="0.15">
+        </div>
+        <div class="ctl">
+          <label for="sDir">海流去向（相对波向） <b id="vDir">120°</b></label>
+          <input id="sDir" type="range" min="0" max="359" step="1" value="120">
+        </div>
+        <div class="ctl">
+          <label for="sH">有效波高 <b id="vH">0.8 m</b></label>
+          <input id="sH" type="range" min="0" max="4" step="0.1" value="0.8">
+        </div>
+        <div class="ctl">
+          <label for="sT">波周期 <b id="vT">6 s</b></label>
+          <input id="sT" type="range" min="4" max="16" step="0.5" value="6">
+        </div>
+        <div class="ctl">
+          <label for="sSun">太阳高度角 <b id="vSun">75°</b></label>
+          <input id="sSun" type="range" min="10" max="90" step="1" value="75">
+        </div>
+        <label class="check"><input id="cAdapt" type="checkbox" checked> 模拟人眼适应（暗适应与色彩恒常；关闭则按相机看到的真实亮度和颜色显示）</label>
+      </div>
+    </details>
+
+    <details>
+      <summary>实时读数</summary>
+      <dl>
+        <dt>漫衰减系数 K<sub>d</sub> (R/G/B)</dt><dd id="rK"></dd>
+        <dt>1% 绿光深度</dt><dd id="rEu"></dd>
+        <dt>水平能见度（约）</dt><dd id="rVis"></dd>
+        <dt>水中太阳天顶角</dt><dd id="rSun"></dd>
+        <dt>波长</dt><dd id="rL"></dd>
+        <dt>海底波浪流速</dt><dd id="rU"></dd>
+        <dt>离底 1 m 海流</dt><dd id="rCur"></dd>
+        <dt>沙纹</dt><dd id="rRip"></dd>
+        <dt>海水黏度</dt><dd id="rMu"></dd>
+        <dt>2 mm 气泡上升速度</dt><dd id="rBub"></dd>
+        <dt>气泡升到水面后</dt><dd id="rBub2"></dd>
+      </dl>
+    </details>
+
+    <details>
+      <summary>场景用到的物理与生态规则</summary>
+      <ol>
+        <li><b>光谱衰减</b>：Beer–Lambert <code>E(z)=E₀·e^(−K_d·z)</code>，红、绿、蓝分别计算；K<sub>d</sub> 由吸收 a、散射 b 按 Kirk 公式 <code>K_d=√(a²+0.256ab)/μ₀</code> 得出。</li>
+        <li><b>水色与视距</b>：视线按 <code>c=a+b</code> 衰减，背景水色来自散射比 b/(a+b)。</li>
+        <li><b>光柱（丁达尔效应）</b>：阳光被水中颗粒散射才看得见，亮度随散射系数 b 增大，随深度按 K<sub>d</sub> 衰减。</li>
+        <li><b>斯涅尔窗</b>：抬头看水面，只有 97.2° 圆锥内能看到天空（临界角 48.6°）。</li>
+        <li><b>波浪与海流</b>：线性波理论 <code>ω²=gk·tanh(kh)</code> 的往复流，叠加海底对数边界层海流 <code>u∝ln(z/z₀)</code>；海带、水母、海葵触手、颗粒都随之运动。水母本身是浮游生物，主要随水漂。</li>
+        <li><b>海底地形总览</b>：使用 NOAA 的 ETOPO 20 角分全球地形数据（每格约 37 km），压缩为 8 位（约 60 m 一档），配合西北方向光照做晕渲。剖面沿两点间的经纬度直线取样，竖直方向放大显示。格点较粗，窄海沟会显示得偏浅。</li>
+        <li><b>压力实验</b>：压强 <code>P=P_atm+ρgz</code>。气球按玻意耳定律 <code>V∝1/P</code>；水的压缩系数取约 4.6×10⁻¹⁰ /Pa；泡沫杯用简化模型：含 95% 空气、约 6 个大气压后气泡壁开始被压垮，之后按玻意耳定律压缩并且不再恢复。泡沫杯的这两个参数是假设，不是测量值，真实杯子会有差异。</li>
+        <li><b>深海声道</b>：声速用 Mackenzie（1981）公式，由下潜路线的水温剖面、盐度 34.6 和深度算出；声线按斯涅尔定律 <code>cosθ/c=常数</code> 追踪，向声速慢的一侧弯折。声道轴大约在 1 km 深处，不碰海面也不碰海底的声线才算“被困住”。1,000 km 外的到达时间用同样的声线计算，播放时用短促的音调代表每条声线的到达。</li>
+        <li><b>触碰发光</b>：甲藻等浮游生物在水流剪切力超过约 0.1–0.3 Pa 时闪光（Latz 等的实验）。在黑暗的水里用手指或鼠标划过，按手掌大小（约 0.1 m）的物体计算边界层剪切力 <code>τ≈μU/δ, δ=5√(νL/U)</code>，速度超过约 0.3 m/s 才会亮，越快越多；自由驾驶时潜水器本身也会激起闪光。每次闪光持续零点几秒。点击冠水母会触发它的“防盗警报”光环，点击深海的竹珊瑚会让一圈光沿枝条传开。白天的浅水太亮，看不到这些光。</li>
+        <li><b>自由驾驶</b>：推进器加速度约 0.9 m/s²，水的阻力与速度平方成正比，最高速度约 1 m/s，和小型水下机器人或游泳的潜水员相当。你在水里还会随海流（海底附近按对数边界层减弱）和波浪的往复流一起漂动，所以在浅礁上会被涌浪推来推去。60 m 的缆绳是按系缆式水下机器人设定的。</li>
+        <li><b>沉船鱼礁</b>：参照特鲁克泻湖的富士川丸（长 133 m、宽 17.8 m，直立于约 34 m 深的沙底，后桅伸出水面，前吊杆柱顶距水面约 3 m）。软珊瑚沿桅杆、吊杆生长，甲板上有小块硬珊瑚，船体表面按海绵、海鞘、锈蚀的斑块着色；船体轮廓与舱口位置是按照片和潜水描述简化的。</li>
+        <li><b>冷水珊瑚礁</b>：参照挪威罗弗敦外海的勒斯特礁（约 35–43 km 长，2002 年发现）。造礁的深水石珊瑚（Desmophyllum pertusum，旧称 Lophelia pertusa）没有共生藻，生活在约 4–12 °C 的海水里；挪威 180–304 m 处的实测年线性生长只有约 1.3–2.4 mm。珊瑚灌丛底部画成死骨架、顶端为活体，白色与橙色两种颜色型约七三开；这一比例和礁上的生物组合是示意，不是实测。</li>
+        <li><b>海冰之下</b>：参照南极麦克默多湾的冰下潜水记录：海冰约 2 m（6–8 英尺）厚，水温约 −1.9 °C，冬末春初海水几乎没有浮游生物，非常清澈。冰下的环境光按海冰和积雪只透过约 3.5% 计算，积雪薄的地方更亮；冰洞里的光柱则是完整的日光。冰底的冰藻、片状冰、冰鱼和其他动物按文献描述的外观建模。</li>
+        <li><b>珊瑚产卵</b>：参照海南三亚鹿回头岸礁 2009–2021 年的观察：22 种珊瑚中鹿角珊瑚占 14 种，主要在农历三月产卵，约 21 点后开始、持续约一小时，卵精束多为红色。上浮速度按浮力与黏滞阻力估算：取直径约 1.5 mm、比海水轻约 1% 的卵精束，约每秒 1 cm；到水面后约一小时散开。具体在哪一夜产卵年年不同，无法精确预测。</li>
+        <li><b>蓝洞</b>：参照三沙永乐龙洞（深约 301 m，洞口约 130 m 宽、洞底约 32 m）。洞里的水几乎与外海隔绝，分成含氧层（0–70 m）、化学跃层（70–100 m）和含硫化氢的无氧层（100 m 以下）；水温由表层约 30 °C 降到洞底约 15 °C。浑浊层按硫氧化细菌（100–140 m）和颗粒有机碳峰值（约 150 m）的位置设定，在那里把散射系数调高约 16 倍，所以手电光会化成一片雾。浑浊层的具体浊度是推算，不是实测值。</li>
+        <li><b>海底盐池</b>：参照墨西哥湾 NR1 盐池（约 650 m）。卤水含盐量约为海水的 4 倍，密度约 1.09 g/cm³（海水约 1.027），积在一个漏斗形洼地里，大部分不到 2 m 深，冒甲烷气泡的地方深得多。湖面的波是两种液体之间的“内波”，回复力是约化重力 <code>g′=g(ρ₂−ρ₁)/(ρ₂+ρ₁)≈0.3 m/s²</code>，按深水色散 <code>ω²=g′k</code> 传播，所以又慢又软。反射按菲涅耳公式计算，两种水的折射率只差约 1%，只有贴近湖面斜看时才像镜子。</li>
+        <li><b>昼夜垂直迁移</b>：海面光照由太阳高度算出（日落时约为正午的 0.4%，民用晨昏蒙影结束时约 0.003%，再暗到星光）。每类动物都追随自己偏好的那一档亮度（“等光面”）：<code>z=z_白天+ln(E/E_正午)/K_d(蓝)</code>，在白天深度和夜间深度之间，再受游速限制（灯笼鱼约 8 m/min，磷虾约 3 m/min）。白天灯笼鱼层在约 450 m，正是二战声呐发现的“假海底”的深度；银斧鱼几乎不迁移，作为对照。月光、云和季节的影响没有模拟。</li>
+        <li><b>热液喷口</b>：参照西南印度洋中脊的龙旂热液区（约 2,800 m，Copley 等 2016 年的调查）。黑烟由超过 300 °C 的热液遇冷析出的金属硫化物构成；羽流按浮力羽流理论计算，半径约为上升高度的 0.12 倍，上升速度随高度按 z<sup>−1/3</sup> 减慢，并被海流吹弯。动物按离热液的远近分带：最内圈是盲虾、雪人蟹和铁甲蜗牛，往外是巨螺和贻贝，最外圈是柄藤壶和海葵。</li>
+        <li><b>鲸落</b>：参照 MBARI 在加州蒙特雷峡谷对灰鲸鲸落的长期观测。演替分三段并有重叠：食腐动物（盲鳗、睡鲨，约 2 年内吃光鲸肉，每天 40–60 kg）、机会主义者（约 2 年，食骨蠕虫等）、化能合成阶段（细菌分解骨中油脂放出硫化氢，贻贝和细菌席，可持续约 50 年甚至更久）。食骨蠕虫 2002 年在这条峡谷 2,893 m 的灰鲸骨头上首次被发现。</li>
+        <li><b>岩壁</b>：下潜从关岛的礁壁开始（关岛的礁坡在约 20 m 处开始陡降，壁上长着软珊瑚、海扇、海鞭和管状海绵），随后离开岩壁进入开阔大洋；6,000 m 以下贴近海沟内壁；接近底部时进入海沟轴部平坦的沉积盆地。挑战者深渊实际位于关岛西南约 330 km，这是一条把真实地形串起来的路线。</li>
+        <li><b>重走 2012</b>：按卡梅隆真实下潜的时间线：05:15 出发，下潜 2 小时 36 分，在海底停留三个多小时，上浮 70 分钟；当时没有岩壁可贴，海底“完全没有起伏”，画面据此呈现。</li>
+        <li><b>潜水器灯</b>：下潜模式里 250 m 以下会自动打开潜水器的照明灯，比手电强得多，但在海水里也只能照亮十来米。</li>
+        <li><b>手电</b>：光要走“去”和“回”两段水路，按 e^(−c·2d) 衰减。夜里光束中的悬浮颗粒会反光，这是潜水员熟悉的“背散射”。</li>
+        <li><b>生物荧光</b>：珊瑚和海葵的荧光蛋白吸收蓝光、发出绿光或橙红光，所以蓝光手电下最亮。</li>
+        <li><b>生物发光</b>：夜光藻被水流扰动会闪蓝光（鱼游过留下光迹）；灯笼鱼的发光器、鮟鱇的诱饵、冠水母的“报警”光环、竹珊瑚沿枝条传播的光波，都是 470 nm 左右的蓝光，正是海水最透明的颜色。</li>
+        <li><b>人眼适应</b>：暗适应调节整体亮度；色彩恒常让大脑部分补偿海水造成的偏色，所以潜水员看到的颜色比相机直接拍到的更丰富。关闭后显示相机看到的样子。</li>
+        <li><b>栉水母的彩虹</b>：不是发光，是栉板纤毛把入射光衍射成彩色，所以没有光照时就看不到彩虹。</li>
+        <li><b>生物分布</b>：巨藻 ≤20 °C；造礁珊瑚 ≥18 °C 且光照 ≥1%（光越弱越长成盘状）；海葵与小丑鱼、砗磲需要温暖明亮的浅水；柳珊瑚扇面垂直于海流；灯笼鱼白天在 200–1200 m；鮟鱇 ≥700 m；冠水母 ≥400 m；冷泉有贻贝床、管栖蠕虫和白色细菌席。</li>
+        <li><b>气泡</b>：玻意耳定律 <code>r∝(P₀/P)^(1/3)</code> 上升中膨胀；浅水的气泡是潜水员（你）呼出的，每 4–5 秒一次；冷泉的气泡是海底渗出的甲烷。显示尺寸放大了 3 倍。</li>
+        <li><b>鱼群</b>：Boids 群游规则；沙丁鱼会绕圈形成“鱼饵球”；鱼会顶着海流游；体色背深腹浅（反荫蔽）。</li>
+        <li><b>压强</b>：<code>P=P_atm+ρgz</code>，ρ=1025 kg/m³。挑战者深渊底部约 1,100 个大气压。</li>
+        <li><b>水温剖面</b>：下潜模式按西太平洋典型剖面：表层约 28 °C，温跃层在 100–400 m 迅速降温，1,000 m 约 4.5 °C，4,000 m 约 1.5 °C；海沟底部因海水被压缩升温（绝热增温），又回升到约 2.5 °C。</li>
+        <li><b>下潜速度</b>：深潜器真实下潜速度约 1 m/s，到挑战者深渊要 3 个小时左右（1960 年的里雅斯特号用了 4 小时 47 分）。</li>
+        <li><b>鲸和鱼的尾巴</b>：鲸的尾鳍是水平的，上下摆动；鱼和鲨鱼的尾鳍是竖直的，左右摆动。</li>
+        <li><b>气泡的声音</b>：每个气泡会以 Minnaert 共振频率 <code>f=(1/2πr)·√(3γP/ρ)</code> 发声，大气泡低沉，小气泡清脆；越深压强越大，音调越高。</li>
+        <li><b>深度分布</b>：狮子鱼最深约 8,200 m，再深体内用来对抗压强的渗透调节分子（TMAO）就不够用了；大王乌贼在 300–1,000 m，至今只被拍到过寥寥几次。</li>
+      </ol>
+    </details>
+
+    <details id="logDet">
+      <summary>更新记录、路线图与资料来源</summary>
+      <div class="log">
+        <div>
+          <h3>路线图 · 依次增加</h3>
+          <ul class="road">
+            <li data-s="done">昼夜垂直迁移：一天 24 小时里，暮光层动物上浮又下沉</li>
+            <li data-s="done">海底盐池：墨西哥湾海底的“湖”，有湖岸和波浪</li>
+            <li data-s="done">蓝洞：三沙永乐龙洞，中段的浑浊细菌层和无氧死水</li>
+            <li data-s="done">珊瑚集体产卵之夜：整片礁同时释放卵精束</li>
+            <li data-s="done">南极海冰之下：冰藻、磷虾群、透明血液的冰鱼</li>
+            <li data-s="done">深海冷水珊瑚礁：挪威罗弗敦外海</li>
+            <li data-s="done">沉船人工鱼礁：特鲁克泻湖</li>
+            <li data-s="done">交互：自由驾驶潜水器</li>
+            <li data-s="done">交互：探险任务</li>
+            <li data-s="done">交互：触碰发光</li>
+            <li data-s="done">更硬核的物理：深海声道（SOFAR）</li>
+            <li data-s="done">更硬核的物理：压力实验（泡沫塑料杯被压缩）</li>
+            <li data-s="done">更硬核的物理：全球真实测深地形总览（ETOPO）</li>
+            <li data-s="done">分享：截图明信片</li>
+            <li data-s="done">分享：所有访客共享的图鉴</li>
+            <li data-s="done">分享：VR 头显模式</li>
+            <li data-s="done">展示：展览模式（自动导览）</li>
+            <li data-s="done">项目化：独立代码仓库与公开网站（不需要 Claude 账号也能打开）</li>
+            <li data-s="next">画质：主角生物换成精细三维模型和游动动画</li>
+          </ul>
+        </div>
+        <div>
+          <h3>展览模式<time>2026-10-18</time></h3>
+          <ul>
+            <li>新增“展览模式”：约 6 分钟的自动导览，走过 11 个真实地点，最后一路下潜到 10,935 m 的海沟底</li>
+            <li>每站配一段字幕讲解，镜头自动环绕并缓慢推近；可暂停、跳站、随时退出</li>
+            <li>欢迎页新增“看 6 分钟展览导览”，第一次来的人可以先看导览再自己探索</li>
+            <li>导览里的海沟下潜是加速的：真实下潜要 3 个小时左右，这里压缩到约 80 秒，沿途的深度解说照常出现</li>
+          </ul>
+        </div>
+        <div>
+          <h3>VR 模式<time>2026-10-15</time></h3>
+          <ul>
+            <li>控制台新增“VR 模式”。<b>手机分屏 VR</b>把画面分成左右眼两半，按 6.4 cm 眼距渲染，可放进纸盒 VR 眼镜看立体画面</li>
+            <li>转动手机看四周；如果页面读不到陀螺仪，会提示改用手指拖动。轻点屏幕开始或停止朝视线方向游动，缆绳范围 40 m</li>
+            <li>下潜途中也能进 VR，深度和沿途解说显示在两只眼的画面里</li>
+            <li>在 Quest 等头显浏览器里会出现<b>进入头显 VR</b>（WebXR）：转头看四周，左摇杆游动，右摇杆转身和升降</li>
+            <li>说明：分屏模式没有做镜片畸变校正；头显模式没有泛光和白平衡后期，颜色偏蓝一些；Claude 的页面框可能不允许陀螺仪和头显，这时页面会说明</li>
+          </ul>
+        </div>
+        <div>
+          <h3>共享图鉴<time>2026-10-14</time></h3>
+          <ul>
+            <li>图鉴变成所有访客共用：每种生物后面显示“有多少位探险者遇见过它”，没遇见的也显示人数，当作线索</li>
+            <li>点击生物时，信息卡会写“已有 N 位探险者遇见过”；图鉴下方告诉你，你遇见的生物里哪种最稀罕</li>
+            <li>只上传“遇见了哪些生物”的清单和更新时间，每人只能改自己那一份；不记录名字或位置</li>
+            <li>被分享为“查看者”的人能看到数字，但自己的发现不计入；页面上会说明原因和办法</li>
+          </ul>
+        </div>
+        <div>
+          <h3>截图明信片<time>2026-10-12</time></h3>
+          <ul>
+            <li>左下角新增“拍明信片”：把当前画面做成 1600×1000 的图片，写上地点、深度、水温、气压和日期，可以保存</li>
+          </ul>
+        </div>
+        <div>
+          <h3>海底地形总览<time>2026-10-11</time></h3>
+          <ul>
+            <li>“地图与物理实验”新增全球海底地形图：真实测深数据，标出本页所有地点，点击即可前往</li>
+            <li>点地图上两点画出海底剖面，并预置了马里亚纳海沟、大西洋中脊、西南印度洋中脊和南海四条剖面</li>
+            <li>原计划用 GEBCO 高分辨率数据，但这个工作环境下载不到，改用可获取的 ETOPO 20 角分数据；它只够看全球尺度，场景近景不受影响</li>
+          </ul>
+        </div>
+        <div>
+          <h3>压力实验<time>2026-10-11</time></h3>
+          <ul>
+            <li>“物理实验”新增压力实验：把泡沫杯、气球、一瓶水一起带到挑战者深渊再带回来，对比三者的变化和每平方厘米承受的重量</li>
+            <li>下潜路线的进度条上实时显示挂在潜水器外的泡沫杯缩到了多大</li>
+          </ul>
+        </div>
+        <div>
+          <h3>深海声道 · 玩法说明<time>2026-10-11</time></h3>
+          <ul>
+            <li>控制台新增“物理实验”：深海声道的声速曲线与 25 条声线，可拖动声源深度，可以“听”1,000 km 外收到的 SOFAR 信号</li>
+            <li>海沟下潜经过声道轴时会弹出说明</li>
+            <li>首次打开时的欢迎卡、控制台顶部的“玩法说明”，以及各功能旁的操作提示（手电、划水发光、下潜进度条、手机驾驶、任务）</li>
+          </ul>
+        </div>
+        <div>
+          <h3>触碰发光<time>2026-10-11</time></h3>
+          <ul>
+            <li>在黑暗的水里（夜潜或 200 m 以下）用手指或鼠标划过，浮游生物会按水流剪切力闪出蓝光；划得越快越亮</li>
+            <li>自由驾驶时潜水器会在身后激起闪光；点击冠水母触发“防盗警报”，点击深海竹珊瑚会有一圈光沿枝条传开</li>
+          </ul>
+        </div>
+        <div>
+          <h3>探险任务<time>2026-10-11</time></h3>
+          <ul>
+            <li>控制台新增 12 个探险任务：从“珊瑚礁新手”到“到达最深处”“极端之地”，每个任务都有进度和“前往”按钮</li>
+            <li>完成任务时会弹出一句相关的科学事实；进度保存在这台设备的浏览器里</li>
+          </ul>
+        </div>
+        <div>
+          <h3>自由驾驶<time>2026-10-11</time></h3>
+          <ul>
+            <li>除下潜路线外的所有地点都可以“自由驾驶”：键盘 W/A/S/D、Q/E 与方向键，鼠标拖动转头；手机上有摇杆和上浮/下潜按钮</li>
+            <li>推进器与水的阻力决定速度（最高约 1 m/s），海流和波浪会推着你漂；缆绳长 60 m，海底、水面、冰底和盐池湖面都会挡住你</li>
+          </ul>
+        </div>
+        <div>
+          <h3>沉船鱼礁<time>2026-10-11</time></h3>
+          <ul>
+            <li>新地点“特鲁克 · 沉船鱼礁”：直立在 34 m 沙底上的富士川丸，桅杆、吊杆、舰桥、烟囱和五个货舱</li>
+            <li>软珊瑚挂满桅杆和吊杆，饵鱼群、鲹、拟花鲈和蓑鲉；2 号货舱里能看到拆解的战斗机</li>
+            <li>图鉴新增 4 种（共 74 种）</li>
+          </ul>
+        </div>
+        <div>
+          <h3>冷水珊瑚礁<time>2026-10-11</time></h3>
+          <ul>
+            <li>新地点“挪威 · 冷水珊瑚礁”320 m：白色与橙色的深水石珊瑚灌丛、死珊瑚骨架与碎屑、泡泡糖珊瑚、球海绵、大锉蛤</li>
+            <li>挪威平鲉悬停在礁上，上方有灯笼鱼和银斧鱼；图鉴新增 5 种（共 70 种）</li>
+          </ul>
+        </div>
+        <div>
+          <h3>南极海冰之下<time>2026-10-11</time></h3>
+          <ul>
+            <li>新地点“南极 · 海冰之下”：约 2 m 厚的海冰天花板、冰藻、片状冰，冰洞里照下的光柱</li>
+            <li>呼出的气泡会贴在冰底聚集；威德尔海豹从冰下游过；海底有冰鱼、红海星、南极海胆、玻璃海绵和巨型海蜘蛛</li>
+            <li>图鉴新增 8 种（共 65 种）</li>
+          </ul>
+        </div>
+        <div>
+          <h3>珊瑚产卵之夜 · 页面说明<time>2026-10-11</time></h3>
+          <ul>
+            <li>新地点“三亚 · 珊瑚产卵之夜”：20:00–24:00 可快进、拖动，经历含卵、释放、上浮、水面浮层四个阶段</li>
+            <li>卵精束可点击查看；图鉴新增产卵中的鹿角珊瑚（共 57 种）</li>
+            <li>控制台顶部加了这个页面的简介，选中每个地点都会显示它的介绍和“看点”</li>
+          </ul>
+        </div>
+        <div>
+          <h3>蓝洞<time>2026-10-11</time></h3>
+          <ul>
+            <li>新下潜路线“三沙永乐龙洞”：沿洞壁从珊瑚礁一路下到约 301 m 的洞底</li>
+            <li>含氧层、化学跃层、无氧层按实测深度分层；100–150 m 的浑浊细菌层让能见度骤降</li>
+            <li>洞的“芭蕾舞鞋”形剖面、各层水温，以及从有鱼到只剩微生物的变化</li>
+          </ul>
+        </div>
+        <div>
+          <h3>海底盐池<time>2026-10-10</time></h3>
+          <ul>
+            <li>新地点“墨西哥湾 NR1 盐池”650 m：漏斗形洼地里的卤水湖，湖岸长满甲烷贻贝，湖心冒甲烷气泡</li>
+            <li>湖面的波按两种液体之间的内波计算，又慢又软；点湖面会荡开波纹，镜面反射只在斜看时出现</li>
+            <li>湖底能看到误入卤水死去的螃蟹和鱼；图鉴新增墨西哥湾甲烷贻贝（共 56 种）</li>
+          </ul>
+        </div>
+        <div>
+          <h3>昼夜垂直迁移<time>2026-10-10</time></h3>
+          <ul>
+            <li>新地点“北太平洋开阔大洋”：一天 24 小时可快进、拖动，阳光随太阳高度变化，夜里只剩生物光</li>
+            <li>灯笼鱼、磷虾、樽海鞘按“追随固定亮度”的规律上浮下沉；银斧鱼不迁移</li>
+            <li>回声测深图：重现声呐上的“声散射层”，点击可跳到任意时间和深度</li>
+            <li>图鉴新增磷虾、樽海鞘（共 55 种）；新增这一栏更新记录</li>
+          </ul>
+        </div>
+        <div>
+          <h3>热液喷口<time>2026-10-10</time></h3>
+          <ul>
+            <li>西南印度洋龙旂热液区 2,800 m：黑烟囱、“如意金箍棒”、九头蛇烟囱群</li>
+            <li>按离热源远近分带的盲虾、铁甲蜗牛、雪人蟹、巨螺、贻贝、藤壶、海葵（图鉴新增 7 种）</li>
+            <li>黑烟按浮力羽流计算；深海白光下按潜水器相机的方式校正颜色</li>
+          </ul>
+        </div>
+        <div>
+          <h3>鲸落</h3>
+          <ul>
+            <li>蒙特雷峡谷 1,800 m 的灰鲸遗骸，时间滑块从几周到几十年</li>
+            <li>三个演替阶段：盲鳗与睡鲨、食骨蠕虫、细菌与贻贝</li>
+          </ul>
+        </div>
+        <div>
+          <h3>一路下潜与重走 2012</h3>
+          <ul>
+            <li>从关岛礁壁一直下潜到马里亚纳海沟 10,935 m：岩壁、温度剖面、深度里程碑、珠峰按比例的剖面图</li>
+            <li>鲸鲨、抹香鲸、大王乌贼、巨型管水母等大型生物的相遇</li>
+            <li>按真实时间线重走卡梅隆 2012 年的单人下潜</li>
+            <li>图鉴、点击识别、合成声音（浪声、呼吸与气泡、抹香鲸咔嗒声）</li>
+          </ul>
+        </div>
+        <div>
+          <h3>物种与魔幻</h3>
+          <ul>
+            <li>鱼群（群游规则）、水母、海龟、蝠鲼、深海的灯笼鱼、鮟鱇、冠水母、幽灵蛸等</li>
+            <li>荧光潜水（蓝光手电加黄色滤镜）、生物发光、栉水母的彩虹</li>
+            <li>南海陆坡 600 m、海马冷泉 1,390 m</li>
+          </ul>
+        </div>
+        <div>
+          <h3>真实物理的海底</h3>
+          <ul>
+            <li>西沙珊瑚礁、蒙特雷巨藻林、红海中光层礁</li>
+            <li>光谱衰减、水色与视距、光柱、斯涅尔窗、波浪与海流、沙纹、气泡膨胀、人眼适应</li>
+          </ul>
+        </div>
+        <div>
+          <h3>资料来源</h3>
+          <ul>
+            <li><a href="https://doi.org/10.1117/12.529999" target="_blank" rel="noopener">Dodgson (2004)：人类瞳距的分布（成人平均约 63 mm）</a></li>
+            <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API" target="_blank" rel="noopener">MDN：WebXR Device API</a></li>
+            <li><a href="https://www.ncei.noaa.gov/products/etopo-global-relief-model" target="_blank" rel="noopener">NOAA：ETOPO 全球地形模型</a></li>
+            <li><a href="https://github.com/matplotlib/basemap" target="_blank" rel="noopener">basemap 示例数据（ETOPO 20 角分）</a></li>
+            <li><a href="https://oceanexplorer.noaa.gov/okeanos/explorations/ex1705/logs/may1/welcome.html" target="_blank" rel="noopener">NOAA Ocean Explorer：带到 2,500 m 的泡沫杯</a></li>
+            <li><a href="https://www.sciencefriday.com/educational-resources/high-pressure-in-the-deep-ocean/" target="_blank" rel="noopener">Science Friday：深海高压与泡沫杯实验</a></li>
+            <li><a href="https://livescience.com/62782-styrofoam-cups-deep-sea-shrunkencupoff.html" target="_blank" rel="noopener">Live Science：泡沫杯在深海里发生了什么</a></li>
+            <li><a href="https://dosits.org/science/movement/sofar-channel/history-of-the-sofar-channel/" target="_blank" rel="noopener">DOSITS：深海声道的发现与用途</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/Sound_speed_profile" target="_blank" rel="noopener">声速剖面（维基百科）</a></li>
+            <li><a href="https://biolum.eemb.ucsb.edu/sdworkshop/latzabs.html" target="_blank" rel="noopener">Latz：甲藻生物发光的流体剪切阈值</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/Fujikawa_Maru" target="_blank" rel="noopener">富士川丸（维基百科）</a></li>
+            <li><a href="https://www.scubadiving.com/fujikawa-maru-truk-lagoon-classic" target="_blank" rel="noopener">Scuba Diving：富士川丸沉船潜水</a></li>
+            <li><a href="https://dan.org/alert-diver/article/66-years-down/" target="_blank" rel="noopener">DAN：特鲁克泻湖的沉船</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/R%C3%B8st_Reef" target="_blank" rel="noopener">勒斯特礁（维基百科）</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/Lophelia" target="_blank" rel="noopener">深水石珊瑚 Lophelia（维基百科）</a></li>
+            <li><a href="https://peerj.com/articles/7586" target="_blank" rel="noopener">PeerJ 2019：挪威深水石珊瑚的原位生长速率</a></li>
+            <li><a href="https://nwf.org/Magazines/National-Wildlife/2003/Treasures-Beneath-the-Ice" target="_blank" rel="noopener">National Wildlife：麦克默多湾冰下的生物</a></li>
+            <li><a href="https://www.scubadiving.com/travel/other/under-ice" target="_blank" rel="noopener">Scuba Diving：南极冰下潜水</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/Channichthyidae" target="_blank" rel="noopener">冰鱼科（维基百科）</a></li>
+            <li><a href="https://www.frontiersin.org/articles/10.3389/fmars.2024.1418942/full" target="_blank" rel="noopener">Frontiers in Marine Science 2024：海南鹿回头珊瑚产卵 13 年观察</a></li>
+            <li><a href="https://www.scu.edu.au/news/2021/sea-lebrating-40th-anniversary-of-mass-coral-spawning-discovery.php" target="_blank" rel="noopener">南十字星大学：珊瑚集体产卵发现 40 周年</a></li>
+            <li><a href="https://link.springer.com/article/10.1038/srep18084" target="_blank" rel="noopener">Scientific Reports：卵精束上浮、散开与受精窗口</a></li>
+            <li><a href="https://atlasofscience.org/what-are-the-chemical-properties-of-water-in-the-worlds-deepest-blue-hole/" target="_blank" rel="noopener">Atlas of Science：永乐龙洞的海水化学分层</a></li>
+            <li><a href="https://link.springer.com/10.1038/s41598-024-57214-8" target="_blank" rel="noopener">Scientific Reports 2024：永乐龙洞的剖面与水体结构</a></li>
+            <li><a href="https://news-oceanacidification-icc.org/2018/09/03/hydrochemical-properties-and-chemocline-of-the-sansha-yongle-blue-hole-in-the-south-china-sea/" target="_blank" rel="noopener">Xie 等：永乐龙洞的水化学与化学跃层</a></li>
+            <li><a href="https://newatlas.com/marine/dragon-hole-deep-chasm-sea/" target="_blank" rel="noopener">New Atlas：龙洞里的微生物与 Taam Ja'</a></li>
+            <li><a href="https://nautiluslive.org/blog/2014/07/08/brine-pool-dive-overview" target="_blank" rel="noopener">Nautilus 2014：NR1 盐池下潜概述</a></li>
+            <li><a href="https://www.searchanddiscovery.com/abstracts/html/1996/annual/abstracts/0088a.htm" target="_blank" rel="noopener">MacDonald 1996：NR1 盐池的温度与密度分层</a></li>
+            <li><a href="https://oceanexplorer.noaa.gov/explorations/06mexico/background/plan/media/mussels_600.html" target="_blank" rel="noopener">NOAA Ocean Explorer：盐池边的甲烷贻贝</a></li>
+            <li><a href="https://www.wftv.com/news/trending-now/jacuzzi-of-despair-lake-discovered-beneath-gulf-of-mexico/462832049" target="_blank" rel="noopener">“绝望按摩池”盐湖的报道</a></li>
+            <li><a href="https://en.wikipedia.org/wiki/Deep_scattering_layer" target="_blank" rel="noopener">Deep scattering layer（维基百科）</a></li>
+            <li><a href="https://twilightzone.whoi.edu/the-mysterious-false-bottom-of-the-twilight-zone/" target="_blank" rel="noopener">WHOI：暮光层神秘的“假海底”</a></li>
+            <li><a href="https://cordis.europa.eu/article/id/136728-the-biomass-of-ocean-mesopelagic-fish-is-10-times-higher-than-estimated/es" target="_blank" rel="noopener">Irigoien 等 2014：中层鱼类生物量至少是旧估计的 10 倍</a></li>
+            <li><a href="https://int-res.com/abstracts/meps/v694/p149-156" target="_blank" rel="noopener">MEPS 2022：中层鱼类的快速垂直移动</a></li>
+            <li><a href="https://sio-legacy.ucsd.edu/zooplanktonguide/node/395" target="_blank" rel="noopener">Scripps 浮游动物图鉴：Salpa aspera</a></li>
+            <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5155287" target="_blank" rel="noopener">Copley 等 2016：龙旂热液区的生态</a></li>
+            <li><a href="https://www.scientificamerican.com/article/celebrate-endangered-species-day-meet-the-scaly-foot-snail-the-most-metal-animal-in-the-world/" target="_blank" rel="noopener">Scientific American：铁甲蜗牛</a></li>
+            <li><a href="https://australian.museum/learn/news/blog/first-animal-officially-endangered-by-deep-sea-mining/" target="_blank" rel="noopener">澳大利亚博物馆：首个因深海采矿列为濒危的动物</a></li>
+            <li>鲸落：MBARI 在蒙特雷峡谷的长期观测；Smith &amp; Baco 2003 的演替阶段</li>
+            <li>重走 2012：NBC News、National Geographic、CS Monitor 等对卡梅隆下潜的报道</li>
+            <li>海水光学：Kirk 漫衰减公式与清澈大洋水的吸收、散射系数</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+  </div>
+</aside>
+<div id="sofar" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="sofT">
+  <div class="ovlBox wide">
+    <button class="ovlX" id="sofX" type="button" aria-label="关闭">×</button>
+    <h2 id="sofT">声音实验：深海声道（SOFAR）</h2>
+    <p class="lead">海面附近水暖，声音跑得快；深处压强大，声音也跑得快；两者之间约 1 km 深处，声速最慢。声音总是往声速慢的一边弯，所以从这一层发出的声音会被上下来回“折”回来，像困在一条看不见的管道里，能传几千公里。</p>
+    <canvas id="sofCv" role="img" aria-label="左边是声速随深度的变化曲线，右边是从声源发出的 25 条声线在 300 km 范围内的路径"></canvas>
+    <div class="ctl"><label for="sofSrc">声源深度 <b id="sofSrcV">1000 m</b></label><input id="sofSrc" type="range" min="10" max="4500" step="10" value="1000"></div>
+    <div class="row"><button id="sofPlay" type="button">听 1,000 km 外收到的声音</button></div>
+    <p class="note" id="sofStat"></p>
+    <p class="note">怎么看这张图：左边是声速随深度变化的曲线（按下潜路线的实测型水温剖面，用 Mackenzie 公式算出）；右边是从红点发出、上下各 12° 范围内的 25 条声线。试着把声源拖到海面附近或 4,000 m 深处，看还有多少声线能留在声道里。为了看清，图里的水平距离被压缩了：300 km 对 5 km 深。</p>
+  </div>
+</div>
+<div id="press" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="pxT">
+  <div class="ovlBox wide">
+    <button class="ovlX" id="pxX" type="button" aria-label="关闭">×</button>
+    <h2 id="pxT">压力实验：把泡沫杯带到海底</h2>
+    <p class="lead">每往下 10 m，水压就增加约 1 个大气压。科考船上的传统是把画好图案的泡沫塑料杯挂在潜水器外面带下去，回来时它已经缩成了小杯子。这里把它和一个装空气的气球、一瓶水放在一起比较。</p>
+    <svg id="pxSvg" viewBox="0 0 600 230" role="img" aria-label="泡沫杯、气球和水瓶在当前深度下的大小，虚线是原来的大小"></svg>
+    <div class="ctl"><label for="pxS">深度 <b id="pxZ">0 m</b></label><input id="pxS" type="range" min="0" max="1000" step="1" value="0"></div>
+    <div class="row"><button id="pxDown" type="button" class="pri">带到挑战者深渊</button><button id="pxUp" type="button">带回水面</button><button id="pxReset" type="button">换一个新杯子</button></div>
+    <p class="note" id="pxNum"></p>
+    <p class="note">为什么三者差别这么大：气球里全是空气，空气按玻意耳定律被压缩，体积和压强成反比，回到水面又弹回原样。泡沫塑料是约 95% 的空气关在无数小气泡里，压强大到一定程度，气泡壁被压垮、空气被挤掉，杯子均匀地缩小，而且再也回不去了，所以先下潜、再上浮，杯子还是小的。水几乎不能压缩，即使在 1 万多米深也只缩小约 5%；但正因为海水被压得稍微紧了一点，如果海水完全不能压缩，全球海平面会再高出约 30 m。</p>
+    <p class="note">关于模型：泡沫杯的缩小是简化模型，假设泡沫含 95% 的空气、气泡壁在约 6 个大气压（约 50 m 深）后开始被压垮，之后按玻意耳定律压缩。真实的杯子会因泡沫的均匀程度、在深处停留的时间不同而缩得多一些或少一些，有的还会变形。</p>
+  </div>
+</div>
+<div id="mapOv" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="mapT">
+  <div class="ovlBox wide">
+    <button class="ovlX" id="mapX" type="button" aria-label="关闭">×</button>
+    <h2 id="mapT">海底地形总览：真实测深数据</h2>
+    <p class="lead">把海水抽干，地球是这个样子：大陆外缘是浅浅的陆架，往外是陡峭的陆坡和几千米深的大洋盆地；大洋中间横亘着连绵几万公里的洋中脊；太平洋边缘是一道道深深的海沟。红点是这个海底世界里的各个地点，点一下就能前往。</p>
+    <canvas id="mapCv" role="img" aria-label="全球海底与陆地地形图，红点是本页的各个地点"></canvas>
+    <p class="note" id="mapRead">把鼠标移到地图上，可以看到那里的经纬度和水深。</p>
+    <div class="seg" id="mapPreset">
+      <button type="button" data-p="mariana">剖面：穿过马里亚纳海沟</button>
+      <button type="button" data-p="atl">剖面：横穿大西洋中脊</button>
+      <button type="button" data-p="sio">剖面：西南印度洋中脊（龙旂热液区附近）</button>
+      <button type="button" data-p="scs">剖面：南海</button>
+    </div>
+    <canvas id="profCv" role="img" aria-label="所选两点之间的海底剖面"></canvas>
+    <p class="note" id="profNote"></p>
+    <p class="note">数据来源：美国国家海洋和大气管理局（NOAA）的 ETOPO 全球地形数据，分辨率 20 角分，每个格点约 37 km 宽，为了放进网页又压缩成约 60 m 一档。格点这么大，窄窄的海沟会被平均得变浅：这里马里亚纳海沟最深只显示约 9,000 m，实测是 10,935 m。所以这张图适合看“全球海底长什么样”，而页面里各个场景的近景地形仍是按资料描述生成的，不是逐米的实测地形。</p>
+  </div>
+</div>
+<div id="card" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="cardT">
+  <div class="ovlBox wide">
+    <button class="ovlX" id="cardX" type="button" aria-label="关闭">×</button>
+    <h2 id="cardT">海底明信片</h2>
+    <p class="lead">刚才的画面，配上这里的地点、深度、水温和气压。</p>
+    <img id="cardImg" alt="当前画面做成的明信片">
+    <div class="row"><button id="cardSave" type="button" class="pri">保存图片</button></div>
+    <p class="note" id="cardTip"></p>
+  </div>
+</div>
+<div id="help" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="helpT">
+  <div class="ovlBox">
+    <button class="ovlX" id="helpX" type="button" aria-label="关闭">×</button>
+    <h2 id="helpT">玩法说明</h2>
+    <h3>看什么</h3>
+    <p>这是一个按真实地点和实测数据搭建的海底世界。光线、水色、波浪、海流、水温和压强都按物理公式计算，每种生物只会出现在它真实生活的深度、水温和环境里。控制台最下方的“场景用到的物理与生态规则”列出了所有依据。</p>
+    <h3>换地点、下潜</h3>
+    <p>在控制台“真实地点”里选一个地点，下面的介绍卡会告诉你那里是哪里、有什么看点。带边框的几项是“路线”：一路下潜到马里亚纳海沟、重走卡梅隆 2012 年的下潜、昼夜垂直迁移、三沙永乐龙洞。下潜时底部会出现进度条，可以暂停、调倍速，或拖动直接跳到任意深度。</p>
+    <h3>看和认</h3>
+    <p>拖动画面转动视角，滚轮或双指缩放；镜头空闲一会儿会自动缓慢环绕（可在“时间与照明”里关掉）。点击画面里的生物、烟囱、沉船等，会弹出说明卡。第一次遇见的生物会出现在“图鉴”里。</p>
+    <h3>自由驾驶</h3>
+    <p>点左下角“自由驾驶”，自己开着水下机器人游。电脑：W/S 前进后退，A/D 左右平移，Q/E 下潜上浮，←/→ 转向，拖动画面转头，Esc 退出。手机：左下摇杆移动，右侧按钮上浮、下潜，拖动画面转头。最高约 1 m/s，海流和波浪会推着你漂，缆绳长 60 m。下潜路线中不能自由驾驶。</p>
+    <h3>时间与照明</h3>
+    <p>“夜潜”切换昼夜。白光手电照亮约十来米；蓝光手电配黄色滤镜，用来看珊瑚、海葵的荧光。200 m 以下阳光几乎耗尽，需要手电或潜水器灯。</p>
+    <h3>触碰发光</h3>
+    <p>在黑暗的水里（夜潜，或 200 m 以下）用手指或鼠标在画面上快速划过，浮游生物会闪出蓝光，划得越快越亮；太慢不会亮，白天也看不到。在深海点击冠水母、竹珊瑚，会看到它们的发光反应。</p>
+    <h3>探险任务与图鉴</h3>
+    <p>“探险任务”给出 12 个探索目标，带进度和“前往”按钮，完成时会显示一条科学事实。任务进度只保存在这台设备的浏览器里。</p>
+    <h3>共享图鉴</h3>
+    <p>（在 Claude 里打开的版本才有共享图鉴；独立网站版本的图鉴只保存在这台设备上。）图鉴是所有打开这个页面的人共用的：名字后面的小数字表示多少位探险者遇见过这种生物。你遇见新生物后，几秒内会自动计入（只记录生物清单）。如果分享者给你的是“查看者”权限，你能看到数字，但自己的发现不会计入，只保存在本机；请分享者把你设为“参与者”即可。</p>
+    <h3>特殊场景的控件</h3>
+    <p>鲸落：拖动“经过的时间”看几十年的变化。昼夜垂直迁移：拖时间、拖深度，或点击回声测深图。珊瑚产卵之夜：拖动当地时间。蓝洞和海沟下潜：看左侧剖面图里你的位置。</p>
+    <h3>拍明信片</h3>
+    <p>左下角“拍明信片”会把当前画面做成一张带地点、深度、水温和气压的图片，可以保存下来分享。</p>
+    <h3>展览模式</h3>
+    <p>左下角“展览模式”（或欢迎页的“看 6 分钟展览导览”）会自动带你走过 11 个真实地点：珊瑚礁、巨藻林、沉船、南极冰下、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕讲解；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
+    <h3>VR 模式</h3>
+    <p>控制台“VR 模式”里点“手机分屏 VR”：把手机横过来，有纸盒 VR 眼镜就放进去。转动手机看四周（读不到陀螺仪时用手指拖动），轻点屏幕开始或停止游动，按“退出 VR”或 Esc 返回。用 VR 头显时，在头显自带的浏览器里打开本页，点“进入头显 VR”。</p>
+    <h3>为了看得见而做的处理</h3>
+    <p>有几处为了能看清做了放大或简化：气泡放大 3 倍，珊瑚卵精束放大约 15 倍，沉船轮廓和一些生物组合是按资料示意的；这些都在规则说明里写明了。</p>
+    <h3>地图与物理实验</h3>
+    <p>控制台的“地图与物理实验”里有一张全球海底地形图（真实测深数据，可以看各地点在哪里、点两点画海底剖面），还有两个独立的小实验：深海声道（声音为什么能在深海传几千公里，可以拖动声源、听远处收到的声音）和压力实验（把泡沫杯、气球、一瓶水带到海底比较）。下潜路线的进度条上也会显示挂在潜水器外的泡沫杯缩到了多大。</p>
+    <h3>声音</h3>
+    <p>勾选“声音”会合成浪声、呼吸和气泡声、抹香鲸的咔嗒声和深海低鸣。“物理实验”里还有深海声道的声音实验。</p>
+  </div>
+</div>
+<div id="welcome" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="welT">
+  <div class="ovlBox">
+    <h2 id="welT">欢迎来到海底物理世界</h2>
+    <p class="lead">这里的每个场景都按真实地点和实测数据搭建，从 10 m 的珊瑚礁一直到 10,935 m 的海沟底。</p>
+    <ul class="wl">
+      <li><b>先看导览</b>：“展览模式”会自动带你走过 11 个真实地点，从珊瑚礁一直下潜到海沟底，随时可以退出。</li>
+      <li><b>换地点</b>：在右侧（手机在下方）控制台的“真实地点”里挑一个，或点“开始下潜”一路潜到海沟。</li>
+      <li><b>看和认</b>：拖动画面转视角，点击生物看它是谁。</li>
+      <li><b>自己开</b>：点“自由驾驶”，用键盘或摇杆开着水下机器人四处探索。</li>
+      <li><b>玩点别的</b>：做探险任务；在夜里或深海用手指划水，看浮游生物发光。</li>
+    </ul>
+    <div class="row"><button id="welTour" type="button" class="pri">看 6 分钟展览导览</button><button id="welGo" type="button">自己探索</button><button id="welHelp" type="button">看完整玩法说明</button></div>
+  </div>
+</div>
+<div id="vrUI" hidden>
+  <div class="mid"></div>
+  <div class="eye l"><span class="vt"></span><small class="vc"></small></div><div class="eye r"><span class="vt"></span><small class="vc"></small></div>
+  <div class="dot l"></div><div class="dot r"></div>
+  <button id="vrX" type="button">退出 VR（Esc）</button>
+  <div id="vrHint"></div>
+</div>
+<div id="err" hidden>这个设备不支持 WebGL，无法渲染三维场景。</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="data/etopo20.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
