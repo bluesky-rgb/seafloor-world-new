@@ -6,7 +6,8 @@ const WATER={
   clear:    {a:[0.345,0.060,0.018], b:[0.03,0.035,0.045]},
   ocean:    {a:[0.360,0.075,0.050], b:[0.15,0.18,0.20]},
   temperate:{a:[0.370,0.085,0.120], b:[0.17,0.19,0.22]},
-  coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]}
+  coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]},
+  lagoon:   {a:[0.450,0.120,0.300], b:[0.35,0.40,0.45]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
 };
 const LOC={
   xisha:   {name:'南海西沙群岛珊瑚礁',D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
@@ -14,6 +15,7 @@ const LOC={
   eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
   slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
   deep:    {name:'南海海马冷泉',D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
+  mangrove:{name:'海南陵水新村潟湖 · 海草床与红树林',D:1.6,water:'lagoon',temp:28,H:0.3,T:5,cur:0.05,dir:30,sun:70,torch:'off'},
   abyss:   {name:'太平洋克拉里昂-克利珀顿区 · 深海平原',D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
   vent:    {name:'西南印度洋龙旂热液区',D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
   whalefall:{name:'蒙特雷峡谷鲸落',D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
@@ -62,8 +64,8 @@ const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-
 const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
 function floorH(x,z){const f=Math.exp(-(x*x+z*z)/(2*70*70));return f*(0.7*Math.sin(x*0.13+1.3)*Math.cos(z*0.11)+0.35*Math.sin(x*0.37+z*0.29)+0.18*Math.sin(z*0.8-x*0.3));}
 const floorY0=(x,z)=>-S.D+floorH(x,z);
-let brineOn=false;
-const floorY=(x,z)=>brineOn?brineFloor(x,z):floorY0(x,z);
+let brineOn=false,mangOn=false;
+const floorY=(x,z)=>mangOn?mangFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
 const UP=new THREE.Vector3(0,1,0),ORIGIN=new THREE.Vector3();
 const _u={x:0,y:0,z:0},_m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3(),_d=new THREE.Vector3(),_e=new THREE.Euler();
 

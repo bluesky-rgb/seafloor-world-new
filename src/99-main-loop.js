@@ -34,7 +34,7 @@ function frame(now){
   for(const k in JELLY)stepJelly(JELLY[k],dt,t);
   stepMantas(dt,t);stepTurtles(dt,t);stepAnglers(dt,t);
   for(const k in DRIFT)stepDrift(DRIFT[k],dt,t);
-  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);
+  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);
   if(infoT>0){infoT-=rdt;if(infoT<=0)$('info').hidden=true;}
   discT+=rdt;if(discT>0.5){discT=0;checkDiscover();if(SPN.on){spawnNote();readouts();}}stepToast(rdt);
   FANS.forEach(m=>{if(!m.visible)return;const u=m.userData;m.rotation.set(0.12*(U.uFlow.value.x*Math.sin(u.yaw)+U.uFlow.value.y*Math.cos(u.yaw))*0.5+0.03*Math.sin(t*0.8+u.ph),u.yaw,0);});
@@ -46,7 +46,7 @@ function frame(now){
   expo+=(target-expo)*Math.min(1,rdt*2);renderer.toneMappingExposure=expo*0.9;
   if(wbPass){let g=[1,1,1];
     if(S.adapt&&!S.night&&z<200){const a=[0,1,2].map(i=>light(z,i)*Math.exp(-OPT.c[i]*3)),m=(a[0]+a[1]+a[2])/3;
-      g=a.map(v=>Math.min(5,Math.max(0.5,Math.pow(m/Math.max(v,1e-6),0.5))));const n=(g[0]*a[0]+g[1]*a[1]+g[2]*a[2])/(a[0]+a[1]+a[2]);g=g.map(v=>Math.min(2.4,v/n));}
+      g=a.map(v=>Math.min(5,Math.max(0.5,Math.pow(m/Math.max(v,1e-6),0.5))));const n=(g[0]*a[0]+g[1]*a[1]+g[2]*a[2])/(a[0]+a[1]+a[2]);g=g.map(v=>Math.min(2.4,v/n));if(MANG.on)g=g.map(v=>1+(v-1)*0.35);}   /* keep the lagoon's green cast, as the eye sees it */
     if(S.torch==='blue'&&(S.night||z>=200))g=[1.15,1.1,0.22];
     {/* deep white lamps: the camera balances to its own lamps over ~2 m of water each way, as on an ROV (applied to lamp-lit light only, the water stays dark blue) */
       let tw=[1,1,1];if(S.torch==='white'&&z>=200){tw=[0,1,2].map(i=>Math.exp(OPT.c[i]*4.0));const n=0.3*tw[0]+0.59*tw[1]+0.11*tw[2];tw=tw.map(v=>Math.min(3.5,v/n));}

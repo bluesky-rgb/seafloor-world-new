@@ -1,7 +1,15 @@
 # 资料来源
 
-页面中的物理参数、地点和生物资料引用自以下来源（共 47 条）。
+页面中的物理参数、地点和生物资料引用自以下来源（共 55 条）。
 
+- [《生物多样性》（2024）：海南各地海草床的种类，新村港为泰来草与海菖蒲](https://www.biodiversity-science.net/CN/10.17520/biods.2023201)
+- [生态环境部：陵水新村湾整治与我国首个海草特别保护区](https://www.mee.gov.cn/home/ztbd/2021/mlhwyxalzjhd/algs/hns2/202109/t20210906_900098.shtml)
+- [新华网（2025）：陵水新村潟湖红树林湿地公园](https://www.news.cn/photo/20250202/5dcc2781380841e7b8deb4db17447276/c.html)
+- [海菖蒲：叶长 30–150 cm，雄花浮到水面授粉](https://en.wikipedia.org/wiki/Enhalus)
+- [联合国环境署：海草约占海底 0.2%，储存海洋约 10% 的碳](https://www.unep.org/news-and-stories/story/seagrass-secret-weapon-fight-against-global-heating)
+- [儒艮在中国功能性灭绝（Lin、Turvey 等，2022）](https://www.smithsonianmag.com/smart-news/dugongs-are-functionally-extinct-in-china-research-suggests-180980645/)
+- [倒立水母：靠共生藻进行光合作用](https://en.wikipedia.org/wiki/Cassiopea)
+- [澎湃新闻：东寨港红树林保护区的物种记录](https://www.thepaper.cn/newsDetail_forward_14880701)
 - [Bonifácio 等 (2021)：克拉里昂-克利珀顿区范围与水深](https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2021.656899/full)
 - [World Ocean Review：锰结核的形成、大小、生长速度与丰度](https://worldoceanreview.com/en/wor-3/mineral-resources/manganese-nodules/)
 - [Rabone 等 (2023)：克拉里昂-克利珀顿区记录到 5,578 种动物，约九成未被描述](https://obis.org/2023/09/12/species-largest-mineral/)

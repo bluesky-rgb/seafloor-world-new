@@ -12,7 +12,8 @@ const WATER={
   clear:    {a:[0.345,0.060,0.018], b:[0.03,0.035,0.045]},
   ocean:    {a:[0.360,0.075,0.050], b:[0.15,0.18,0.20]},
   temperate:{a:[0.370,0.085,0.120], b:[0.17,0.19,0.22]},
-  coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]}
+  coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]},
+  lagoon:   {a:[0.450,0.120,0.300], b:[0.35,0.40,0.45]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
 };
 const LOC={
   xisha:   {name:'南海西沙群岛珊瑚礁',D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
@@ -20,6 +21,7 @@ const LOC={
   eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
   slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
   deep:    {name:'南海海马冷泉',D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
+  mangrove:{name:'海南陵水新村潟湖 · 海草床与红树林',D:1.6,water:'lagoon',temp:28,H:0.3,T:5,cur:0.05,dir:30,sun:70,torch:'off'},
   abyss:   {name:'太平洋克拉里昂-克利珀顿区 · 深海平原',D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
   vent:    {name:'西南印度洋龙旂热液区',D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
   whalefall:{name:'蒙特雷峡谷鲸落',D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
@@ -68,8 +70,8 @@ const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-
 const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
 function floorH(x,z){const f=Math.exp(-(x*x+z*z)/(2*70*70));return f*(0.7*Math.sin(x*0.13+1.3)*Math.cos(z*0.11)+0.35*Math.sin(x*0.37+z*0.29)+0.18*Math.sin(z*0.8-x*0.3));}
 const floorY0=(x,z)=>-S.D+floorH(x,z);
-let brineOn=false;
-const floorY=(x,z)=>brineOn?brineFloor(x,z):floorY0(x,z);
+let brineOn=false,mangOn=false;
+const floorY=(x,z)=>mangOn?mangFloor(x,z):brineOn?brineFloor(x,z):floorY0(x,z);
 const UP=new THREE.Vector3(0,1,0),ORIGIN=new THREE.Vector3();
 const _u={x:0,y:0,z:0},_m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3(),_d=new THREE.Vector3(),_e=new THREE.Euler();
 
@@ -279,7 +281,8 @@ function paintFloor(hab){
     anox:[[0.2,0.19,0.18],[0.15,0.14,0.13],[0.42,0.4,0.33]],
     ant:[[0.78,0.76,0.7],[0.6,0.58,0.54],[0.24,0.23,0.22]],
     cwc:[[0.52,0.5,0.45],[0.44,0.42,0.38],[0.7,0.68,0.62]],
-    abyss:[[0.56,0.47,0.36],[0.47,0.39,0.3],[0.16,0.13,0.1]]
+    abyss:[[0.56,0.47,0.36],[0.47,0.39,0.3],[0.16,0.13,0.1]],
+    mangrove:[[0.48,0.43,0.35],[0.4,0.36,0.29],[0.3,0.26,0.2]]
   }[hab];
   for(let i=0;i<p.count;i++){
     let col=mixc(pal[0],pal[1],FN1[i]);
@@ -312,8 +315,8 @@ for(let i=0;i<18;i++){
   m.userData.base=floorH(m.position.x,m.position.z)+sc*0.2;rocks.add(m);
 }
 function paintRocks(hab){
-  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25],abyss:[0.2,0.17,0.14]}[hab];
-  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3],abyss:[0.3,0.26,0.2]}[hab];
+  const base={reef:[0.5,0.45,0.38],temperate:[0.42,0.4,0.38],warm:[0.48,0.44,0.38],deep:[0.18,0.17,0.16],hadal:[0.3,0.28,0.25],vent:[0.14,0.13,0.12],anox:[0.16,0.15,0.14],ant:[0.16,0.15,0.15],cwc:[0.3,0.28,0.25],abyss:[0.2,0.17,0.14],mangrove:[0.3,0.27,0.22]}[hab];
+  const top={reef:[0.52,0.48,0.32],temperate:[0.86,0.5,0.56],warm:[0.5,0.52,0.32],deep:[0.12,0.11,0.1],hadal:[0.5,0.47,0.4],vent:[0.5,0.3,0.14],anox:[0.3,0.28,0.24],ant:[0.55,0.5,0.45],cwc:[0.6,0.4,0.3],abyss:[0.3,0.26,0.2],mangrove:[0.36,0.34,0.26]}[hab];
   rocks.children.forEach(m=>{
     const g=m.geometry,c=g.attributes.color,nr=g.attributes.normal,n=g.userData.n;
     for(let i=0;i<c.count;i++){
@@ -2829,28 +2832,28 @@ function updateOptics(){
 const H={};let habKey='';
 function rebuild(){
   solveWave();CUR.x=Math.cos(S.dir*Math.PI/180);CUR.z=Math.sin(S.dir*Math.PI/180);updateOptics();
-  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);
+  buildBrine(S.loc==='brine'&&!DIVE.on);buildIce(S.loc==='ice'&&!DIVE.on);buildRost(S.loc==='rost'&&!DIVE.on);buildTruk(S.loc==='truk'&&!DIVE.on);buildAbyss(S.loc==='abyss'&&!DIVE.on);buildMangrove(S.loc==='mangrove'&&!DIVE.on);
   const F=-S.D,lf=light(S.D,1),day=!S.night;
   const sky=(day?1:0.02)*(ICE.on?ICE.T:1);U.uSky.value=sky;U.uDay.value=day?1:0;
   sunLight.intensity=1.5*sky;sunLight.color.setRGB(day?1:0.75,day?1:0.85,1);hemi.intensity=0.65*sky;
   U.uTorch.value=S.torch==='off'?0:(DIVE.on?2.6:1);U.uTorchCol.value.set(...(S.torch==='blue'?[0.08,0.28,1.6]:[1.1,1.0,0.88]));
 
-  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on;
+  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on&&!MANG.on;
   H.kelp=S.temp<=20&&S.temp>=3&&S.D<=35&&lf>=0.01;
   H.anem=H.coral&&S.temp>=20&&S.D<=40&&lf>=0.1;
   H.clam=H.coral&&S.temp>=22&&S.D<=20&&lf>=0.2;
-  H.fan=S.cur>=0.03&&S.D>=3;
+  H.fan=S.cur>=0.03&&S.D>=3&&!MANG.on;
   H.sponge=(S.D>=400&&S.D<=7000&&!brineOn&&!ABY.on)||ICE.on;
   H.holo=S.D>=6000&&!DIVE.replay;H.xeno=H.holo||ABY.on;
   H.urchinT=S.temp<18&&S.D<=200;
-  H.urchinD=S.temp>=18&&S.D<=70;
-  H.star=S.D<=200;
+  H.urchinD=S.temp>=18&&S.D<=70&&!MANG.on;
+  H.star=S.D<=200&&!MANG.on;
   H.seep=S.seep&&S.D>=800;
 
-  const hab=ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
+  const hab=MANG.on?'mangrove':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
   const key=hab+(H.seep?'s':'');
   if(key!==habKey){habKey=key;paintFloor(hab);paintRocks(hab);}
-  floor.position.y=F-(ABY.on?0.3:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on;
+  floor.position.y=F-(ABY.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on;
 
   const um=floorOrbitalMax(),uc1=S.cur*curProfile(1);S.ripKind='';
   if(hab!=='deep'&&um>=uc1&&um>0.1){const d0=2*um/W.w;U.uRipL.value=d0<0.44?Math.max(0.62*d0,0.08):0.134;U.uRipAmp.value=Math.min(1,(um-0.1)/0.1);U.uRipDir.value.set(1,0);S.ripKind='wave';}
@@ -2877,7 +2880,7 @@ function zoneUpdate(){
       lantern:inz('lantern'),hatchet:inz('hatchet'),sperm:z<=2000,squid:z>=300&&z<=1000,siph:z>=300&&z<=1000,vampire:inz('vampire'),gulper:inz('gulper'),
       cucumber:inz('cucumber'),angler:z>=700&&z<=4000,dumbo:inz('dumbo'),snail:inz('snail'),amphi:S.D>=6000&&S.D-z<70,
       sardine:false,chromis:false,anthias:false,butterfly:false,snapper:false,parrot:false,clown:false,rockfish:false,hagfish:false,sleeper:false,osedax:false,crab:false,rimicaris:false,kiwa:false,scalyfoot:false,giga:false,ventmussel:false,barnacle:false,ventanem:false,krill:false,salp:false,childressi:false,acropora:false,icefish:false,borch:false,seal:false,pycno:false,icealgae:false,redfish:false,lophelia:false,geodia:false,acesta:false,dendro:false});
-    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema'].forEach(k=>H[k]=false);
+    ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema','enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea'].forEach(k=>H[k]=false);
     if(DIVE.dvm)dvmH();
     if(DIVE.bh)bhH();
   }else{
@@ -2891,8 +2894,9 @@ function zoneUpdate(){
     H.vampire=S.D>=600&&S.D<=1300;H.gulper=S.D>=500&&S.D<=3000;H.cucumber=S.D>=500&&S.D<=5000;H.dumbo=S.D>=1000&&S.D<=7000;
     H.snail=S.D>=6000&&S.D<=8200;H.amphi=S.D>=6000;
     {const st=wfStages(WF.t),w=S.loc==='whalefall';H.hagfish=w&&st.scav>0.05;H.sleeper=w&&st.scav>0.3;H.osedax=w&&st.enrich>0.1;H.crab=w;}
-    H.dendro=TRUK.on;H.baitfish=TRUK.on;H.jack=TRUK.on;H.lionfish=TRUK.on;if(TRUK.on){H.manta=false;H.whaleshark=false;H.hammer=false;}
+    H.dendro=TRUK.on;H.baitfish=TRUK.on||MANG.on;H.jack=TRUK.on;H.lionfish=TRUK.on;if(TRUK.on){H.manta=false;H.whaleshark=false;H.hammer=false;}
     ['psychro','seapig','tripod','rattail','ophiuroid','hyalonema'].forEach(k=>H[k]=ABY.on);
+    ['enhalus','thalassia','rhizophora','avicennia','oyster','seahorse','cassiopea'].forEach(k=>H[k]=MANG.on);
     H.redfish=ROST.on;H.lophelia=ROST.on;H.geodia=ROST.on;H.acesta=ROST.on;
     if(ICE.on){Object.assign(H,{sardine:false,rockfish:false,nettle:false,manta:false,turtle:false,hammer:false,whaleshark:false,moon:false,krill:true,icefish:true,borch:true,seal:!S.night,pycno:true,icealgae:true});}
     else Object.assign(H,{icefish:false,borch:false,seal:false,pycno:false,icealgae:false});
@@ -2926,7 +2930,9 @@ function zoneUpdate(){
     setSchool(FISH.baitfish,true,{cx:b.x,cy:b.y,cz:b.z,rx:5,ry:1.6,rz:5});setSchool(FISH.jack,true,{cx:j.x,cy:j.y,cz:j.z,rx:11,ry:2.5,rz:11});
     setSchool(FISH.lionfish,true,{cx:l.x,cy:l.y,cz:l.z,rx:3,ry:0.6,rz:3});setSchool(FISH.anthias,true,{cx:a.x,cy:a.y,cz:a.z,rx:3,ry:3,rz:3});
     setSchool(FISH.butterfly,true,{cx:u.x,cy:u.y,cz:u.z,rx:8,ry:0.6,rz:5});}
-  else ['baitfish','jack','lionfish'].forEach(k=>setSchool(FISH[k],false,null));
+  else{['jack','lionfish'].forEach(k=>setSchool(FISH[k],false,null));
+    /* juvenile fish shelter among the mangrove roots */
+    setSchool(FISH.baitfish,MANG.on,MANG.on?{cx:MANG.bankX-1.5,cy:-0.75,cz:0,rx:2.2,ry:0.35,rz:6}:null);}
   setSchool(FISH.hammer,H.hammer,{cx:0,cy:Math.min(F+9,-6),cz:0,rx:14,ry:3,rz:14});
   setSchool(FISH.hatchet,H.hatchet,{cx:0,cy:F+6,cz:0,rx:11,ry:4,rz:11});
   setSchool(FISH.snail,H.snail,{cx:0,cy:F+2,cz:0,rx:8,ry:1.5,rz:8});
@@ -2935,7 +2941,7 @@ function zoneUpdate(){
   for(const k in DRIFT)setDrift(DRIFT[k],!!H[k],ICE.on&&k==='krill'?{cx:0,cy:-ICE.h-1.3,cz:0,rx:6,ry:0.8,rz:6}:k==='borch'?{cx:ICE.hx,cy:-ICE.h-0.5,cz:ICE.hz,rx:7,ry:0.25,rz:7}:k==='icefish'?{cx:0,cy:floorY(0,0)+0.3,cz:0,rx:7,ry:0.2,rz:7}:k==='amphi'?{cx:0,cy:F+1.5,cz:0,rx:7,ry:1.4,rz:7}:k==='hagfish'?{cx:0,cy:floorY(0,0)+0.5,cz:0,rx:4,ry:0.45,rz:8}:{cx:0,cy:F+3,cz:0,rx:10,ry:2.5,rz:10});
   }
   const z=zEff();
-  diverOn=!dive&&S.D<=60;
+  diverOn=!dive&&S.D<=60&&!MANG.on;
   sparkleOn=S.night&&z<=150;deepFlashOn=z>=150;
   rays.visible=!S.night&&(dive?z<200:(lf>0.002&&S.D<=200));
   if(bloom){const glow=S.night||z>200;bloom.strength=glow?0.7:0.3;bloom.threshold=glow?0.7:0.85;bloom.radius=glow?0.35:0.3;}
@@ -3020,6 +3026,7 @@ function readouts(){
   if(S.D>200)h+='<p><span class="tag">深海</span>这里没有阳光。看到的光点都是生物发光：灯笼鱼的发光器、冠水母的报警光环、'+(H.angler?'鮟鱇的诱饵、':'')+'被扰动的浮游生物。</p>';
   if(ventOn)h+='<p><span class="tag">热液</span>这里的生命不靠阳光：细菌把热液里硫化氢等物质的化学能转化成养分（化能合成），整个群落都建立在它们之上。龙旂已记录 21 类大型动物，其中 7 种是新种。</p>';
   if(TRUK.on)h+='<p><span class="tag">沉船鱼礁</span>1944 年 2 月的“冰雹行动”在这片泻湖里击沉了 45 艘以上的舰船。八十多年后，钢铁船体成了珊瑚、海绵和海鞘附着的基底：软珊瑚挂满高处的桅杆和吊杆，因为那里水流最好；甲板上结着成群的小鱼，船尾住着蓑鲉。</p>';
+  if(MANG.on)h+='<p><span class="tag">蓝碳</span>海草床只占海底面积约 0.2%，却储存了海洋约 10% 的碳；它和红树林、盐沼一起被称为“蓝碳”生态系统。它们也是很多鱼虾的育幼场。</p><p><span class="tag">儒艮</span>中国南方沿海曾有以海草为食的儒艮。2022 年发表的一项调查访问了 788 位渔民，自 2000 年以来没有任何可核实的目击记录，儒艮在中国已功能性灭绝，是中国水域第一种功能性灭绝的大型脊椎动物。</p>';
   if(ABY.on)h+='<p><span class="tag">深海平原</span>深海平原占地球表面一半以上，是地球上面积最大的生境。这里的食物几乎全靠上方几千米飘落的“海洋雪”，动物都长得慢、活得久。克拉里昂-克利珀顿区已记录到 5,578 种动物，约九成还没有被科学描述，而它也是全球最大的深海采矿勘探区。</p>';
   if(ROST.on)h+='<p><span class="tag">冷水珊瑚</span>这里没有阳光，珊瑚也没有共生藻，全靠洋流送来的浮游生物为生，所以冷水珊瑚礁总长在水流强的陆坡和海脊上。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁，2002 年才被发现，同年周围约 300 km² 海域禁止底拖网。</p>';
   if(ICE.on)h+='<p><span class="tag">冰下</span>头顶约 2 m 厚的海冰挡住了大部分阳光，只有冰洞里照下一道光柱。冬天之后的海水几乎没有浮游生物，清澈得能看到很远；水温 −1.9 °C，是海水的冰点。你呼出的气泡会贴在冰底聚成一片片“水银”。</p><p><span class="tag">抗冻</span>这里的鱼血液里有抗冻糖蛋白，冰鱼甚至连血红蛋白都没有，血几乎是透明的。</p>';
@@ -3042,6 +3049,7 @@ function frameCamera(){
   const F=-S.D,deep=S.D>200,dist=deep?7:9.5;
   if(S.loc==='monterey'){controls.target.set(0,F+1.2,0);camera.position.set(4,F+2.4,7);return;}
   if(S.loc==='truk'){const D=TRUK.Hh,b0=floorY0(0,0)-1.5;const tw=(x,y,z)=>{const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return new THREE.Vector3(x*c+z*s,b0+y,-x*s+z*c);};controls.target.copy(tw(36,D+2.5,0));camera.position.copy(tw(22,D+8,16));return;}
+  if(S.loc==='mangrove'){const y=mangFloor(-5.2,0);controls.target.set(-5.6,y+0.5,0);camera.position.set(-2.6,-0.45,1.7);return;}
   if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
   if(S.loc==='ice'){controls.target.set(ICE.hx,-5.5,ICE.hz);camera.position.set(ICE.hx+7,-9,ICE.hz+9.5);return;}
@@ -3082,6 +3090,7 @@ const SITE={
   truk:['密克罗尼西亚特鲁克泻湖 · 富士川丸','一艘 133 m 长的二战日本飞机运输舰，1944 年在“冰雹行动”中被击沉，至今直立着坐在约 34 m 深的沙底上，后桅几乎伸出水面。','十几米深处红光已被海水吸收，软珊瑚看上去发暗；打开白光手电，它们才显出粉红、橙红的本色。从舱口往 2 号货舱里看，还能找到拆解的战斗机。'],
   rost:['挪威罗弗敦外海 · 勒斯特冷水珊瑚礁 · 320 m','已知最大的冷水珊瑚礁，全长三四十公里。白色和橙色的深水石珊瑚长成一丛丛灌木，下面是层层堆积的死珊瑚骨架和碎屑；红色的泡泡糖珊瑚顺着海流张开，大眼的挪威平鲉悬停在礁上。','点击珊瑚看它每年只长几毫米；关掉手电，这片礁就完全沉入黑暗。'],
   ice:['南极麦克默多湾 · 海冰之下','头顶是约 2 m 厚的海冰，阳光只透下百分之几，冰底被冰藻染成褐色，冰洞里照下一道光柱。水温 −1.9 °C，海底有红海星、南极海胆、玻璃海绵和巨型海蜘蛛，威德尔海豹不时从冰下游过。','抬头看冰底的片状冰和贴在冰下的气泡；在海底找一找趴着不动、几乎透明的冰鱼。'],
+  mangrove:['海南陵水新村潟湖 · 海草床与红树林 · 1.6 m','一个几乎被沙坝围住的潟湖。岸边是红树林，支柱根扎进软泥；往外是海菖蒲和泰来草组成的海草床。2007 年，新村港和相邻的黎安港一起设立了我国第一个以海草床为保护对象的特别保护区。','左边是红树林的支柱根，小鱼在根间躲避捕食者；右边的海草随波摆动，水面上漂着海菖蒲的白色雄花。找找缠在海草上的海马和倒躺在泥上的倒立水母。'],
   abyss:['太平洋克拉里昂-克利珀顿区 · 深海平原 · 4,100 m','夏威夷与墨西哥之间一片约 600 万平方公里的深海平原，水深 4,000–6,000 m，水温约 1.5 °C。海底铺满土豆大小的锰结核，每一百万年只长 1–10 cm。这里已记录到 5,578 种动物，约九成从未被科学描述。','在手电光里找沿着自己的取食痕迹爬行的长尾蝶参、成群的海猪、用鳍条“站”在海底的三脚架鱼。右边那条没有结核的宽带是 1979 年采矿试验留下的车辙，点击它看 44 年后的样子。'],
   spawn:['海南三亚鹿回头 · 珊瑚产卵之夜','春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。','把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。'],
   monterey:['加州蒙特雷湾巨藻林 · 12 m','冷水上升流养出的海底森林。巨藻随涌浪整片摆动，水温约 12 °C，对造礁珊瑚来说太冷了。','在“环境参数”里调大有效波高或波周期，看巨藻和海底沙纹怎样变化。'],
@@ -3335,6 +3344,181 @@ Object.assign(FACTS,{
   hyalonema:'用一束长长的玻璃质骨针固定在锰结核上。2016 年科学家在夏威夷外海 4,000 多米处发现一种幽灵般的白色章鱼，把卵产在死去海绵的柄上，而这些海绵只能长在结核这样的硬底上。'
 });
 SPECIES.push(['psychro','长尾蝶参'],['seapig','海猪'],['tripod','三脚架鱼'],['rattail','深海长尾鳕'],['ophiuroid','深海蛇尾'],['hyalonema','有柄玻璃海绵']);
+/* =========================================================
+   14zd. Xincun Lagoon, Lingshui, Hainan: seagrass meadow at the mangrove fringe (~1.6 m).
+   - Xincun and neighbouring Li'an lagoons: China's first special protected area for seagrass beds (2007);
+     seagrasses Thalassia hemprichii and Enhalus acoroides (Biodiversity Science 2024 review, after Guo et al. 2023);
+     a mangrove national wetland park of ~958 ha lies in the same lagoon (Xinhua 2025).
+   - Enhalus acoroides: strap leaves 30–150 cm; male flowers detach and float up, pollinating female flowers at the surface.
+   - Seagrass: ~0.2 % of the sea floor, ~10 % of ocean carbon storage (UNEP).
+   - Dugongs (which graze seagrass) are functionally extinct in China: 788 fishers interviewed, no verified sighting since 2000
+     (Lin, Turvey et al. 2022, Royal Society Open Science).
+   - Fringe: Rhizophora stylosa with arching prop roots (oysters and barnacles near the waterline),
+     Avicennia pencil-like pneumatophores; juvenile fish shelter among the roots; seahorses cling to seagrass;
+     upside-down jellyfish (Cassiopea) lie bell-down so their symbiotic algae get light.
+   ========================================================= */
+const MANG={on:false,size:50,seg:200,bankX:-3.5};
+/* nearly flat lagoon mud, rising into a bank under the mangroves on the left (x < -3.5) */
+function mangFloor(x,z){return -S.D+0.04*Math.sin(x*0.9+1)*Math.cos(z*0.7)+0.025*Math.sin(x*2.3+z*1.9)+0.85*sstep(MANG.bankX,MANG.bankX-6,x+0.6*Math.sin(z*0.35));}
+const mangGeo=new THREE.PlaneGeometry(MANG.size,MANG.size,MANG.seg,MANG.seg);mangGeo.rotateX(-Math.PI/2);
+mangGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(mangGeo.attributes.position.count*3),3));
+const mangMud=new THREE.Mesh(mangGeo,waterify(lambert(),'mangMud',{defines:{CAUSTICS:''}}));mangMud.visible=false;scene.add(mangMud);
+const meadow=(x,z)=>sstep(MANG.bankX+0.5,MANG.bankX+3,x)*sstep(0.25,0.55,0.5+0.35*Math.sin(x*0.42+1.3)*Math.cos(z*0.38)+0.25*Math.sin(x*1.1-z*0.9));
+function paintMang(){
+  const p=mangGeo.attributes.position,c=mangGeo.attributes.color;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);p.setY(i,mangFloor(x,z));
+    const n=0.5+0.3*Math.sin(x*3.1+z*2.2)*Math.sin(z*4.3)+0.2*Math.sin(x*11+z*9);
+    let col=mixc([0.5,0.45,0.36],[0.4,0.36,0.29],n);                                         /* grey-brown lagoon mud */
+    col=mixc(col,[0.66,0.62,0.52],sstep(MANG.bankX+2,MANG.bankX+6,x)*0.45*(1-meadow(x,z)));  /* sandier towards open water */
+    col=mixc(col,[0.3,0.25,0.18],sstep(MANG.bankX,MANG.bankX-3,x)*0.6);                     /* dark, leaf-litter mud under the trees */
+    const[h1]=cell2(x*4+7,z*4);if(h1<0.05)col=mixc(col,[0.15,0.13,0.1],0.8);                 /* crab and worm burrows */
+    const[s1]=cell2(x*9,z*9+3);if(s1<0.06&&x>MANG.bankX)col=mixc(col,[0.86,0.84,0.78],0.6);    /* shell fragments */
+    c.setXYZ(i,col[0],col[1],col[2]);}
+  p.needsUpdate=true;c.needsUpdate=true;mangGeo.computeVertexNormals();
+}
+/* ---- Rhizophora stylosa prop roots: arching from the trunk (above the water) down into the mud ---- */
+const mangTrees=[];(function(){for(let i=0;i<14;i++)mangTrees.push([R(-9.5,-5.6),-19+i*2.9+R(-0.8,0.8)]);})();
+/* built when the site is entered, so the root ends reach the actual mud at the site's depth */
+function makeRootGeo(){const acc=Acc();rnd();
+  for(const t of mangTrees){const[tx,tz]=t;const n=Math.floor(R(16,24));
+    for(let k=0;k<n;k++){const a=k/n*6.283+R(-0.2,0.2),rr=R(1.0,2.3),h0=R(0.15,0.9);
+      const gx=tx+Math.cos(a)*rr,gz=tz+Math.sin(a)*rr;
+      const p0=new THREE.Vector3(tx+Math.cos(a)*0.12,h0,tz+Math.sin(a)*0.12),p2=new THREE.Vector3(gx,mangFloor(gx,gz),gz),p1=new THREE.Vector3(tx+Math.cos(a)*rr*0.55,h0+R(0.3,0.7),tz+Math.sin(a)*rr*0.55);
+      const curve=new THREE.QuadraticBezierCurve3(p0,p1,p2);
+      const g=new THREE.TubeGeometry(curve,18,R(0.025,0.04),6,false);
+      /* sink the end into the mud; colour: bark, with an oyster/barnacle band around the waterline */
+      const P=g.attributes.position;for(let q=0;q<P.count;q++){if(Math.hypot(P.getX(q)-gx,P.getZ(q)-gz)<0.15)P.setY(q,P.getY(q)-0.12);}
+      /* secondary roots dropping straight down from the arch: the tangle that shelters juvenile fish */
+      for(let s2=0;s2<2;s2++){if(rnd()<0.45)continue;const pt=curve.getPoint(R(0.35,0.7));const fx=pt.x+R(-0.1,0.1),fz=pt.z+R(-0.1,0.1);
+        const c2=new THREE.LineCurve3(pt,new THREE.Vector3(fx,mangFloor(fx,fz)-0.1,fz));addGeo(acc,new THREE.TubeGeometry(c2,4,R(0.015,0.022),5,false),null,rootCol);}
+      addGeo(acc,g,null,rootCol);}
+    addGeo(acc,new THREE.CylinderGeometry(0.11,0.14,2.5,8),M4(tx,1.0,tz),()=>[0.24,0.2,0.16]);}
+  return finishGeo(acc);}
+function rootCol(x,y,z){const band=sstep(-0.9,-0.6,y-0)*sstep(0.05,-0.15,y);const b=mixc([0.22,0.18,0.14],[0.16,0.13,0.1],0.5+0.5*Math.sin(y*40+x*13));
+  return mixc(b,[0.62,0.58,0.5],band*sstep(0.2,0.7,0.5+0.5*Math.sin(x*60+y*45)*Math.sin(z*55)));}
+const mangRoots=new THREE.Mesh(new THREE.BufferGeometry(),waterify(lambert(),'mangRoot',{defines:{CAUSTICS:''}}));mangRoots.visible=false;scene.add(mangRoots);
+/* the canopy seen from below: a dark mass blocking the sky over the trees */
+const canopyGeo=(()=>{const acc=Acc();for(const t of mangTrees)addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(t[0],0.9,t[1],0,0,0,3.4,0.8,3.4),()=>[0.12,0.18,0.1]);return finishGeo(acc);})();
+const mangCanopy=new THREE.Mesh(canopyGeo,waterify(lambert(),'mangCanopy'));mangCanopy.visible=false;scene.add(mangCanopy);
+/* Avicennia pneumatophores: pencil-like breathing roots sticking up from the mud */
+const pneuGeo=(()=>{const g=new THREE.CylinderGeometry(0.006,0.011,1,5);g.translate(0,0.5,0);const acc=Acc();addGeo(acc,g,null,(x,y)=>mixc([0.36,0.32,0.26],[0.58,0.54,0.46],y));return finishGeo(acc);})();
+const pneus=new THREE.InstancedMesh(pneuGeo,urchinMat,500);pneus.frustumCulled=false;pneus.count=0;scene.add(pneus);
+/* oysters on the roots near the waterline */
+const oysterGeo=(()=>{const g=new THREE.SphereGeometry(1,8,5),P=g.attributes.position;for(let i=0;i<P.count;i++){const x=P.getX(i),y=P.getY(i),z=P.getZ(i);P.setXYZ(i,x*(1+0.2*Math.sin(z*5)),y*0.35,z*1.3);}
+  g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,(x,y,z)=>mixc([0.55,0.52,0.46],[0.75,0.72,0.66],0.5+0.5*Math.sin(x*12+z*9)));return finishGeo(acc);})();
+const oysters=new THREE.InstancedMesh(oysterGeo,urchinMat,260);oysters.frustumCulled=false;oysters.count=0;scene.add(oysters);
+
+/* ---- seagrass: one strap per instance; per-instance yaw and length let the shader bend every blade
+   the same way in world space with the waves and the current ---- */
+function sgBladeGeo(curl,width){const g=new THREE.PlaneGeometry(1,1,1,10);g.translate(0,0.5,0);const P=g.attributes.position;
+  for(let i=0;i<P.count;i++){const y=P.getY(i);P.setX(i,P.getX(i)*width*(1-0.55*Math.pow(y,3)));P.setZ(i,curl*y*y);}g.computeVertexNormals();
+  const acc=Acc();addGeo(acc,g,null,(x,y)=>mixc([0.22,0.36,0.14],[0.42,0.48,0.22],Math.pow(y,1.5)));                 /* paler, epiphyte-dusted tips */
+  const out=finishGeo(acc);return out;}
+const SG_V='attribute float aYaw; attribute float aLen; attribute float aPh;';
+const SG_B=`{ float t=position.y, cy=cos(aYaw), sy=sin(aYaw);
+  vec2 w=uFlow*0.32+vec2(0.09*sin(uTime*1.6+aPh),0.06*cos(uTime*1.2+aPh*1.7));
+  vec2 l=vec2(cy*w.x-sy*w.y, sy*w.x+cy*w.y);                    /* world bend rotated into the blade's own frame */
+  float k=t*t*min(aLen,1.2);
+  transformed.x+=l.x*k; transformed.z+=l.y*k; transformed.y*=1.0-0.25*dot(w,w)*t; }`;
+function seagrassMesh(key,n,curl,width){
+  const g=sgBladeGeo(curl,width);['aYaw','aLen','aPh'].forEach(a=>g.setAttribute(a,new THREE.InstancedBufferAttribute(new Float32Array(n),1)));
+  const m=new THREE.InstancedMesh(g,waterify(lambert({side:THREE.DoubleSide}),key,{vHead:SG_V,vBegin:SG_B,defines:{CAUSTICS:''}}),n);
+  m.frustumCulled=false;m.count=0;m.userData.width=width;scene.add(m);return m;}
+const enhalus=seagrassMesh('enhalus',6500,0.04,0.016),thalassia=seagrassMesh('thalassia',11000,0.12,0.009);
+function plantBlades(m,n,lenR,clump,dens){
+  const yaw=m.geometry.attributes.aYaw.array,len=m.geometry.attributes.aLen.array,ph=m.geometry.attributes.aPh.array;let k=0;
+  for(let tries=0;tries<n*6&&k<n;tries++){const x=R(MANG.bankX,12),z=R(-11,11);if(rnd()>dens(x,z))continue;
+    const c=Math.floor(R(clump[0],clump[1]+1)),base=rnd()*6.28;
+    for(let j=0;j<c&&k<n;j++){const L=R(lenR[0],lenR[1]),yw=base+R(-0.6,0.6),bx=x+R(-0.03,0.03),bz=z+R(-0.03,0.03);
+      _q.setFromEuler(_e.set(R(-0.12,0.12),yw,R(-0.12,0.12)));_s.set(1,L,1);_p.set(bx,mangFloor(bx,bz)-0.01,bz);_m.compose(_p,_q,_s);m.setMatrixAt(k,_m);
+      yaw[k]=yw;len[k]=L;ph[k]=rnd()*6.28+bx*0.7;k++;}}
+  m.count=k;m.instanceMatrix.needsUpdate=true;['aYaw','aLen','aPh'].forEach(a=>m.geometry.attributes[a].needsUpdate=true);
+}
+/* Enhalus male flowers floating at the surface */
+const flowerGeo=(()=>{const acc=Acc();addGeo(acc,new THREE.SphereGeometry(1,6,4),M4(0,0,0,0,0,0,1,0.5,1),()=>[0.95,0.94,0.9]);return finishGeo(acc);})();
+const flowers=new THREE.InstancedMesh(flowerGeo,urchinMat,320);flowers.frustumCulled=false;flowers.count=0;scene.add(flowers);
+const flowerP=new Float32Array(320*2);
+
+/* ---- seahorse (Hippocampus kuda), ~14 cm: curled tail, upright trunk, head bent forward with a tube snout ---- */
+const seahorseGeo=(()=>{
+  const spine=s=>{if(s<0.35){const a=(0.35-s)/0.35*5.2;const r=0.03*(0.35-s)/0.35+0.012;return[0,-0.045-r*Math.sin(a)+0.012,0.012+r*(Math.cos(a)-1)+0.02*(0.35-s)];}
+    if(s<0.8){const u=(s-0.35)/0.45;return[0,-0.04+u*0.09,0.02*Math.sin(u*Math.PI)*-1];}
+    const u=(s-0.8)/0.2;return[0,0.05+0.02*Math.sin(u*1.4),0.02*u+0.035*u*u];};
+  const rad=s=>s<0.35?0.003+0.009*(s/0.35):s<0.8?0.012+0.008*Math.sin((s-0.35)/0.45*Math.PI):0.011*(1-0.6*sstep(0.9,1,s))+0.003;
+  const acc=Acc();
+  addColored(acc,loftGeo(70,10,(a,b)=>{const p=spine(a),ph=b*6.283,r=rad(a),q=spine(Math.min(1,a+0.01)),dy=q[1]-p[1],dz=q[2]-p[2],dl=Math.hypot(dy,dz)||1;
+    const ny=-dz/dl,nz=dy/dl;const x=r*Math.cos(ph)*0.8,yy=p[1]+ny*r*Math.sin(ph)*(1+0.15*Math.sin(a*120)),zz=p[2]+nz*r*Math.sin(ph)*(1+0.15*Math.sin(a*120));
+    return[x,yy,zz,...mixc([0.62,0.5,0.28],[0.38,0.28,0.16],0.5+0.5*Math.sin(a*90))];}));
+  const hd=spine(0.97);addGeo(acc,new THREE.CylinderGeometry(0.0035,0.004,0.035,6),M4(0,hd[1]+0.004,hd[2]+0.02,Math.PI/2.4),()=>[0.5,0.38,0.22]);  /* snout */
+  addGeo(acc,new THREE.ConeGeometry(0.005,0.012,5),M4(0,spine(0.86)[1]+0.012,spine(0.86)[2]-0.004),()=>[0.55,0.42,0.24]);                     /* coronet */
+  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.003,6,4),M4(sg*0.007,spine(0.93)[1]+0.002,spine(0.93)[2]),()=>[0.05,0.05,0.04]);
+  addGeo(acc,triGeo([0,-0.01,-0.012, 0,0.01,-0.024, 0,0.025,-0.016]),null,()=>[0.66,0.58,0.4]);                                             /* dorsal fin */
+  return finishGeo(acc);})();
+const seahorses=[];
+for(let i=0;i<4;i++){const m=new THREE.Mesh(seahorseGeo,waterify(lambert({side:THREE.DoubleSide}),'seahorse'));m.visible=false;scene.add(m);regPick(m,'seahorse');seahorses.push(m);}
+/* ---- upside-down jellyfish (Cassiopea): bell on the mud, frilly oral arms up; pulses slowly ---- */
+const cassioGeo=(()=>{const acc=Acc();
+  addColored(acc,loftGeo(10,24,(a,b)=>{const ph=b*6.283,r=0.1*Math.sin(Math.PI*0.5*Math.min(1,a*1.05))+0.002;const rim=1+0.06*Math.sin(ph*16)*sstep(0.8,1,a);
+    return[r*rim*Math.cos(ph),0.012*(1-a*a),r*rim*Math.sin(ph),...mixc([0.5,0.46,0.3],[0.62,0.6,0.42],sstep(0.7,1,a))];}));
+  for(let k=0;k<8;k++){const a=k/8*6.283;for(let j=0;j<4;j++){const r=0.015+j*0.016,h=0.012+0.018*j*(1-j/5);
+    addGeo(acc,new THREE.SphereGeometry(0.013-j*0.002,6,4),M4(Math.cos(a)*r,h,Math.sin(a)*r,0,a,0,1,0.7,1.2),()=>(j%2?[0.42,0.5,0.34]:[0.55,0.6,0.62]));}}
+  return finishGeo(acc);})();
+const cassioMat=waterify(lambert(),'cassio',{vHead:'',vBegin:'{ float ph=instanceMatrix[3].x*3.1+instanceMatrix[3].z*1.7; float p=0.5+0.5*sin(uTime*2.6+ph); transformed.xz*=1.0+0.08*p*smoothstep(0.05,0.1,length(position.xz)); }'});
+const cassios=new THREE.InstancedMesh(cassioGeo,cassioMat,10);cassios.frustumCulled=false;cassios.count=0;scene.add(cassios);
+
+regPick(mangRoots,'rhizophora');regPick(mangCanopy,'rhizophora');regPick(pneus,'avicennia');regPick(oysters,'oyster');regPick(enhalus,'enhalus');regPick(thalassia,'thalassia');
+regPick(flowers,'enhalus_flower');regPick(cassios,'cassiopea');regPick(mangMud,'mang_mud');
+function buildMangrove(on){
+  MANG.on=on;mangOn=on;[mangMud,mangRoots,mangCanopy].forEach(m=>m.visible=on);seahorses.forEach(m=>m.visible=on);
+  if(!on){pneus.count=oysters.count=enhalus.count=thalassia.count=flowers.count=cassios.count=0;return;}
+  paintMang();
+  if(MANG.rootD!==S.D){mangRoots.geometry.dispose();mangRoots.geometry=makeRootGeo();MANG.rootD=S.D;}
+  let k=0;for(let i=0;i<500;i++){const t=mangTrees[i%mangTrees.length],a=rnd()*6.28,r=R(2.2,5),x=t[0]+Math.cos(a)*r,z=t[1]+Math.sin(a)*r;if(x>MANG.bankX+1.2)continue;
+    _q.setFromEuler(_e.set(R(-0.08,0.08),0,R(-0.08,0.08)));_s.set(1,R(0.12,0.3),1);_p.set(x,mangFloor(x,z)-0.02,z);_m.compose(_p,_q,_s);pneus.setMatrixAt(k++,_m);}
+  pneus.count=k;pneus.instanceMatrix.needsUpdate=true;
+  /* oysters along the roots between ~0.15 and 0.75 m below the surface */
+  const rp=mangRoots.geometry.attributes.position;k=0;for(let i=0;i<20000&&k<260;i++){const q=Math.floor(rnd()*rp.count);const y=rp.getY(q);if(y>-0.15||y<-0.75)continue;
+    _q.setFromEuler(_e.set(rnd()*6,rnd()*6,rnd()*6));_s.setScalar(R(0.02,0.035));_p.set(rp.getX(q),y,rp.getZ(q));_m.compose(_p,_q,_s);oysters.setMatrixAt(k++,_m);}
+  oysters.count=k;oysters.instanceMatrix.needsUpdate=true;
+  plantBlades(enhalus,6500,[0.35,1.1],[3,6],(x,z)=>meadow(x,z)*0.95);
+  plantBlades(thalassia,11000,[0.1,0.3],[2,4],(x,z)=>Math.max(meadow(x,z)*0.7,sstep(MANG.bankX+1,MANG.bankX+4,x)*0.45));
+  k=0;for(let i=0;i<320;i++){const x=R(MANG.bankX+1,16),z=R(-16,16);flowerP[i*2]=x;flowerP[i*2+1]=z;k++;}flowers.count=k;
+  k=0;for(let i=0;i<10;i++){let x,z,n=0;do{x=R(MANG.bankX+0.8,8);z=R(-7,7);n++;}while(meadow(x,z)>0.3&&n<40);
+    _q.setFromEuler(_e.set(0,rnd()*6.28,0));_s.setScalar(R(0.8,1.3));_p.set(x,mangFloor(x,z)+0.005,z);_m.compose(_p,_q,_s);cassios.setMatrixAt(k++,_m);}
+  cassios.count=k;cassios.instanceMatrix.needsUpdate=true;
+  seahorses.forEach((m,i)=>{let x,z,n=0;do{x=R(MANG.bankX+2,7);z=R(-5,5);n++;}while(meadow(x,z)<0.6&&n<60);m.userData={x,z,y:mangFloor(x,z)+R(0.12,0.3),ph:rnd()*6,yaw:rnd()*6.28};m.scale.setScalar(R(0.9,1.15));});
+  stepMangrove(0,0);
+}
+function stepMangrove(dt,t){
+  if(!MANG.on)return;
+  /* floating male flowers drift with the current and the waves, wrapping round the meadow */
+  for(let i=0;i<flowers.count;i++){let x=flowerP[i*2],z=flowerP[i*2+1];orbital(x,-0.05,t,_u);x+=(_u.x*0.25+CUR.x*S.cur)*dt;z+=(_u.z*0.25+CUR.z*S.cur)*dt;
+    if(x>16)x=MANG.bankX+1;if(x<MANG.bankX+1)x=16;if(z>16)z=-16;if(z<-16)z=16;flowerP[i*2]=x;flowerP[i*2+1]=z;
+    _q.identity();_s.setScalar(0.006);_p.set(x,-0.015+0.01*Math.sin(t*2+i),z);_m.compose(_p,_q,_s);flowers.setMatrixAt(i,_m);}
+  flowers.instanceMatrix.needsUpdate=true;
+  /* seahorses hold on and sway with the seagrass */
+  seahorses.forEach(m=>{const u=m.userData;const sw=0.06*U.uFlow.value.x+0.04*Math.sin(t*1.3+u.ph);
+    m.position.set(u.x+sw*0.15,u.y,u.z);m.rotation.set(0.1*Math.sin(t*0.9+u.ph),u.yaw+0.2*Math.sin(t*0.3+u.ph),sw);});
+}
+const MANG_INFO={
+  enhalus_flower:['海菖蒲的雄花','直径约几毫米 · 漂在水面上','海菖蒲是开花植物。雄花成熟后脱离植株浮上水面，像一粒粒白色小泡沫随水漂动；雌花长在长柄上伸到水面，两者在水面相遇完成授粉。','新村潟湖'],
+  mang_mud:['潟湖软泥','细颗粒淤泥 · 富含有机质','红树林和海草的叶片落下、腐烂，连同潮水带来的细泥一起沉积下来，把大量碳埋进泥里，几百上千年都不会释放。那些小洞是蟹和蠕虫的洞穴，白色碎屑是贝壳。','新村潟湖']
+};
+Object.assign(CHIM_INFO,MANG_INFO);
+CAT.push(['enhalus','海菖蒲','Enhalus acoroides','潮间带至约 4 m'],['thalassia','泰来草','Thalassia hemprichii','潮间带至浅海'],
+  ['rhizophora','红海榄','Rhizophora stylosa','红树林 · 潮间带'],['avicennia','白骨壤','Avicennia marina','红树林 · 潮间带'],
+  ['oyster','牡蛎','Ostreidae','潮间带 · 红树林根上'],['seahorse','大海马','Hippocampus kuda','海草床 · 浅海'],['cassiopea','仙后水母（倒立水母）','Cassiopea','红树林与海草床浅水']);
+CAT.slice(-7).forEach(c=>CATMAP[c[0]]=c);
+Object.assign(FACTS,{
+  enhalus:'世界上最大的海草之一，带状叶片长 30–150 cm，靠粗壮的地下茎扎在软泥里抵御风浪和潮流。',
+  thalassia:'叶片较短而弯，常和海菖蒲混生。海草不是海藻，而是从陆地回到海里的开花植物，有根、茎、叶，靠地下茎在泥里蔓延。',
+  rhizophora:'一根根弯曲的支柱根把树干撑在潮间带的软泥上，也挡住了风浪。根间是小鱼小虾躲避捕食者的“育儿所”。',
+  avicennia:'从泥里竖起一根根铅笔似的呼吸根，在缺氧的淤泥里给根系通气。',
+  oyster:'附着在被潮水淹没的根和石头上，靠过滤海水里的浮游生物为生，同时帮助净化水质。',
+  seahorse:'用尾巴缠住海草，靠伪装和吸管一样的嘴吸食小型甲壳动物。海马由雄性的育儿袋孵育后代。',
+  cassiopea:'倒着躺在泥上、口腕朝上，因为体内共生的藻类要晒太阳进行光合作用；被惊扰时会放出带刺细胞的黏液。'
+});
+SPECIES.push(['enhalus','海菖蒲'],['thalassia','泰来草'],['rhizophora','红海榄'],['avicennia','白骨壤'],['oyster','牡蛎'],['seahorse','大海马'],['cassiopea','倒立水母']);
 /* =========================================================
    14s. Free piloting: a tethered ROV (or a diver) under thrust and water drag.
    Thrust ~0.9 m/s², quadratic drag gives a top speed of ~1 m/s (typical small ROV / swimming diver).
@@ -3599,7 +3783,7 @@ $('pxReset').addEventListener('click',()=>{cancelAnimationFrame(PX.anim);PX.minV
    trenches are averaged shallower than they really are (Mariana: ~9,000 m here vs 10,935 m measured).
    ========================================================= */
 const MAP={W:1080,H:540,h:null,img:null,sel:[],prof:null};
-const SITE_LL={abyss:[12,-125],xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
+const SITE_LL={mangrove:[18.42,109.97],abyss:[12,-125],xisha:[16.5,111.6],spawn:[18.2,109.5],bluehole:[16.52,111.77],slope:[20.2,115.5],deep:[16.7,110.5],monterey:[36.6,-121.9],whalefall:[36.6,-122.4],
   eilat:[29.5,34.95],brine:[27.7,-91.3],vent:[-37.8,49.65],dvm:[22.75,-158],ice:[-77.8,166.6],rost:[67.5,9.4],truk:[7.4,151.8],dive:[13.4,144.7],replay:[11.37,142.59]};
 function mapDecode(){if(MAP.h)return;const b=atob(window.ETOPO_B64),n=b.length,h=new Float32Array(n);for(let i=0;i<n;i++)h[i]=b.charCodeAt(i)/255*15400-9100;MAP.h=h;}
 function mapH(lat,lon){const fr=Math.max(0,Math.min(MAP.H-1.001,(89.8333-lat)*3)),fc=(lon+179.8333)*3,r=Math.floor(fr),c=Math.floor(fc),tr=fr-r,tc=fc-c,W=MAP.W,cc=k=>((k%W)+W)%W,h=MAP.h;
@@ -3911,6 +4095,7 @@ $('vrXR').addEventListener('click',enterXR);
    ========================================================= */
 const TOUR_STOPS=[
   {l:'xisha',n:'s01_xisha',d:20,t:'海洋覆盖地球 71% 的表面',s:'导览从南海西沙 10 m 深的珊瑚礁出发。珊瑚礁只占海底面积不到 1%，却养活了约四分之一的海洋物种。'},
+  {l:'mangrove',n:'s01b_mangrove',d:20,t:'海草床与红树林',s:'海南陵水新村潟湖。红树林的支柱根是小鱼的育幼场，海草随波摆动。海草床只占海底约 0.2%，却储存了海洋约 10% 的碳。'},
   {l:'monterey',n:'s02_monterey',d:18,t:'巨藻林：海底的森林',s:'加州蒙特雷湾的冷水上升流带来养分，巨藻长成十几米高的森林，随涌浪整片摆动。'},
   {l:'truk',n:'s03_truk',d:20,t:'沉船变成的鱼礁',s:'富士川丸 1944 年沉没，八十年后船身已被软珊瑚和鱼群占据。十几米深处，红光已被海水吸收，一切都偏蓝绿。'},
   {l:'ice',n:'s04_ice',d:20,t:'南极海冰之下',s:'水温 −1.9 °C，海水因为含盐而不结冰。头顶两米厚的海冰只透下百分之几的阳光，冰底的冰藻是南大洋食物链的起点。'},
@@ -4072,7 +4257,7 @@ function frame(now){
   for(const k in JELLY)stepJelly(JELLY[k],dt,t);
   stepMantas(dt,t);stepTurtles(dt,t);stepAnglers(dt,t);
   for(const k in DRIFT)stepDrift(DRIFT[k],dt,t);
-  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);
+  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);
   if(infoT>0){infoT-=rdt;if(infoT<=0)$('info').hidden=true;}
   discT+=rdt;if(discT>0.5){discT=0;checkDiscover();if(SPN.on){spawnNote();readouts();}}stepToast(rdt);
   FANS.forEach(m=>{if(!m.visible)return;const u=m.userData;m.rotation.set(0.12*(U.uFlow.value.x*Math.sin(u.yaw)+U.uFlow.value.y*Math.cos(u.yaw))*0.5+0.03*Math.sin(t*0.8+u.ph),u.yaw,0);});
@@ -4084,7 +4269,7 @@ function frame(now){
   expo+=(target-expo)*Math.min(1,rdt*2);renderer.toneMappingExposure=expo*0.9;
   if(wbPass){let g=[1,1,1];
     if(S.adapt&&!S.night&&z<200){const a=[0,1,2].map(i=>light(z,i)*Math.exp(-OPT.c[i]*3)),m=(a[0]+a[1]+a[2])/3;
-      g=a.map(v=>Math.min(5,Math.max(0.5,Math.pow(m/Math.max(v,1e-6),0.5))));const n=(g[0]*a[0]+g[1]*a[1]+g[2]*a[2])/(a[0]+a[1]+a[2]);g=g.map(v=>Math.min(2.4,v/n));}
+      g=a.map(v=>Math.min(5,Math.max(0.5,Math.pow(m/Math.max(v,1e-6),0.5))));const n=(g[0]*a[0]+g[1]*a[1]+g[2]*a[2])/(a[0]+a[1]+a[2]);g=g.map(v=>Math.min(2.4,v/n));if(MANG.on)g=g.map(v=>1+(v-1)*0.35);}   /* keep the lagoon's green cast, as the eye sees it */
     if(S.torch==='blue'&&(S.night||z>=200))g=[1.15,1.1,0.22];
     {/* deep white lamps: the camera balances to its own lamps over ~2 m of water each way, as on an ROV (applied to lamp-lit light only, the water stays dark blue) */
       let tw=[1,1,1];if(S.torch==='white'&&z>=200){tw=[0,1,2].map(i=>Math.exp(OPT.c[i]*4.0));const n=0.3*tw[0]+0.59*tw[1]+0.11*tw[2];tw=tw.map(v=>Math.min(3.5,v/n));}

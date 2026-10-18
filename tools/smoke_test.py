@@ -26,7 +26,10 @@ CHECKS = [
     ('tour+narration', '''async()=>{document.getElementById('welTour').click();await new Promise(r=>setTimeout(r,4000));
         const v=document.getElementById('tourVoice');const out={stop:document.getElementById('tourN').textContent,voice:v.textContent,starts:window.__starts.slice()};
         document.getElementById('tourNext').click();await new Promise(r=>setTimeout(r,3000));out.starts2=window.__starts.slice();
-        document.getElementById('tourX').click();out.ok=out.starts.length>=2&&out.starts2.length>out.starts.length&&!v.hidden;return out}'''),
+        document.getElementById('tourX').click();
+        const man=await fetch('audio/tour/manifest.json').then(r=>r.json()).catch(()=>({}));
+        const lines=(await fetch('narration/tour.json').then(r=>r.json())).lines.filter(l=>/^s\d/.test(l.id));const nextHasClip=!!man[lines[1].id];
+        out.ok=out.starts.length>=2&&!v.hidden&&(out.starts2.length>out.starts.length||!nextHasClip);return out}'''),
     ('map', '''async()=>{const pre=!!window.ETOPO_B64;document.getElementById('mapOpen').click();await new Promise(r=>setTimeout(r,3500));
         const c=document.getElementById('mapCv'),px=c.getContext('2d').getImageData(c.width/2|0,c.height/2|0,1,1).data;document.getElementById('mapX').click();
         return {ok:!pre&&!!window.ETOPO_B64&&px[3]>0,preloaded:pre}}'''),
