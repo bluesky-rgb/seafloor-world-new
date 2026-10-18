@@ -39,7 +39,7 @@ function stepPilot(rdt,t){
   if(dh>PILOT.tether){p.x=PILOT.home.x+dx/dh*PILOT.tether;p.z=PILOT.home.z+dz/dh*PILOT.tether;const vr=(PILOT.v.x*dx+PILOT.v.z*dz)/dh;if(vr>0){PILOT.v.x-=vr*dx/dh;PILOT.v.z-=vr*dz/dh;}PILOT.warn=2;}
   /* bottom, surface or ice */
   const fy=floorY(p.x,p.z)+0.5;if(p.y<fy){p.y=fy;if(PILOT.v.y<0)PILOT.v.y=0;}
-  const top=ICE.on?-ICE.h-0.5:-0.4;if(p.y>top){p.y=top;if(PILOT.v.y>0)PILOT.v.y=0;}
+  const top=ICE.on?-ICE.h-0.5:underArcIce(p.x-0.4,p.z)?-ARC.h-0.4:-0.4;if(p.y>top){p.y=top;if(PILOT.v.y>0)PILOT.v.y=0;}
   if(brineOn&&brineQ(p.x,p.z)<1.02&&p.y<BR.base+BR.L+0.3){p.y=BR.base+BR.L+0.3;if(PILOT.v.y<0)PILOT.v.y=0;}
   camera.position.copy(p);_pa.copy(p).add(pilotDir(_pd));camera.lookAt(_pa);controls.target.copy(p).addScaledVector(_pd,4);
   PILOT.hudT+=rdt;if(PILOT.hudT>0.2){PILOT.hudT=0;

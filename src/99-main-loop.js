@@ -24,7 +24,7 @@ function frame(now){
   if(VR.on)stepVR(rdt);else if(PILOT.on)stepPilot(rdt,t);else controls.update();
   stepMissions(rdt);stepStir(rdt);
   const fy=floorY(camera.position.x,camera.position.z)+0.4;
-  camera.position.y=Math.min(Math.max(camera.position.y,fy),ICE.on?-ICE.h-0.5:-0.3);
+  camera.position.y=Math.min(Math.max(camera.position.y,fy),ICE.on?-ICE.h-0.5:underArcIce(camera.position.x-0.4,camera.position.z)?-ARC.h-0.4:-0.3);
   if(brineOn&&brineQ(camera.position.x,camera.position.z)<1.05)camera.position.y=Math.max(camera.position.y,BR.base+BR.L+0.3);
   U.uTime.value=t;U.uCamDepth.value=-camera.position.y;U.uCamPos.value.copy(camera.position);camera.getWorldDirection(U.uCamDir.value);
   sky.position.copy(camera.position);
@@ -34,7 +34,7 @@ function frame(now){
   for(const k in JELLY)stepJelly(JELLY[k],dt,t);
   stepMantas(dt,t);stepTurtles(dt,t);stepAnglers(dt,t);
   for(const k in DRIFT)stepDrift(DRIFT[k],dt,t);
-  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);
+  stepGiants(dt,t);audioUpdate(dt,t);stepWhaleFall(dt,t);stepVent(dt,t);stepBrine(dt,t);stepBH(dt,t);stepSpawn(rdt,t);stepAbyss(dt,t);stepMangrove(dt,t);stepArctic(dt,t);
   if(infoT>0){infoT-=rdt;if(infoT<=0)$('info').hidden=true;}
   discT+=rdt;if(discT>0.5){discT=0;checkDiscover();if(SPN.on){spawnNote();readouts();}}stepToast(rdt);
   FANS.forEach(m=>{if(!m.visible)return;const u=m.userData;m.rotation.set(0.12*(U.uFlow.value.x*Math.sin(u.yaw)+U.uFlow.value.y*Math.cos(u.yaw))*0.5+0.03*Math.sin(t*0.8+u.ph),u.yaw,0);});

@@ -6,7 +6,8 @@ const U={
   uCamDepth:{value:5},uTime:{value:0},uCaustAmp:{value:1},uRipAmp:{value:0},uRipL:{value:0.3},uRipDir:{value:new THREE.Vector2(1,0)},
   uSunDir:{value:new THREE.Vector3(0,1,0)},uScale:{value:800},uSky:{value:1},uDay:{value:1},
   uTorch:{value:0},uTorchCol:{value:new THREE.Vector3(1,0.95,0.85)},uTorchWB:{value:new THREE.Vector3(1,1,1)},uCamDir:{value:new THREE.Vector3(0,0,-1)},
-  uFlow:{value:new THREE.Vector2()},uCamPos:{value:new THREE.Vector3()},uShaft:{value:0},uDeepFan:{value:0}
+  uFlow:{value:new THREE.Vector2()},uCamPos:{value:new THREE.Vector3()},uShaft:{value:0},uDeepFan:{value:0},
+  uIce:{value:new THREE.Vector4(0,0.03,1.8,0)}   /* Arctic floe edge: edge x, light under the ice, ice thickness, on */
 };
 const WATER_PARS=`
 uniform vec3 uCamPos;
@@ -15,12 +16,19 @@ varying vec3 vWPos;
 uniform vec3 uK; uniform vec3 uC; uniform vec3 uWater; uniform float uCamDepth; uniform float uTime;
 uniform float uCaustAmp; uniform float uRipAmp; uniform float uRipL; uniform vec2 uRipDir;
 uniform float uSky; uniform float uDay; uniform float uTorch; uniform vec3 uTorchCol; uniform vec3 uTorchWB; uniform vec3 uCamDir; uniform vec3 uSunDir;
+uniform vec4 uIce;
 vec3 lightAt(float d){ return exp(-uK*max(d,0.0)); }
 float angF(float mu){ return mix(0.35,1.6,smoothstep(-0.6,1.0,mu)); }
-vec3 bgCol(vec3 dir){ return uWater*lightAt(uCamDepth)*angF(dir.y)*uSky; }
+/* floe edge: under the ice only uIce.y of the light gets through; near the edge light spreads in sideways, more so deeper down */
+float iceEdge(float z){ return uIce.x+0.8*sin(z*0.23+0.7)+0.35*sin(z*0.71+2.1)+0.15*sin(z*1.9); }
+float iceSh(vec3 p){ if(uIce.w<0.5) return 1.0; float de=iceEdge(p.z)-p.x; float L=1.0+0.8*max(-p.y-uIce.z,0.0); return mix(uIce.y,1.0,exp(-max(de,0.0)/L)); }
+float iceBg(vec3 dir){ if(uIce.w<0.5) return 1.0; float e=iceEdge(cameraPosition.z)-cameraPosition.x; float de=e-7.0*dir.x*(1.0-abs(dir.y));
+  float up=step(0.0,e)*max(dir.y,0.0);   /* looking up from under the ice: the view ends on the ice a short way off */
+  return mix(uIce.y*3.0,1.0,exp(-max(de,0.0)/3.5))*(1.0-0.75*up); }
+vec3 bgCol(vec3 dir){ return uWater*lightAt(uCamDepth)*angF(dir.y)*uSky*iceBg(dir); }
 vec3 waterPath(vec3 col, vec3 wp){
   vec3 v=wp-cameraPosition; float dist=length(v); vec3 T=exp(-uC*dist);
-  return col*lightAt(-wp.y)*T + bgCol(v/max(dist,1e-4))*(1.0-T);
+  return col*lightAt(-wp.y)*iceSh(wp)*T + bgCol(v/max(dist,1e-4))*(1.0-T);
 }
 vec3 torchAt(vec3 wp, float ndl){
   vec3 v=wp-cameraPosition; float d=max(length(v),1e-3);
@@ -41,7 +49,7 @@ const WATER_FRAG=(lit,emit)=>`
 {
 #ifdef CAUSTICS
   { float dO=max(-vWPos.y,0.0); float ca=caustic(vWPos.xz/2.2,uTime*0.55);
-    gl_FragColor.rgb*=1.0+uCaustAmp*uDay*exp(-dO/7.0)*ca*2.2*smoothstep(0.0,0.6,vWNrm.y); }
+    gl_FragColor.rgb*=1.0+uCaustAmp*uDay*exp(-dO/7.0)*ca*2.2*smoothstep(0.0,0.6,vWNrm.y)*(uIce.w<0.5?1.0:step(iceEdge(vWPos.z),vWPos.x)); }
 #endif
 #ifdef RIPPLES
   { float rs=dot(vWPos.xz,uRipDir); float rq=dot(vWPos.xz,vec2(-uRipDir.y,uRipDir.x));

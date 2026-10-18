@@ -40,7 +40,8 @@ function stepBubbles(dt,t){
   for(let i=0;i<NB;i++){const b=bubbles[i];
     if(b.on){const r=b.r0*Math.cbrt(b.P0/pressure(-b.y)),v=riseSpeed(r);orbital(b.x,b.y,t,_u);
       const wob=r>9e-4?Math.min(1,(r-9e-4)/2e-3)*0.06:0;b.ph+=dt*2*Math.PI*6;
-      if(ICE.on&&b.y>=top){b.y=top;b.stuck=(b.stuck||0)+dt;if(b.stuck>25){b.on=false;b.stuck=0;}}else{b.y+=(v+_u.y)*dt;b.x+=(_u.x+Math.cos(b.ph)*wob)*dt;b.z+=(_u.z+Math.sin(b.ph)*wob)*dt;if(b.y>top){if(ICE.on){b.y=top;b.stuck=0.001;}else b.on=false;}}
+      const ic=ICE.on||underArcIce(b.x,b.z),tp=ICE.on||!ic?top:-ARC.h-0.03;
+      if(ic&&b.y>=tp){b.y=tp;b.stuck=(b.stuck||0)+dt;if(b.stuck>25){b.on=false;b.stuck=0;}}else{b.y+=(v+_u.y)*dt;b.x+=(_u.x+Math.cos(b.ph)*wob)*dt;b.z+=(_u.z+Math.sin(b.ph)*wob)*dt;if(b.y>tp){if(ic){b.y=tp;b.stuck=0.001;}else b.on=false;}}
       bub.pos[i*3]=b.x;bub.pos[i*3+1]=b.y;bub.pos[i*3+2]=b.z;bub.size[i]=b.on?2*r*3:0;}else bub.size[i]=0;}
   bub.g.attributes.position.needsUpdate=true;bub.g.attributes.aSize.needsUpdate=true;
 }
@@ -118,6 +119,7 @@ function stepRays(dt,t){
     if(sx>RR)rayX[i]-=2*RR;if(sx<-RR)rayX[i]+=2*RR;if(sz>RR)rayZ[i]-=2*RR;if(sz<-RR)rayZ[i]+=2*RR;
     let tx=rayX[i]+sd.x/sd.y*camD,tz=rayZ[i]+sd.z/sd.y*camD;
     if(ICE.on){const a=i*2.39996,rr=ICE.hr*0.7*Math.sqrt((i%7+0.5)/7);tx=ICE.hx+Math.cos(a)*rr;tz=ICE.hz+Math.sin(a)*rr;rayW[i]=0.7+0.25*(i%3);}
+    if(ARC.on){const e=arcEdge(tz)+0.4;if(tx<e)tx=2*e-tx;}
     _ax.copy(sd);_fw.set(c.x-tx,0,c.z-tz);_side.crossVectors(_ax,_fw).normalize();if(_side.lengthSq()<0.5)_side.set(1,0,0);
     _fw.crossVectors(_side,_ax).normalize();
     _rm.makeBasis(_side.clone().multiplyScalar(rayW[i]),_ax.clone().multiplyScalar(len),_fw);

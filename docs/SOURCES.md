@@ -1,7 +1,14 @@
 # 资料来源
 
-页面中的物理参数、地点和生物资料引用自以下来源（共 55 条）。
+页面中的物理参数、地点和生物资料引用自以下来源（共 62 条）。
 
+- [Arctic Kingdom：什么是浮冰边缘；5 月底到 6 月底一角鲸、白鲸沿冰缘出现，冰厚约 2 m](https://resources.arctickingdom.com/what-is-the-floe-edge)
+- [冰藻：生活在冰底和卤水通道里，最弱能在约 0.02% 的水面光下光合作用；直链藻细丝可长到 1 m](https://en.wikipedia.org/wiki/Ice_algae)
+- [阿尔弗雷德·魏格纳研究所（Kohlbach 等）：北极鳕幼鱼 50–90% 的碳来自冰藻，主要吃冰下端足类](https://www.awi.de/en/about-us/service/press/single-view/when-the-sea-ice-melts-juvenile-polar-cod-may-go-hungry.html)
+- [Boetius 等（Science, 2013）：2012 年直链藻占北冰洋中部初级生产的 45%，融冰后成团沉到深海](https://www.nanowerk.com/news2/green/newsid=29107.php)
+- [WWF 加拿大：一角鲸的长牙、潜水深度，全球约四分之三在加拿大](https://wwf.ca/stories/unicorn-sea-ten-facts-narwhals/)
+- [NOAA Fisheries：白鲸体长、幼崽深灰、颈椎不愈合、“海中金丝雀”](https://www.fisheries.noaa.gov/species/beluga-whale)
+- [NASA 地球观测站：2025 年北极海冰最小面积约 460 万 km²，与 2008 年并列第 10 低](https://earthobservatory.nasa.gov/images/154807/arctic-sea-ice-ties-for-10th-lowest-on-record)
 - [《生物多样性》（2024）：海南各地海草床的种类，新村港为泰来草与海菖蒲](https://www.biodiversity-science.net/CN/10.17520/biods.2023201)
 - [生态环境部：陵水新村湾整治与我国首个海草特别保护区](https://www.mee.gov.cn/home/ztbd/2021/mlhwyxalzjhd/algs/hns2/202109/t20210906_900098.shtml)
 - [新华网（2025）：陵水新村潟湖红树林湿地公园](https://www.news.cn/photo/20250202/5dcc2781380841e7b8deb4db17447276/c.html)

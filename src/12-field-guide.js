@@ -19,7 +19,7 @@ const CAT=[
   ['rimicaris','盲虾','Rimicaris kairei','印度洋热液区'],['kiwa','雪人蟹','Kiwa sp.','热液区'],['scalyfoot','鳞角腹足蜗牛（铁甲蜗牛）','Chrysomallon squamiferum','印度洋热液区'],
   ['giga','盾巨螺','Gigantopelta aegis','西南印度洋热液区'],['ventmussel','印度洋深海偏顶蛤','Bathymodiolus marisindicus','印度洋热液区'],
   ['barnacle','柄藤壶','Neolepas','热液区外圈'],['ventanem','深海海葵','Actinostolidae','热液区外圈'],
-  ['acropora','鹿角珊瑚（产卵中）','Acropora','0–30 m · 每年集体产卵'],['dendro','软珊瑚','Dendronephthya 等','0–50 m · 沉船与礁石'],['baitfish','小型饵鱼群','Atherinidae 等','热带浅海'],['jack','鲹','Caranx','热带浅海'],['lionfish','魔鬼蓑鲉','Pterois volitans','0–50 m · 印度—太平洋'],['lophelia','深水石珊瑚（佩尔图萨珊瑚）','Desmophyllum pertusum','80–3,000 m · 4–12 °C'],['paragorgia','泡泡糖珊瑚','Paragorgia arborea','冷水 · 200–1,300 m'],['redfish','挪威平鲉','Sebastes norvegicus','北大西洋 · 100–1,000 m'],['geodia','球海绵','Geodia','北大西洋深海'],['acesta','大锉蛤','Acesta excavata','冷水珊瑚礁'],['seal','威德尔海豹','Leptonychotes weddellii','南极海冰下'],['icefish','冰鱼（白血鱼）','Channichthyidae','南大洋 · −1.8–2 °C'],['borch','秃南极鱼','Pagothenia borchgrevinki','南极海冰底下'],['icealgae','冰藻','海冰底部的硅藻群落','南极海冰底部'],['odontaster','南极红海星','Odontaster validus','南大洋'],['sterechinus','南极海胆','Sterechinus neumayeri','南大洋'],['pycno','巨型海蜘蛛','Pycnogonida','南大洋海底'],['rossella','南极玻璃海绵','Rossellidae','南大洋'],['childressi','墨西哥湾甲烷贻贝','Bathymodiolus childressi','墨西哥湾冷泉 · 盐池岸边'],['krill','磷虾','Euphausiidae','0–500 m · 每天上下迁移'],['salp','樽海鞘','Salpa aspera','0–800 m · 每天上下迁移'],['amphi','巨型钩虾','Hirondellea gigas','海沟底部'],['holo','超深渊海参','Elpidiidae','海沟底部'],['xeno','巨型单细胞生物','Xenophyophorea','海沟底部']
+  ['acropora','鹿角珊瑚（产卵中）','Acropora','0–30 m · 每年集体产卵'],['dendro','软珊瑚','Dendronephthya 等','0–50 m · 沉船与礁石'],['baitfish','小型饵鱼群','Atherinidae 等','热带浅海'],['jack','鲹','Caranx','热带浅海'],['lionfish','魔鬼蓑鲉','Pterois volitans','0–50 m · 印度—太平洋'],['lophelia','深水石珊瑚（佩尔图萨珊瑚）','Desmophyllum pertusum','80–3,000 m · 4–12 °C'],['paragorgia','泡泡糖珊瑚','Paragorgia arborea','冷水 · 200–1,300 m'],['redfish','挪威平鲉','Sebastes norvegicus','北大西洋 · 100–1,000 m'],['geodia','球海绵','Geodia','北大西洋深海'],['acesta','大锉蛤','Acesta excavata','冷水珊瑚礁'],['seal','威德尔海豹','Leptonychotes weddellii','南极海冰下'],['icefish','冰鱼（白血鱼）','Channichthyidae','南大洋 · −1.8–2 °C'],['borch','秃南极鱼','Pagothenia borchgrevinki','南极海冰底下'],['icealgae','冰藻','海冰底部的硅藻群落','南北极海冰底部'],['odontaster','南极红海星','Odontaster validus','南大洋'],['sterechinus','南极海胆','Sterechinus neumayeri','南大洋'],['pycno','巨型海蜘蛛','Pycnogonida','南大洋海底'],['rossella','南极玻璃海绵','Rossellidae','南大洋'],['childressi','墨西哥湾甲烷贻贝','Bathymodiolus childressi','墨西哥湾冷泉 · 盐池岸边'],['krill','磷虾','Euphausiidae','0–500 m · 每天上下迁移'],['salp','樽海鞘','Salpa aspera','0–800 m · 每天上下迁移'],['amphi','巨型钩虾','Hirondellea gigas','海沟底部'],['holo','超深渊海参','Elpidiidae','海沟底部'],['xeno','巨型单细胞生物','Xenophyophorea','海沟底部']
 ];
 const CATMAP={};CAT.forEach(c=>CATMAP[c[0]]=c);
 const SHARE={live:false,cnt:{},n:0,db:null,uid:null,canWrite:null,sent:'',busy:false,state:''};
@@ -55,7 +55,10 @@ function isSeen(k){
     case'sterechinus':return ICE.on&&H.urchinT&&nearF;
     case'rossella':return ICE.on&&nearF;
     case'pycno':return ICE.on&&nearF;
-    case'icealgae':return ICE.on;
+    case'icealgae':return ICE.on||ARC.on;
+    case'narwhal':return podSeen('narwhal');
+    case'beluga':return podSeen('beluga');
+    case'melosira':return ARC.on&&camera.position.x<arcEdge(camera.position.z)+6&&camera.position.y>-ARC.h-12;
     case'seal':return encSeal.on&&encSeal.pos.distanceTo(c)<seeDist(false)+4;
     default:return !!H[k]&&nearF&&seeDist(false)>(S.D-camZ())+2;
   }
