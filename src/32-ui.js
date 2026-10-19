@@ -92,8 +92,8 @@ function frameCamera(){
   const F=-S.D,deep=S.D>200,dist=deep?7:9.5;
   if(S.loc==='monterey'){controls.target.set(0,F+1.2,0);camera.position.set(4,F+2.4,7);return;}
   if(S.loc==='truk'){const D=TRUK.Hh,b0=floorY0(0,0)-1.5;const tw=(x,y,z)=>{const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return new THREE.Vector3(x*c+z*s,b0+y,-x*s+z*c);};controls.target.copy(tw(36,D+2.5,0));camera.position.copy(tw(22,D+8,16));return;}
-  if(S.loc==='mangrove'){const y=mangFloor(-5.2,0);controls.target.set(-5.6,y+0.5,0);camera.position.set(-2.6,-0.45,1.7);return;}
-  if(S.loc==='nanji'){controls.target.set(-3.6,-0.9,0);camera.position.set(1.0,-0.7,2.6);return;}
+  if(S.loc==='mangrove'){const y=mangFloor(-5.6,-0.5);controls.target.set(-5.8,y+0.45,-0.5);camera.position.set(-2.3,-0.7,2.0);return;}
+  if(S.loc==='nanji'){controls.target.set(-3.9,-0.8,0);camera.position.set(-0.4,-0.9,2.2);return;}
   if(S.loc==='seamount'){const s=SMT.seeps[0],y=smtFloor(s[0],s[1]);controls.target.set(s[0],y+0.1,s[1]);camera.position.set(s[0]+1.3,y+0.9,s[1]+1.5);return;}
   if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
@@ -106,6 +106,7 @@ function frameCamera(){
     controls.target.copy(tg);camera.position.copy(best);return;}
   if(S.loc==='brine'){const y=floorY0(0,BR.zc)+BR.L;controls.target.set(0,y,BR.zc-2.5);camera.position.set(5.0,y+0.9,BR.zc+6.0);return;}
   if(S.loc==='vent'){const y=floorY(0,-1);controls.target.set(0,y+3.6,-1);camera.position.set(3.6,y+4.4,4.2);return;}
+  if(S.loc==='deep'){const F=-S.D;controls.target.set(SEEP.x,F+0.5,SEEP.z);camera.position.set(SEEP.x+2.6,F+1.7,SEEP.z+3.2);return;}
   if(S.loc==='whalefall'){controls.target.set(0,floorY(0,0)+0.3,0.5);camera.position.set(5.2,floorY(0,0)+3.4,5.6);return;}
   controls.target.set(0,F+(deep?1.3:1.5),0);camera.position.set(dist*0.5,F+(deep?2.2:2.9),dist*0.87);
 }

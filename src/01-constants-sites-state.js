@@ -8,8 +8,8 @@ const WATER={
   temperate:{a:[0.370,0.085,0.120], b:[0.17,0.19,0.22]},
   coastal:  {a:[0.420,0.150,0.350], b:[0.60,0.65,0.70]},
   arctic:   {a:[0.355,0.072,0.045], b:[0.07,0.08,0.09]},  /* clear early-season polar water with a little phytoplankton */
-  shelf:    {a:[0.380,0.085,0.110], b:[0.22,0.25,0.28]},  /* East China Sea islands offshore: green-blue, a few metres to ~10 m visibility */
-  lagoon:   {a:[0.450,0.120,0.300], b:[0.35,0.40,0.45]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
+  shelf:    {a:[0.370,0.080,0.100], b:[0.11,0.13,0.15]},  /* East China Sea islands offshore: green-blue, a few metres to ~10 m visibility */
+  lagoon:   {a:[0.430,0.105,0.250], b:[0.17,0.19,0.21]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
 };
 const LOC={
   xisha:   {name:$t('南海西沙群岛珊瑚礁'),D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},

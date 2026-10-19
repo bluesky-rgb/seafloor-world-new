@@ -364,6 +364,7 @@
             <li>展览模式有英文语音讲解：同样由 GitHub Actions 调用 MiniMax 生成，使用英文纪录片风格的男声，讲解词在 narration/tour.en.json</li>
             <li>中文仍是原文：英文译文放在 i18n/en.json，只在英文模式下加载；每次提交会检查是否有新加的中文还没有翻译</li>
             <li>更正：探险任务“到达最深处”的说法改为“至今只有二十多人到过挑战者深渊”</li>
+            <li>画面：海草床和潮间带的海水调清了一些（近岸浑水看得太近），并重新取景；海马冷泉一开场就对准贻贝床和管栖蠕虫</li>
           </ul>
         </div>
         <div>
@@ -830,6 +831,6 @@
 (function(){var l=null;try{var q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
 if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';window.SEAFLOOR_LANG=l;
 if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=c153d686"><\/script>');}})();</script>
-<script src="js/seafloor.js?v=32b32ead"></script>
+<script src="js/seafloor.js?v=fb6fcfb3"></script>
 </body>
 </html>
