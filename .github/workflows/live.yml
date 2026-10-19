@@ -1,0 +1,41 @@
+name: 更新现实海洋数据
+
+# Twice a day: NOAA Coral Reef Watch publishes the previous day's values during the day (US time),
+# NSIDC updates sea ice daily, and the tide forecast covers the next four days.
+on:
+  schedule:
+    - cron: '23 2 * * *'
+    - cron: '23 14 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tools/fetch_live.py', '.github/workflows/live.yml']
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: live-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 下载珊瑚礁热应力、潮汐和海冰数据
+        run: python3 tools/fetch_live.py
+      - name: 提交数据
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add data/live.json
+          if git diff --cached --quiet; then echo "数据没有变化"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update live ocean data"
+          git pull --rebase origin main
+          git push
+          # pushes made with the workflow token may not start a Pages build by themselves
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" >/dev/null || echo "Pages build request failed (the site will update with the next push)"
