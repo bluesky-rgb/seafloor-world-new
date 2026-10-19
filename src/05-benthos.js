@@ -1,23 +1,26 @@
 /* =========================================================
    6. Kelp (buoyant chains in wave/current flow)
    ========================================================= */
-const KN=16,NK=180,KBLADES=NK*(KN-1);
+/* Macrocystis: each holdfast sends up many fronds, with a blade (on a gas bladder) at every node; 5 fronds × 64 holdfasts here */
+const KN=18,NK=320,KBLADES=NK*(KN-1)*2;let NKA=NK;
 const kelpMat=waterify(lambert({side:THREE.DoubleSide}),'kelp',{
   lit:'gl_FragColor.rgb+=diffuseColor.rgb*vec3(1.0,0.8,0.38)*uDay*(0.6+2.6*pow(max(dot(vdir,uSunDir),0.0),2.0));'});
 const bladeGeo=(()=>{const g=new THREE.PlaneGeometry(1,1,1,7);g.translate(0,0.5,0);const p=g.attributes.position;
   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),w=Math.pow(Math.sin(Math.PI*Math.min(1,y*1.05+0.04)),0.6);p.setX(i,x*w);p.setZ(i,0.05*Math.sin(y*26)*Math.abs(x)*2);}
   g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,(x,y)=>mixc([0.55,0.4,0.12],[0.72,0.55,0.18],y));
   addGeo(acc,new THREE.SphereGeometry(0.09,6,4),M4(0,-0.02,0,0,0,0,1,1.5,1),()=>[0.75,0.62,0.25]);return finishGeo(acc);})();
-const stipeGeo=(()=>{const c=new THREE.CylinderGeometry(0.012,0.016,1,5,1,true);c.translate(0,0.5,0);const acc=Acc();addGeo(acc,c,null,()=>[0.45,0.33,0.1]);return finishGeo(acc);})();
+const stipeGeo=(()=>{const c=new THREE.CylinderGeometry(0.014,0.018,1,5,1,true);c.translate(0,0.5,0);const acc=Acc();addGeo(acc,c,null,()=>[0.45,0.33,0.1]);return finishGeo(acc);})();
 const kelp=new THREE.InstancedMesh(bladeGeo,kelpMat,KBLADES);kelp.frustumCulled=false;scene.add(kelp);kelp.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 const stipes=new THREE.InstancedMesh(stipeGeo,kelpMat,NK*(KN-1));stipes.frustumCulled=false;scene.add(stipes);stipes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-const kRoot=[];for(let s=0;s<NK;s+=3){const a=rnd()*6.28,r=1.8+Math.sqrt(rnd())*12;for(let k=0;k<3&&s+k<NK;k++)kRoot.push({x:Math.cos(a)*r+R(-0.15,0.15),z:Math.sin(a)*r+R(-0.15,0.15),tw:rnd()*6.28});}
+const kRoot=[];for(let s=0;s<NK;s+=5){const a=rnd()*6.28,r=1.4+Math.sqrt(rnd())*12.5;for(let k=0;k<5&&s+k<NK;k++)kRoot.push({x:Math.cos(a)*r+R(-0.2,0.2),z:Math.sin(a)*r+R(-0.2,0.2),tw:rnd()*6.28});}
+/* shuffle so a reduced (smooth-mode) count still spreads over the whole forest */
+for(let i=kRoot.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[kRoot[i],kRoot[j]]=[kRoot[j],kRoot[i]];}
 const kP=new Float32Array(NK*KN*3),kQ=new Float32Array(NK*KN*3);
 let kSeg=1,kelpOn=false;
 function buildKelp(on){
   kelpOn=on;kelp.visible=on;stipes.visible=on;if(!on)return;
-  const L=Math.min(S.D*1.2,40);kSeg=L/(KN-1);
-  for(let s=0;s<NK;s++){
+  const L=Math.min(S.D*1.2,40);kSeg=L/(KN-1);NKA=Math.round(NK*Math.max(0.5,PERF.k));
+  for(let s=0;s<NKA;s++){
     const Rt=kRoot[s];let x=Rt.x,y=floorY(Rt.x,Rt.z),z=Rt.z;const dx=Math.cos(Rt.tw),dz=Math.sin(Rt.tw);
     for(let i=0;i<KN;i++){
       if(i>0){if(y+kSeg<-0.06)y+=kSeg;else{x+=dx*kSeg;z+=dz*kSeg;}}
@@ -28,7 +31,7 @@ function buildKelp(on){
 }
 function stepKelp(dt,t){
   if(!kelpOn)return;const fy=-S.D;
-  for(let s=0;s<NK;s++){
+  for(let s=0;s<NKA;s++){
     for(let i=1;i<KN;i++){
       const o=(s*KN+i)*3,px=kP[o],py=kP[o+1],pz=kP[o+2];
       const vx=(px-kQ[o])/dt,vy=(py-kQ[o+1])/dt,vz=(pz-kQ[o+2])/dt;
@@ -54,22 +57,22 @@ const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_qt=new THREE.Quaternion();
 const _kside=new THREE.Vector3(),_bd=new THREE.Vector3(),_tmp=new THREE.Vector3();
 function drawKelp(t){
   if(!kelpOn)return;let n=0,m=0;
-  for(let s=0;s<NK;s++)for(let i=1;i<KN;i++){
+  for(let s=0;s<NKA;s++)for(let i=1;i<KN;i++){
     const a=(s*KN+i-1)*3,b=(s*KN+i)*3;
     _a.set(kP[a],kP[a+1],kP[a+2]);_b.set(kP[b],kP[b+1],kP[b+2]);
     _d.subVectors(_b,_a);const len=_d.length();_d.divideScalar(len||1);
     _q.setFromUnitVectors(UP,_d);_s.set(1,len,1);_m.compose(_a,_q,_s);stipes.setMatrixAt(m++,_m);
     orbital(_b.x,_b.y,t,_u);
-    for(let j=(i&1);j<(i&1)+1;j++){
+    for(let j=0;j<2;j++){
       const ang=kRoot[s].tw+i*2.1+j*Math.PI;
       _tmp.set(Math.cos(ang),0,Math.sin(ang));_kside.crossVectors(_d,_tmp).cross(_d).normalize().negate();
       _bd.copy(_d).multiplyScalar(0.7).addScaledVector(_kside,0.75);_bd.x+=_u.x*1.5;_bd.z+=_u.z*1.5;_bd.normalize();
       _q.setFromUnitVectors(UP,_bd);_qt.setFromAxisAngle(UP,ang);_q.multiply(_qt);
-      const L=0.45+0.25*((s*7+i*3+j)%5)/4;_s.set(0.16,L,0.16);
+      const L=0.5+0.35*((s*7+i*3+j)%5)/4;_s.set(0.15,L,0.15);
       _m.compose(_b,_q,_s);kelp.setMatrixAt(n++,_m);
     }
   }
-  kelp.instanceMatrix.needsUpdate=true;stipes.instanceMatrix.needsUpdate=true;
+  kelp.count=n;stipes.count=m;kelp.instanceMatrix.needsUpdate=true;stipes.instanceMatrix.needsUpdate=true;
 }
 
 /* =========================================================

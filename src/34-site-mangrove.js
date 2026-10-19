@@ -34,22 +34,25 @@ function paintMang(){
 const mangTrees=[];(function(){for(let i=0;i<14;i++)mangTrees.push([R(-9.5,-5.6),-19+i*2.9+R(-0.8,0.8)]);})();
 /* built when the site is entered, so the root ends reach the actual mud at the site's depth */
 function makeRootGeo(){const acc=Acc();rnd();
-  for(const t of mangTrees){const[tx,tz]=t;const n=Math.floor(R(16,24));
+  for(const t of mangTrees){const[tx,tz]=t;const n=Math.floor(R(24,34)*Math.max(0.6,PERF.k));
     for(let k=0;k<n;k++){const a=k/n*6.283+R(-0.2,0.2),rr=R(1.0,2.3),h0=R(0.15,0.9);
       const gx=tx+Math.cos(a)*rr,gz=tz+Math.sin(a)*rr;
       const p0=new THREE.Vector3(tx+Math.cos(a)*0.12,h0,tz+Math.sin(a)*0.12),p2=new THREE.Vector3(gx,mangFloor(gx,gz),gz),p1=new THREE.Vector3(tx+Math.cos(a)*rr*0.55,h0+R(0.3,0.7),tz+Math.sin(a)*rr*0.55);
       const curve=new THREE.QuadraticBezierCurve3(p0,p1,p2);
-      const g=new THREE.TubeGeometry(curve,18,R(0.025,0.04),6,false);
+      const g=new THREE.TubeGeometry(curve,18,R(0.03,0.05),6,false);
       /* sink the end into the mud; colour: bark, with an oyster/barnacle band around the waterline */
       const P=g.attributes.position;for(let q=0;q<P.count;q++){if(Math.hypot(P.getX(q)-gx,P.getZ(q)-gz)<0.15)P.setY(q,P.getY(q)-0.12);}
       /* secondary roots dropping straight down from the arch: the tangle that shelters juvenile fish */
-      for(let s2=0;s2<2;s2++){if(rnd()<0.45)continue;const pt=curve.getPoint(R(0.35,0.7));const fx=pt.x+R(-0.1,0.1),fz=pt.z+R(-0.1,0.1);
+      for(let s2=0;s2<3;s2++){if(rnd()<0.4)continue;const pt=curve.getPoint(R(0.35,0.7));const fx=pt.x+R(-0.1,0.1),fz=pt.z+R(-0.1,0.1);
         const c2=new THREE.LineCurve3(pt,new THREE.Vector3(fx,mangFloor(fx,fz)-0.1,fz));addGeo(acc,new THREE.TubeGeometry(c2,4,R(0.015,0.022),5,false),null,rootCol);}
       addGeo(acc,g,null,rootCol);}
     addGeo(acc,new THREE.CylinderGeometry(0.11,0.14,2.5,8),M4(tx,1.0,tz),()=>[0.24,0.2,0.16]);}
   return finishGeo(acc);}
-function rootCol(x,y,z){const band=sstep(-0.9,-0.6,y-0)*sstep(0.05,-0.15,y);const b=mixc([0.22,0.18,0.14],[0.16,0.13,0.1],0.5+0.5*Math.sin(y*40+x*13));
-  return mixc(b,[0.62,0.58,0.5],band*sstep(0.2,0.7,0.5+0.5*Math.sin(x*60+y*45)*Math.sin(z*55)));}
+/* dark bark above the water; a pale band of oysters and barnacles around the waterline; below it a film of algae, sponges and silt */
+function rootCol(x,y,z){const band=sstep(-0.9,-0.6,y-0)*sstep(0.05,-0.15,y),n=0.5+0.5*Math.sin(x*60+y*45)*Math.sin(z*55);
+  let b=mixc([0.11,0.085,0.065],[0.07,0.055,0.045],0.5+0.5*Math.sin(y*40+x*13));
+  b=mixc(b,mixc([0.16,0.17,0.08],[0.3,0.2,0.1],sstep(0.3,0.8,0.5+0.5*Math.sin(x*23-z*17+y*9))),sstep(-0.55,-0.85,y)*0.75);
+  return mixc(b,[0.5,0.47,0.4],band*0.8*sstep(0.62,0.9,n));}
 const mangRoots=new THREE.Mesh(new THREE.BufferGeometry(),waterify(lambert(),'mangRoot',{defines:{CAUSTICS:''}}));mangRoots.visible=false;scene.add(mangRoots);
 /* the canopy seen from below: a dark mass blocking the sky over the trees */
 const canopyGeo=(()=>{const acc=Acc();for(const t of mangTrees)addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(t[0],0.9,t[1],0,0,0,3.4,0.8,3.4),()=>[0.12,0.18,0.1]);return finishGeo(acc);})();

@@ -380,23 +380,26 @@ function paintRocks(hab){
 /* =========================================================
    6. Kelp (buoyant chains in wave/current flow)
    ========================================================= */
-const KN=16,NK=180,KBLADES=NK*(KN-1);
+/* Macrocystis: each holdfast sends up many fronds, with a blade (on a gas bladder) at every node; 5 fronds × 64 holdfasts here */
+const KN=18,NK=320,KBLADES=NK*(KN-1)*2;let NKA=NK;
 const kelpMat=waterify(lambert({side:THREE.DoubleSide}),'kelp',{
   lit:'gl_FragColor.rgb+=diffuseColor.rgb*vec3(1.0,0.8,0.38)*uDay*(0.6+2.6*pow(max(dot(vdir,uSunDir),0.0),2.0));'});
 const bladeGeo=(()=>{const g=new THREE.PlaneGeometry(1,1,1,7);g.translate(0,0.5,0);const p=g.attributes.position;
   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),w=Math.pow(Math.sin(Math.PI*Math.min(1,y*1.05+0.04)),0.6);p.setX(i,x*w);p.setZ(i,0.05*Math.sin(y*26)*Math.abs(x)*2);}
   g.computeVertexNormals();const acc=Acc();addGeo(acc,g,null,(x,y)=>mixc([0.55,0.4,0.12],[0.72,0.55,0.18],y));
   addGeo(acc,new THREE.SphereGeometry(0.09,6,4),M4(0,-0.02,0,0,0,0,1,1.5,1),()=>[0.75,0.62,0.25]);return finishGeo(acc);})();
-const stipeGeo=(()=>{const c=new THREE.CylinderGeometry(0.012,0.016,1,5,1,true);c.translate(0,0.5,0);const acc=Acc();addGeo(acc,c,null,()=>[0.45,0.33,0.1]);return finishGeo(acc);})();
+const stipeGeo=(()=>{const c=new THREE.CylinderGeometry(0.014,0.018,1,5,1,true);c.translate(0,0.5,0);const acc=Acc();addGeo(acc,c,null,()=>[0.45,0.33,0.1]);return finishGeo(acc);})();
 const kelp=new THREE.InstancedMesh(bladeGeo,kelpMat,KBLADES);kelp.frustumCulled=false;scene.add(kelp);kelp.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 const stipes=new THREE.InstancedMesh(stipeGeo,kelpMat,NK*(KN-1));stipes.frustumCulled=false;scene.add(stipes);stipes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-const kRoot=[];for(let s=0;s<NK;s+=3){const a=rnd()*6.28,r=1.8+Math.sqrt(rnd())*12;for(let k=0;k<3&&s+k<NK;k++)kRoot.push({x:Math.cos(a)*r+R(-0.15,0.15),z:Math.sin(a)*r+R(-0.15,0.15),tw:rnd()*6.28});}
+const kRoot=[];for(let s=0;s<NK;s+=5){const a=rnd()*6.28,r=1.4+Math.sqrt(rnd())*12.5;for(let k=0;k<5&&s+k<NK;k++)kRoot.push({x:Math.cos(a)*r+R(-0.2,0.2),z:Math.sin(a)*r+R(-0.2,0.2),tw:rnd()*6.28});}
+/* shuffle so a reduced (smooth-mode) count still spreads over the whole forest */
+for(let i=kRoot.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[kRoot[i],kRoot[j]]=[kRoot[j],kRoot[i]];}
 const kP=new Float32Array(NK*KN*3),kQ=new Float32Array(NK*KN*3);
 let kSeg=1,kelpOn=false;
 function buildKelp(on){
   kelpOn=on;kelp.visible=on;stipes.visible=on;if(!on)return;
-  const L=Math.min(S.D*1.2,40);kSeg=L/(KN-1);
-  for(let s=0;s<NK;s++){
+  const L=Math.min(S.D*1.2,40);kSeg=L/(KN-1);NKA=Math.round(NK*Math.max(0.5,PERF.k));
+  for(let s=0;s<NKA;s++){
     const Rt=kRoot[s];let x=Rt.x,y=floorY(Rt.x,Rt.z),z=Rt.z;const dx=Math.cos(Rt.tw),dz=Math.sin(Rt.tw);
     for(let i=0;i<KN;i++){
       if(i>0){if(y+kSeg<-0.06)y+=kSeg;else{x+=dx*kSeg;z+=dz*kSeg;}}
@@ -407,7 +410,7 @@ function buildKelp(on){
 }
 function stepKelp(dt,t){
   if(!kelpOn)return;const fy=-S.D;
-  for(let s=0;s<NK;s++){
+  for(let s=0;s<NKA;s++){
     for(let i=1;i<KN;i++){
       const o=(s*KN+i)*3,px=kP[o],py=kP[o+1],pz=kP[o+2];
       const vx=(px-kQ[o])/dt,vy=(py-kQ[o+1])/dt,vz=(pz-kQ[o+2])/dt;
@@ -433,22 +436,22 @@ const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_qt=new THREE.Quaternion();
 const _kside=new THREE.Vector3(),_bd=new THREE.Vector3(),_tmp=new THREE.Vector3();
 function drawKelp(t){
   if(!kelpOn)return;let n=0,m=0;
-  for(let s=0;s<NK;s++)for(let i=1;i<KN;i++){
+  for(let s=0;s<NKA;s++)for(let i=1;i<KN;i++){
     const a=(s*KN+i-1)*3,b=(s*KN+i)*3;
     _a.set(kP[a],kP[a+1],kP[a+2]);_b.set(kP[b],kP[b+1],kP[b+2]);
     _d.subVectors(_b,_a);const len=_d.length();_d.divideScalar(len||1);
     _q.setFromUnitVectors(UP,_d);_s.set(1,len,1);_m.compose(_a,_q,_s);stipes.setMatrixAt(m++,_m);
     orbital(_b.x,_b.y,t,_u);
-    for(let j=(i&1);j<(i&1)+1;j++){
+    for(let j=0;j<2;j++){
       const ang=kRoot[s].tw+i*2.1+j*Math.PI;
       _tmp.set(Math.cos(ang),0,Math.sin(ang));_kside.crossVectors(_d,_tmp).cross(_d).normalize().negate();
       _bd.copy(_d).multiplyScalar(0.7).addScaledVector(_kside,0.75);_bd.x+=_u.x*1.5;_bd.z+=_u.z*1.5;_bd.normalize();
       _q.setFromUnitVectors(UP,_bd);_qt.setFromAxisAngle(UP,ang);_q.multiply(_qt);
-      const L=0.45+0.25*((s*7+i*3+j)%5)/4;_s.set(0.16,L,0.16);
+      const L=0.5+0.35*((s*7+i*3+j)%5)/4;_s.set(0.15,L,0.15);
       _m.compose(_b,_q,_s);kelp.setMatrixAt(n++,_m);
     }
   }
-  kelp.instanceMatrix.needsUpdate=true;stipes.instanceMatrix.needsUpdate=true;
+  kelp.count=n;stipes.count=m;kelp.instanceMatrix.needsUpdate=true;stipes.instanceMatrix.needsUpdate=true;
 }
 
 /* =========================================================
@@ -3157,10 +3160,10 @@ function hud(){
 }
 function frameCamera(){
   const F=-S.D,deep=S.D>200,dist=deep?7:9.5;
-  if(S.loc==='monterey'){controls.target.set(0,F+1.2,0);camera.position.set(4,F+2.4,7);return;}
+  if(S.loc==='monterey'){controls.target.set(2,F+7.5,-4);camera.position.set(-3,F+2,4);return;}   /* from near the bottom, looking up the fronds to the canopy */
   if(S.loc==='truk'){const D=TRUK.Hh,b0=floorY0(0,0)-1.5;const tw=(x,y,z)=>{const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return new THREE.Vector3(x*c+z*s,b0+y,-x*s+z*c);};controls.target.copy(tw(36,D+2.5,0));camera.position.copy(tw(22,D+8,16));return;}
-  if(S.loc==='mangrove'){const y=mangFloor(-5.6,-0.5);controls.target.set(-5.8,y+0.45,-0.5);camera.position.set(-2.3,-0.7,2.0);return;}
-  if(S.loc==='nanji'){controls.target.set(-3.9,-0.8,0);camera.position.set(-0.4,-0.9,2.2);return;}
+  if(S.loc==='mangrove'){const t=mangTrees.reduce((b,t)=>Math.abs(t[1])<Math.abs(b[1])?t:b);controls.target.set(t[0],-0.45,t[1]);camera.position.set(t[0]+3.1,-0.75,t[1]+1.4);return;}
+  if(S.loc==='nanji'){controls.target.set(-3.8,-0.1,-0.45);camera.position.set(-1.0,-1.45,1.25);return;}
   if(S.loc==='seamount'){const s=SMT.seeps[0],y=smtFloor(s[0],s[1]);controls.target.set(s[0],y+0.1,s[1]);camera.position.set(s[0]+1.3,y+0.9,s[1]+1.5);return;}
   if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
@@ -3498,22 +3501,25 @@ function paintMang(){
 const mangTrees=[];(function(){for(let i=0;i<14;i++)mangTrees.push([R(-9.5,-5.6),-19+i*2.9+R(-0.8,0.8)]);})();
 /* built when the site is entered, so the root ends reach the actual mud at the site's depth */
 function makeRootGeo(){const acc=Acc();rnd();
-  for(const t of mangTrees){const[tx,tz]=t;const n=Math.floor(R(16,24));
+  for(const t of mangTrees){const[tx,tz]=t;const n=Math.floor(R(24,34)*Math.max(0.6,PERF.k));
     for(let k=0;k<n;k++){const a=k/n*6.283+R(-0.2,0.2),rr=R(1.0,2.3),h0=R(0.15,0.9);
       const gx=tx+Math.cos(a)*rr,gz=tz+Math.sin(a)*rr;
       const p0=new THREE.Vector3(tx+Math.cos(a)*0.12,h0,tz+Math.sin(a)*0.12),p2=new THREE.Vector3(gx,mangFloor(gx,gz),gz),p1=new THREE.Vector3(tx+Math.cos(a)*rr*0.55,h0+R(0.3,0.7),tz+Math.sin(a)*rr*0.55);
       const curve=new THREE.QuadraticBezierCurve3(p0,p1,p2);
-      const g=new THREE.TubeGeometry(curve,18,R(0.025,0.04),6,false);
+      const g=new THREE.TubeGeometry(curve,18,R(0.03,0.05),6,false);
       /* sink the end into the mud; colour: bark, with an oyster/barnacle band around the waterline */
       const P=g.attributes.position;for(let q=0;q<P.count;q++){if(Math.hypot(P.getX(q)-gx,P.getZ(q)-gz)<0.15)P.setY(q,P.getY(q)-0.12);}
       /* secondary roots dropping straight down from the arch: the tangle that shelters juvenile fish */
-      for(let s2=0;s2<2;s2++){if(rnd()<0.45)continue;const pt=curve.getPoint(R(0.35,0.7));const fx=pt.x+R(-0.1,0.1),fz=pt.z+R(-0.1,0.1);
+      for(let s2=0;s2<3;s2++){if(rnd()<0.4)continue;const pt=curve.getPoint(R(0.35,0.7));const fx=pt.x+R(-0.1,0.1),fz=pt.z+R(-0.1,0.1);
         const c2=new THREE.LineCurve3(pt,new THREE.Vector3(fx,mangFloor(fx,fz)-0.1,fz));addGeo(acc,new THREE.TubeGeometry(c2,4,R(0.015,0.022),5,false),null,rootCol);}
       addGeo(acc,g,null,rootCol);}
     addGeo(acc,new THREE.CylinderGeometry(0.11,0.14,2.5,8),M4(tx,1.0,tz),()=>[0.24,0.2,0.16]);}
   return finishGeo(acc);}
-function rootCol(x,y,z){const band=sstep(-0.9,-0.6,y-0)*sstep(0.05,-0.15,y);const b=mixc([0.22,0.18,0.14],[0.16,0.13,0.1],0.5+0.5*Math.sin(y*40+x*13));
-  return mixc(b,[0.62,0.58,0.5],band*sstep(0.2,0.7,0.5+0.5*Math.sin(x*60+y*45)*Math.sin(z*55)));}
+/* dark bark above the water; a pale band of oysters and barnacles around the waterline; below it a film of algae, sponges and silt */
+function rootCol(x,y,z){const band=sstep(-0.9,-0.6,y-0)*sstep(0.05,-0.15,y),n=0.5+0.5*Math.sin(x*60+y*45)*Math.sin(z*55);
+  let b=mixc([0.11,0.085,0.065],[0.07,0.055,0.045],0.5+0.5*Math.sin(y*40+x*13));
+  b=mixc(b,mixc([0.16,0.17,0.08],[0.3,0.2,0.1],sstep(0.3,0.8,0.5+0.5*Math.sin(x*23-z*17+y*9))),sstep(-0.55,-0.85,y)*0.75);
+  return mixc(b,[0.5,0.47,0.4],band*0.8*sstep(0.62,0.9,n));}
 const mangRoots=new THREE.Mesh(new THREE.BufferGeometry(),waterify(lambert(),'mangRoot',{defines:{CAUSTICS:''}}));mangRoots.visible=false;scene.add(mangRoots);
 /* the canopy seen from below: a dark mass blocking the sky over the trees */
 const canopyGeo=(()=>{const acc=Acc();for(const t of mangTrees)addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(t[0],0.9,t[1],0,0,0,3.4,0.8,3.4),()=>[0.12,0.18,0.1]);return finishGeo(acc);})();
@@ -4177,6 +4183,51 @@ function stepPerf(rdt){
     if(med>0.045&&!PERF.low){applyPerf(true,false);showCaption($t('已切换到流畅模式'),$t('画面较卡，已自动降低分辨率和重复生物的数量。可以在控制台“时间与照明”下面改回高画质。'),8);}}
 }
 applyPerf(PERF.low,false,true);PERF.ready=true;   /* resize() runs later in the main loop setup */
+/* =========================================================
+   Scene in words: a text description of where you are, the conditions, and which animals are in view,
+   for screen-reader users and anyone who can't see the 3D view well. "文字描述" button in the console, or the G key.
+   It reuses what the page already knows: the HUD readings, the site texts and isSeen() from the field guide.
+   ========================================================= */
+const guideEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const firstSentence=s=>{const m=String(s).match(/^.*?[。！？]|^.*?[.!?](?=\s|$)/);return(m?m[0]:s).trim();};
+function guideKey(){if(DIVE.on)return DIVE.dvm?'dvm':DIVE.bh?'bluehole':DIVE.replay?'replay':'dive';return S.loc;}
+function lightWords(z){
+  if(S.night&&!DIVE.dvm)return $t('夜里，没有阳光');
+  const v=light(z,1)*(DIVE.dvm?surfE(DVM.t):1);
+  return v>0.2?$t('阳光充足'):v>0.01?$t('阳光变暗，颜色偏蓝绿'):v>1e-4?$t('只剩微弱的蓝光'):$t('没有阳光，一片漆黑');
+}
+function torchWords(){return S.torch==='off'?$t('手电关着'):S.torch==='blue'?$t('开着蓝光手电'):$t('开着白光手电');}
+function renderGuide(){
+  hud();                                    /* refresh the HUD readings this reuses, in case no frame has run since a jump */
+  const k=guideKey(),d=k&&SITE[k]?SITE[k]:null,z=camZ(),see=seeDist(false);
+  let seen=[];try{seen=CAT.filter(c=>{try{return isSeen(c[0]);}catch(e){return false;}});}catch(e){}
+  let h='<h3>'+$t('你在哪里')+'</h3><p>'+guideEsc(d?d[0]:$t('自定义参数'))+'</p>';
+  if(d)h+='<p>'+guideEsc(d[1])+'</p>';
+  h+='<h3>'+$t('环境')+'</h3><ul>'
+    +'<li>'+$t('水深 ')+fmtD(z)+' m · '+guideEsc($('hZone').textContent)+'</li>'
+    +'<li>'+$t('压强 ')+guideEsc($('hPress').textContent)+'</li>'
+    +'<li>'+guideEsc($('hTemp').textContent)+'</li>'
+    +'<li>'+$t('光线：')+lightWords(z)+$t('；')+torchWords()+'</li>'
+    +'<li>'+(see>0?$t('大约能看清 ')+Math.round(see)+$t(' m 以内'):$t('几乎什么都看不见，只有会发光的生物'))+'</li></ul>';
+  h+='<h3>'+$t('附近看得见的生物')+' ('+seen.length+')</h3>';
+  h+=seen.length?'<ul>'+seen.map(c=>'<li><b>'+guideEsc(c[1])+'</b> <i lang="la">'+guideEsc(c[2])+'</i>'+(FACTS[c[0]]?$t('：')+guideEsc(firstSentence(FACTS[c[0]])):'')+'</li>').join('')+'</ul>'
+    :'<p>'+$t('附近暂时没有看到动物。试试打开手电、换个地点，或者等一会儿。')+'</p>';
+  if(d&&d[2])h+='<h3>'+$t('可以试试')+'</h3><p>'+guideEsc(d[2])+'</p>';
+  $('guideBody').innerHTML=h;
+  $('guideSum').textContent=(d?d[0]:$t('自定义参数'))+$t('，水深 ')+fmtD(z)+' m'+$t('，附近看得见 ')+seen.length+$t(' 种生物。');
+}
+let guideFrom=null;
+function openGuide(){guideFrom=document.activeElement;renderGuide();$('guide').hidden=false;$('guideX').focus();}
+function closeGuide(){$('guide').hidden=true;if(guideFrom&&guideFrom.focus)guideFrom.focus();guideFrom=null;}
+$('guideBtn').addEventListener('click',openGuide);
+$('guideX').addEventListener('click',closeGuide);
+$('guideR').addEventListener('click',renderGuide);
+$('guide').addEventListener('click',e=>{if(e.target===$('guide'))closeGuide();});
+window.addEventListener('keydown',e=>{
+  const tg=e.target;if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'||tg.isContentEditable))return;
+  if(e.key==='Escape'&&!$('guide').hidden){e.stopImmediatePropagation();closeGuide();return;}
+  if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){if($('guide').hidden)openGuide();else closeGuide();}
+});
 /* =========================================================
    14s. Free piloting: a tethered ROV (or a diver) under thrust and water drag.
    Thrust ~0.9 m/s², quadratic drag gives a top speed of ~1 m/s (typical small ROV / swimming diver).

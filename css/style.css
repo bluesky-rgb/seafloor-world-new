@@ -27,7 +27,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--abyss);color:var
 #panelHead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line)}
 #panel.closed #panelHead{border-bottom:none}
 #panelHead span{font-size:12px;letter-spacing:.14em;color:var(--muted)}
-#toggle,#langBtn{background:none;border:1px solid var(--line);color:var(--fg);border-radius:6px;font:inherit;font-size:12px;padding:4px 10px;cursor:pointer}
+#toggle,#langBtn,#guideBtn{background:none;border:1px solid var(--line);color:var(--fg);border-radius:6px;font:inherit;font-size:12px;padding:4px 10px;cursor:pointer}
 #panelBody{overflow:auto;padding:12px 16px 18px;display:grid;gap:18px;align-content:start}
 section{display:grid;gap:10px}
 section h2{margin:0;font-size:11px;letter-spacing:.16em;color:var(--accent);font-weight:500}
@@ -65,6 +65,11 @@ details code{font-family:var(--f-mono);color:var(--fg);font-size:11px}
 #err[hidden],#panelBody[hidden],#wfSec[hidden],#envDet[hidden],#dvmSec[hidden],#spSec[hidden]{display:none}
 #panelHead .ph{display:flex;gap:6px}
 #helpBtn{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;font:inherit;font-size:12px;padding:4px 10px;cursor:pointer}
+#guideBody ul{margin:2px 0 0;padding-left:1.2em;font-size:13px;line-height:1.7;color:var(--fg)}
+#guideBody li{margin:2px 0}
+#guideBody i{color:var(--muted)}
+.guideRow{margin-top:14px!important}
+#guideR{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;font:inherit;font-size:13px;padding:5px 14px;cursor:pointer}
 .ovl{position:fixed;inset:0;background:rgba(2,10,15,.72);display:grid;place-items:center;padding:16px;z-index:10}
 .ovl[hidden]{display:none}
 .ovlBox{position:relative;width:min(640px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
@@ -216,7 +221,7 @@ body.vr>*:not(#gl):not(#vrUI){visibility:hidden!important}
   #diveBar{right:16px;bottom:64px}
   #cap{left:50%;width:calc(100% - 32px);bottom:auto;top:36%}
   #capT{font-size:19px}
-  #toast{left:50%;top:auto;bottom:220px}
+  #toast{left:50%;top:auto;bottom:262px}   /* clear of the exhibition-mode button (bottom 212px) */
   #info{left:16px;right:16px;width:auto;transform:none;top:auto;bottom:calc(52% + 12px)}
   #panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:52%;border-radius:14px 14px 0 0;border-bottom:none;padding-bottom:env(safe-area-inset-bottom,0px)}
   #panel.closed{bottom:0}
