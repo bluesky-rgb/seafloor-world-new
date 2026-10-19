@@ -131,7 +131,7 @@ footer .wrap{padding-block:36px 56px;color:var(--muted);font-size:.88rem;display
 </div></header>
 
 <nav class="idx" aria-label="章节"><div class="wrap">
-  <a href="#method">研究思路</a><a href="#sites">地点与深度</a><a href="#models">物理模型</a><a href="#arch">技术架构</a><a href="#timeline">开发过程</a><a href="#issues">遗留问题</a><a href="#ideas">可扩展方向</a><a href="#sources">资料库</a>
+  <a href="#method">研究思路</a><a href="#sites">地点与深度</a><a href="#models">物理模型</a><a href="#live">现实数据</a><a href="#arch">技术架构</a><a href="#timeline">开发过程</a><a href="#issues">遗留问题</a><a href="#ideas">可扩展方向</a><a href="#sources">资料库</a>
 </div></nav>
 
 <section id="method"><div class="wrap">
@@ -167,6 +167,14 @@ footer .wrap{padding-block:36px 56px;color:var(--muted);font-size:.88rem;display
   <p class="eyebrow">物理与生态模型</p>
   <h2>画面背后的公式</h2>
   <div class="tbl"><table><thead><tr><th>现象</th><th>做法</th></tr></thead><tbody>{{MODEL_ROWS}}</tbody></table></div>
+</div></section>
+
+<section id="live"><div class="wrap">
+  <p class="eyebrow">现实中的海洋</p>
+  <h2>每天跟着现实世界变化的部分</h2>
+  <p class="col sub">仓库每天自动下载两次真实世界的海洋数据。三片珊瑚礁的水温和白化程度、南麂列岛的潮位跟着现实变化，南北极显示今天的海冰面积。生物仍然是模拟的，变的是它们所处的环境。下表是最新一次下载的数值。</p>
+  <div class="tbl"><table><thead><tr><th>地点</th><th>今天</th><th>数据来源</th></tr></thead><tbody id="liveRows"><tr><td colspan="3">正在读取 data/live.json……</td></tr></tbody></table></div>
+  <p class="col sub">怎么观察：打开三维场景，在控制台的“现实中的海洋”一栏点“怎么观察”。那里解释了白化阈值、热应力 DHW 和警报等级的意思，给出一步步的观察方法、该在什么季节回来看，以及每类数据的局限。</p>
 </div></section>
 
 <section id="arch"><div class="wrap">
@@ -222,10 +230,10 @@ index.html 内的更新记录 ──sync_docs.py──▶ docs/CHANGELOG.md · R
       <li>南海北部的海草床儒艮历史 <span>· 用历史记录讲“功能性灭绝”</span></li>
     </ul></div>
     <div><h3>接入真实数据</h3><ul>
+      <li>已完成 <span>· NOAA 珊瑚礁热应力、南麂潮位、南北极海冰，见“现实数据”</span></li>
       <li>Argo 浮标 <span>· 用全球浮标的实测温盐剖面驱动下潜时的水温</span></li>
-      <li>NOAA 珊瑚礁监测 <span>· 按当下的热应力显示各地珊瑚的白化风险</span></li>
-      <li>潮汐预报 <span>· 让潮间带的潮位和真实时刻同步</span></li>
-      <li>北极海冰面积 <span>· 用 NSIDC 的每日数据画出冰缘的季节变化</span></li>
+      <li>浪高与海温 <span>· 用同一个海洋数据接口，让巨藻林的涌浪和各地的水温跟着当天的海况</span></li>
+      <li>当地的昼夜 <span>· 按每个地点的当地时间决定白天还是夜里、太阳多高</span></li>
     </ul></div>
     <div><h3>体验与教学</h3><ul>
       <li>更多语言 <span>· 语言包结构已就绪，加一份译文即可</span></li>
@@ -255,5 +263,21 @@ index.html 内的更新记录 ──sync_docs.py──▶ docs/CHANGELOG.md · R
   var q=document.getElementById('srcQ'),items=[].slice.call(document.querySelectorAll('#srcList li')),n=document.getElementById('srcN');
   function f(){var v=q.value.trim().toLowerCase(),k=0;items.forEach(function(li){var on=!v||li.textContent.toLowerCase().indexOf(v)>=0;li.hidden=!on;if(on)k++;});n.textContent=v?('匹配 '+k+' / '+items.length+' 条'):('共 '+items.length+' 条');}
   q.addEventListener('input',f);f();
+})();
+</script>
+<script>
+(function(){
+  var LV=['无热应力','白化观察','白化警告','一级警报','二级警报','三级警报','四级警报','五级警报'];
+  var REEF={xisha:'西沙群岛 · 珊瑚',spawn:'海南岛三亚 · 珊瑚',eilat:'红海亚喀巴湾 · 珊瑚'};
+  function f(v,n){return (+v).toFixed(n==null?1:n);}
+  fetch('data/live.json?h='+Math.floor(Date.now()/3.6e6)).then(function(r){return r.json();}).then(function(d){
+    var rows=[];
+    for(var k in REEF){var c=d.coral&&d.coral[k];if(!c)continue;rows.push('<tr><td>'+REEF[k]+'</td><td>'+LV[c.level]+' · 海温 '+f(c.sst)+' °C（白化阈值 '+f(c.threshold)+' °C）· 热应力 DHW '+f(c.dhw)+'</td><td class="num">NOAA CRW · '+c.date+'</td></tr>');}
+    var T=d.tide;if(T){var x=(Date.now()/1000-T.t0)/T.step,i=Math.floor(x);if(i>=0&&i<T.h.length-1){var h=T.h[i]+(T.h[i+1]-T.h[i])*(x-i);rows.push('<tr><td>南麂列岛 · 潮位</td><td>此刻约 '+(h>=0?'+':'−')+f(Math.abs(h),2)+' m（'+(T.h[i+1]>T.h[i]?'涨潮':'落潮')+'）</td><td class="num">Open-Meteo / Météo-France</td></tr>');}}
+    [['north','北极 · 海冰面积'],['south','南极 · 海冰面积']].forEach(function(p){var I=d.ice&&d.ice[p[0]];if(!I)return;var pc=(I.extent-I.climMedian)/I.climMedian*100;
+      rows.push('<tr><td>'+p[1]+'</td><td>'+f(I.extent,2)+' 百万 km²，比 1981–2010 年同日中位数'+(pc<0?'少 ':'多 ')+f(Math.abs(pc),0)+'%，'+I.firstYear+' 年以来同日第 '+I.rankLow+' 低</td><td class="num">NSIDC · '+I.date+'</td></tr>');});
+    rows.push('<tr><td colspan="3">更新于 '+new Date(d.updated).toLocaleString('zh-CN')+'</td></tr>');
+    document.getElementById('liveRows').innerHTML=rows.join('');
+  }).catch(function(){document.getElementById('liveRows').innerHTML='<tr><td colspan="3">暂时读不到现实数据（从本地文件打开时会这样）。</td></tr>';});
 })();
 </script>

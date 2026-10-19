@@ -68,6 +68,24 @@ for f, old in before.items():
     if read(*f) != old:
         errors.append('%s was out of date with the in-page log (now regenerated; commit it)' % '/'.join(f))
 
+# live ocean data (data/live.json, refreshed by .github/workflows/live.yml)
+try:
+    live = json.loads(read('data', 'live.json'))
+    for k in ('updated', 'coral', 'tide', 'ice'):
+        if k not in live:
+            errors.append('data/live.json: missing "%s"' % k)
+    for r in ('xisha', 'spawn', 'eilat'):
+        if r not in live.get('coral', {}):
+            errors.append('data/live.json: no coral data for %s' % r)
+    import datetime as _dt
+    age = (_dt.datetime.now(_dt.timezone.utc) - _dt.datetime.fromisoformat(live['updated'].replace('Z', '+00:00'))).days
+    if age > 3:
+        warnings.append('data/live.json is %d days old: check the "更新现实海洋数据" workflow' % age)
+    if live.get('errors'):
+        warnings.append('data/live.json: last fetch had errors: %s' % '; '.join(live['errors']))
+except (OSError, ValueError, KeyError) as e:
+    errors.append('data/live.json unreadable: %s' % e)
+
 ov_miss = json.loads(subprocess.run([sys.executable, P('tools', 'build_overview.py'), '--missing'], capture_output=True, text=True).stdout or '[]')
 if ov_miss:
     errors.append('overview.en.html: %d strings untranslated, add them to i18n/overview.en.json (first: %s)' % (len(ov_miss), ov_miss[0]))

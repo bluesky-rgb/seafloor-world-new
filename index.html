@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=f4719bef">
+<link rel="stylesheet" href="css/style.css?v=a1567a9c">
 </head>
 <body>
 <canvas id="gl" tabindex="0" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放；也可用方向键转动、+/− 缩放；按 G 键用文字描述当前画面"></canvas>
@@ -90,6 +90,13 @@
       </div>
       <div id="siteCard"><b id="siteT"></b><p id="siteD"></p><p id="siteTip"></p></div>
     </section>
+    <section id="liveSec">
+      <h2>现实中的海洋 <span id="liveUpd"></span></h2>
+      <div class="seg lrow"><button id="liveOn" type="button" aria-pressed="true">跟随现实数据：开</button><button id="liveHowBtn" type="button" aria-haspopup="dialog">怎么观察</button></div>
+      <div id="liveHere"></div>
+      <ul id="liveList"></ul>
+      <p class="note">数据：NOAA Coral Reef Watch（珊瑚礁热应力）、Open-Meteo / Météo-France（潮位）、NSIDC（海冰），每天自动更新两次。鱼和其他生物仍是模拟的，跟着现实变的是它们所处的环境。</p>
+    </section>
 
     <section id="spSec" hidden>
       <h2>珊瑚产卵之夜</h2>
@@ -112,9 +119,9 @@
         <label for="sTide">潮位 <b id="tideV">0.00 m</b></label>
         <input id="sTide" type="range" min="0" max="1000" step="1">
       </div>
-      <button id="tidePlay" type="button">❚❚ 暂停潮汐</button>
+      <div class="seg tideBtns"><button id="tideLive" type="button" aria-pressed="false">跟随现实潮位</button><button id="tidePlay" type="button">❚❚ 暂停潮汐</button></div>
       <p class="note" id="tideNote"></p>
-      <p class="note">半日潮：约 12 小时 25 分涨落一次。这里把潮差简化为 4 m，播放速度是 1 秒相当于 15 分钟。海面以上的部分不显示，就像潜水时只能看到水下的那一半。</p>
+      <p class="note">半日潮：约 12 小时 25 分涨落一次。“跟随现实潮位”时，潮位取自海洋模型对南麂列岛附近海面高度的逐小时预报，和现实同步、变化很慢；“快放潮汐”用简化的 4 m 潮差，1 秒相当于 15 分钟。海面以上的部分不显示，就像潜水时只能看到水下的那一半。</p>
     </section>
     <section id="wfSec" hidden>
       <h2>鲸落：沉到海底之后</h2>
@@ -353,7 +360,22 @@
             <li data-s="done">项目总览页：研究思路、遗留问题与资料库</li>
             <li data-s="next">声音：真实的海洋录音（需要授权的录音文件）</li>
             <li data-s="done">英文界面与英文语音讲解</li>
+            <li data-s="done">无障碍：文字描述（带方向）与键盘转动视角</li>
+            <li data-s="done">现实数据：珊瑚礁热应力、南麂潮位和南北极海冰每天跟着现实更新</li>
+            <li>现实数据：用 Argo 浮标的实测温盐剖面驱动下潜时的水温</li>
             <li>画质：用带骨骼动画的 glTF 模型替换主角生物</li>
+          </ul>
+        </div>
+        <div>
+          <h3>现实中的海洋：珊瑚白化、潮汐和海冰跟着现实变化<time>2026-10-19</time></h3>
+          <ul>
+            <li>控制台新增“现实中的海洋”一栏：仓库每天自动下载两次真实世界的海洋数据（NOAA 珊瑚礁监测、法国气象局海洋模型、美国冰雪数据中心），存成 data/live.json，页面打开时读取</li>
+            <li>珊瑚白化：西沙、三亚、埃拉特三片礁的水温换成当天的卫星海温，珊瑚按 NOAA 的累积热应力（DHW）变浅、变白，热应力超过 12 时部分珊瑚死去、长出藻皮。卡片里有今天的警报等级、过去一年的海温和 DHW 曲线、有记录以来最热的年份，以及“模拟热应力”滑块，可以把 DHW 从 0 拖到 20 看白化怎样扩散</li>
+            <li>白化按珊瑚的生长型区分：枝状珊瑚最敏感，盘状其次，块状最耐热；朝上、受光多的表面先白；荧光色素随白化减弱。为了让白化看得出来，健康造礁珊瑚的颜色调深了（真实珊瑚组织因为共生藻本来就偏暗）</li>
+            <li>南麂列岛：“跟随现实潮位”时，海面就是当地此刻的潮位（海洋模型逐小时预报），卡片里有接下来一天半的潮位曲线和下一次高潮、低潮的时间；“快放潮汐”仍可一口气看完一次涨落</li>
+            <li>北极和南极：显示今天的海冰面积、和 1981–2010 年同一天中位数的差别、1979 年以来同一天的排名和过去一年的曲线，并说明现在的季节和场景表现的季节有什么不同</li>
+            <li>“怎么观察”指南：每类数据的原理、各个数字的意思、一步步看什么、什么季节再来看，以及数据的来源和局限。不想跟着现实变化，可以一键关掉，回到资料里的典型数值</li>
+            <li>曲线都可以用手指或鼠标逐日读数；数据每天北京时间 10:23 和 22:23 更新，标题旁显示更新时间</li>
           </ul>
         </div>
         <div>
@@ -663,6 +685,11 @@
         <div>
           <h3>资料来源</h3>
           <ul>
+            <li><a href="https://coralreefwatch.noaa.gov/product/vs/description.php" target="_blank" rel="noopener">NOAA Coral Reef Watch：5 km 区域虚拟站的每日海温、HotSpot、DHW 与白化警报（西沙、海南岛、亚喀巴湾）</a></li>
+            <li><a href="https://www.ecowatch.com/noaa-coral-reef-watch-new-alerts-climate-change.html" target="_blank" rel="noopener">EcoWatch（2024）：NOAA 珊瑚礁监测新增三到五级白化警报（DHW 12、16、20）</a></li>
+            <li><a href="https://news.mongabay.com/2025/04/even-the-gulf-of-aqabas-supercorals-bleached-during-2024-heat-wave/" target="_blank" rel="noopener">Mongabay（2025）：亚喀巴湾的“超级珊瑚”在 2024 年热浪中也白化了</a></li>
+            <li><a href="https://open-meteo.com/en/docs/marine-weather-api" target="_blank" rel="noopener">Open-Meteo 海洋数据接口：Météo-France SMOC 模型逐小时海面高度（含潮汐）</a></li>
+            <li><a href="https://nsidc.org/sites/default/files/documents/user-guide/g02135-v004-userguide.pdf" target="_blank" rel="noopener">NSIDC 海冰指数第 4 版：每日海冰面积与 1981–2010 年气候态</a></li>
             <li><a href="https://rsis.ramsar.org/ris/2517" target="_blank" rel="noopener">拉姆萨尔湿地信息表：南麂列岛 19,893 公顷，422 种藻类、725 种贝类等软体动物，1998 年加入人与生物圈</a></li>
             <li><a href="https://html.rhhz.net/shhydxxb/20170602095.htm" target="_blank" rel="noopener">《上海海洋大学学报》（2017）：南麂列岛潮间带 125 种大型底栖生物，优势种为鳞笠藤壶、厚壳贻贝、隔贻贝、短滨螺</a></li>
             <li><a href="https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2025.1563252/pdf" target="_blank" rel="noopener">Frontiers in Marine Science（2025）：鼠尾藻主导高潮区褐藻，潮下带上部几乎全是马尾藻</a></li>
@@ -800,6 +827,66 @@
     <p class="guideRow"><button id="guideR" type="button">刷新</button></p>
   </div>
 </div>
+<div id="liveGuide" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="liveGuideT">
+  <div class="ovlBox wide">
+    <button class="ovlX" id="liveGuideX" type="button" aria-label="关闭">×</button>
+    <h2 id="liveGuideT">现实中的海洋：怎么看、怎么观察</h2>
+    <p class="lead">海底世界里有几样东西会跟着现实世界每天变化：三片珊瑚礁的海温和白化程度、南麂列岛的潮位，以及北极、南极今天的海冰面积。数据来自美国国家海洋和大气管理局（NOAA）、法国气象局的海洋模型和美国冰雪数据中心（NSIDC），仓库每天自动下载两次。画面里的鱼和其他生物仍然是按生态规律模拟的，现实数据改变的是它们所处的环境。</p>
+
+    <h3>一、珊瑚白化：西沙、三亚、埃拉特</h3>
+    <p><b>原理。</b>造礁珊瑚的颜色来自组织里的共生藻，共生藻用光合作用给珊瑚提供大部分养分。海水持续偏热时，珊瑚会把共生藻排出去，组织变得透明，露出白色的石灰质骨骼，这就是白化。白化的珊瑚还活着，如果几周内水温回落，共生藻可以重新回来；热得太久，珊瑚就会饿死，表面很快长满藻皮。</p>
+    <p><b>几个数。</b>“白化阈值”是这片海常年最热月份的平均海温再加 1 °C。海温超过阈值的度数按周累加，就是“热应力 DHW”（Degree Heating Weeks，单位 °C·周，只算过去 12 周）。比如连续 4 周都比阈值高 1 °C，DHW 就是 4。NOAA 按 DHW 发布白化警报：</p>
+    <ul class="lvlist">
+      <li><span class="lchip"><i style="background:#7fb6c2"></i>无热应力</span>海温没有超过常年最热月份的平均水平。</li>
+      <li><span class="lchip"><i style="background:#f1e05a"></i>白化观察</span>海温略高于常年最热月份。</li>
+      <li><span class="lchip"><i style="background:#f5a623"></i>白化警告</span>海温超过白化阈值，热应力开始累积（DHW 低于 4）。</li>
+      <li><span class="lchip"><i style="background:#ec6a3f"></i>一级警报</span>DHW 4–8：很可能出现明显白化。</li>
+      <li><span class="lchip"><i style="background:#d93a3a"></i>二级警报</span>DHW 8–12：大面积严重白化，部分珊瑚死亡。</li>
+      <li><span class="lchip"><i style="background:#c2306b"></i>三级警报</span>DHW 12–16：多种珊瑚有死亡风险。</li>
+      <li><span class="lchip"><i style="background:#9b43b5"></i>四级警报</span>DHW 16–20：多种珊瑚有大量死亡的风险。</li>
+      <li><span class="lchip"><i style="background:#6650d6"></i>五级警报</span>DHW 超过 20：八成以上的珊瑚有死亡风险。三到五级是 2023 年全球珊瑚白化事件期间新增的。</li>
+    </ul>
+    <p><b>怎么观察。</b></p>
+    <ol>
+      <li>在“真实地点”里选“西沙 · 珊瑚礁”，控制台“现实中的海洋”一栏会显示今天的警报等级、海温和 DHW。场景里的水温也换成了今天的卫星海温。</li>
+      <li>看画面里的珊瑚：没有热应力时是褐、绿、紫等颜色；DHW 到 2–4，枝状珊瑚的顶端先变浅；到 8 以上，大部分珊瑚发白；超过 12，部分珊瑚死去，变成灰绿色。</li>
+      <li>拖动“模拟热应力 DHW”从 0 到 16，看白化怎样扩散：枝状珊瑚最敏感，块状珊瑚最耐热，朝上、受光多的表面先白。看完点“回到今天的实测”。</li>
+      <li>看两条曲线：海温曲线越过虚线（白化阈值）的那些天，下面的 DHW 曲线才会往上爬；海温回落以后，DHW 还要过几周才降下来，所以白化往往在热浪过后才最明显。把手指或鼠标放在曲线上，可以读出每一天的数值。</li>
+      <li>比较三处：同一天，三亚和西沙的海温可能差不多，但阈值不同，因为每片海的“常年”不同。红海北部的珊瑚以耐热著称，可它在 2024 年也遭遇了有记录以来最强的热应力。</li>
+      <li>隔几天、隔几周回来看。南海的热浪多出现在 6–9 月，红海北部在 8–10 月；冬天通常没有热应力。</li>
+    </ol>
+    <p class="note">限制：卫星测的是海表温度，按 5 km 网格对整片礁区取值；画面里的白化程度是按 DHW 估计的典型反应，不是那片礁今天的实拍。真实的白化还和当地的水流、浑浊度和珊瑚种类有关。</p>
+
+    <h3>二、潮汐：南麂列岛</h3>
+    <p><b>原理。</b>月球和太阳的引力让海面一天两涨两落。新月和满月前后潮差最大（大潮），上弦、下弦前后最小（小潮）。岩岸上不同高度被海水淹没的时间不同，生物因此分成一条条带。</p>
+    <ol>
+      <li>选“南麂列岛 · 岩礁潮间带”，在“潮汐”一栏点“跟随现实潮位”。画面里的海面就是南麂列岛附近此刻的潮位。</li>
+      <li>看“现实中的海洋”里的曲线和下一次高潮、低潮的时间（当地时间，即北京时间）。</li>
+      <li>记下现在哪几条带在水下，比如贻贝床、龟足、藤壶带；一两个小时后再打开对比。涨潮时藤壶伸出蔓足捕食，退潮时关紧壳板保水。</li>
+      <li>隔一周再来看：大潮和小潮时的最高、最低潮位能差将近一倍。</li>
+      <li>想快速看完一次完整涨落，点“快放潮汐”（1 秒相当于 15 分钟），再点“跟随现实潮位”回到现在。</li>
+    </ol>
+    <p class="note">限制：潮位来自法国气象局 SMOC 海洋模型（约 8 km 格点，通过 Open-Meteo 获取）对附近海面的逐小时预报，减去了这几天的平均海面。它也包含风暴增水等影响，但近岸精度有限，不能代替潮汐表用于航海或赶海安全。</p>
+
+    <h3>三、海冰：北极和南极</h3>
+    <p><b>原理。</b>卫星用微波“看”海冰，不受云和极夜影响。海冰面积是冰覆盖率超过 15% 的海域面积之和。北极海冰 3 月最多、9 月最少，南极正好相反。</p>
+    <ol>
+      <li>选“北极 · 浮冰边缘”或“南极 · 海冰之下”，看今天的海冰面积、和 1981–2010 年同一天中位数的差别，以及它在 1979 年以来的同一天里排第几低。</li>
+      <li>看曲线：蓝线是过去一年的实测，虚线是常年中位数，浅色带是 80% 的年份所在的范围。蓝线落到带子下方，就是明显偏少。</li>
+      <li>9 月中旬看北极、2 月下旬看南极，那是一年里海冰最少的时候。</li>
+    </ol>
+    <p class="note">海冰数据只作为说明显示，场景里的冰不随它变化：两个冰下场景表现的是特定季节，北极是 5–6 月的浮冰边缘，南极是春天的固定冰。</p>
+
+    <h3>数据从哪里来、多久更新</h3>
+    <ul>
+      <li>珊瑚礁热应力：<a href="https://coralreefwatch.noaa.gov/product/vs/" target="_blank" rel="noopener">NOAA Coral Reef Watch</a> 的 5 km 区域虚拟站（Paracel Islands、Hainan Island、Gulf of Aqaba），每天更新，通常比现实晚一天。</li>
+      <li>潮位：<a href="https://open-meteo.com/en/docs/marine-weather-api" target="_blank" rel="noopener">Open-Meteo 海洋数据接口</a>（Météo-France SMOC 模型），逐小时，覆盖下载之后的 4 天。</li>
+      <li>海冰：<a href="https://nsidc.org/data/g02135" target="_blank" rel="noopener">NSIDC 海冰指数第 4 版</a>，每天更新。</li>
+      <li>仓库里的 GitHub Actions 每天北京时间 10:23 和 22:23 自动下载一次，存成 data/live.json；某个来源下载失败时，保留上一次的数值。“现实中的海洋”标题旁边显示最近一次更新的时间。</li>
+      <li>不想跟着现实变化，就点“跟随现实数据：开”把它关掉，场景会回到资料里的典型数值。</li>
+    </ul>
+  </div>
+</div>
 <div id="help" class="ovl" hidden role="dialog" aria-modal="true" aria-labelledby="helpT">
   <div class="ovlBox">
     <button class="ovlX" id="helpX" type="button" aria-label="关闭">×</button>
@@ -812,6 +899,8 @@
     <p>拖动画面转动视角，滚轮或双指缩放（键盘：先点一下画面或按 Tab 选中它，方向键转动，+/− 缩放）；镜头空闲一会儿会自动缓慢环绕（可在“时间与照明”里关掉）。点击画面里的生物、烟囱、沉船等，会弹出说明卡。第一次遇见的生物会出现在“图鉴”里。</p>
     <h3>自由驾驶</h3>
     <p>点左下角“自由驾驶”，自己开着水下机器人游。电脑：W/S 前进后退，A/D 左右平移，Q/E 下潜上浮，←/→ 转向，拖动画面转头，Esc 退出。手机：左下摇杆移动，右侧按钮上浮、下潜，拖动画面转头。最高约 1 m/s，海流和波浪会推着你漂，缆绳长 60 m。下潜路线中不能自由驾驶。</p>
+    <h3>现实中的海洋</h3>
+    <p>控制台的“现实中的海洋”一栏每天跟着现实世界更新：西沙、三亚、埃拉特的珊瑚按今天的卫星海温和热应力白化，南麂列岛的海面是此刻的真实潮位，北极和南极显示今天的海冰面积。点“怎么观察”看每个数字的意思和观察方法；不想跟着变化，可以关掉。</p>
     <h3>文字描述（G 键）</h3>
     <p>按 G 键或点控制台顶部的“文字描述”，会用文字列出你现在在哪里、水深、压强、水温、光线，以及附近看得见的生物和它们的一句介绍。适合使用读屏软件，或者看不清三维画面的时候。</p>
     <h3>时间与照明</h3>
@@ -847,6 +936,7 @@
       <li><b>换地点</b>：在右侧（手机在下方）控制台的“真实地点”里挑一个，或点“开始下潜”一路潜到海沟。</li>
       <li><b>看和认</b>：拖动画面转视角，点击生物看它是谁。</li>
       <li><b>自己开</b>：点“自由驾驶”，用键盘或摇杆开着水下机器人四处探索。</li>
+      <li><b>看今天的海洋</b>：西沙、三亚、埃拉特的珊瑚，南麂列岛的潮位，以及南北极的海冰，都跟着现实世界每天更新，见控制台的“现实中的海洋”。</li>
       <li><b>玩点别的</b>：做探险任务；在夜里或深海用手指划水，看浮游生物发光。</li>
       <li><b>了解项目</b>：研究思路、遗留问题和全部资料来源见<a href="https://bluesky-rgb.github.io/seafloor-world-new/overview.html" target="_blank" rel="noopener">项目总览</a>。</li>
     </ul>
@@ -872,7 +962,7 @@
 <script>/* language: ?lang=en|zh, saved choice, or the browser language; English text is loaded only when needed */
 (function(){var l=null;try{var q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
 if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';window.SEAFLOOR_LANG=l;
-if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=94c964cd"><\/script>');}})();</script>
-<script src="js/seafloor.js?v=d756f076"></script>
+if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=dade5209"><\/script>');}})();</script>
+<script src="js/seafloor.js?v=b1736979"></script>
 </body>
 </html>

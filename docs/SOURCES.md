@@ -1,7 +1,12 @@
 # 资料来源
 
-页面中的物理参数、地点和生物资料引用自以下来源（共 68 条）。
+页面中的物理参数、地点和生物资料引用自以下来源（共 73 条）。
 
+- [NOAA Coral Reef Watch：5 km 区域虚拟站的每日海温、HotSpot、DHW 与白化警报（西沙、海南岛、亚喀巴湾）](https://coralreefwatch.noaa.gov/product/vs/description.php)
+- [EcoWatch（2024）：NOAA 珊瑚礁监测新增三到五级白化警报（DHW 12、16、20）](https://www.ecowatch.com/noaa-coral-reef-watch-new-alerts-climate-change.html)
+- [Mongabay（2025）：亚喀巴湾的“超级珊瑚”在 2024 年热浪中也白化了](https://news.mongabay.com/2025/04/even-the-gulf-of-aqabas-supercorals-bleached-during-2024-heat-wave/)
+- [Open-Meteo 海洋数据接口：Météo-France SMOC 模型逐小时海面高度（含潮汐）](https://open-meteo.com/en/docs/marine-weather-api)
+- [NSIDC 海冰指数第 4 版：每日海冰面积与 1981–2010 年气候态](https://nsidc.org/sites/default/files/documents/user-guide/g02135-v004-userguide.pdf)
 - [拉姆萨尔湿地信息表：南麂列岛 19,893 公顷，422 种藻类、725 种贝类等软体动物，1998 年加入人与生物圈](https://rsis.ramsar.org/ris/2517)
 - [《上海海洋大学学报》（2017）：南麂列岛潮间带 125 种大型底栖生物，优势种为鳞笠藤壶、厚壳贻贝、隔贻贝、短滨螺](https://html.rhhz.net/shhydxxb/20170602095.htm)
 - [Frontiers in Marine Science（2025）：鼠尾藻主导高潮区褐藻，潮下带上部几乎全是马尾藻](https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2025.1563252/pdf)

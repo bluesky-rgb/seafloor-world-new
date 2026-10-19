@@ -93,7 +93,12 @@ function frameCamera(){
   if(S.loc==='monterey'){controls.target.set(2,F+7.5,-4);camera.position.set(-3,F+2,4);return;}   /* from near the bottom, looking up the fronds to the canopy */
   if(S.loc==='truk'){const D=TRUK.Hh,b0=floorY0(0,0)-1.5;const tw=(x,y,z)=>{const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return new THREE.Vector3(x*c+z*s,b0+y,-x*s+z*c);};controls.target.copy(tw(36,D+2.5,0));camera.position.copy(tw(22,D+8,16));return;}
   if(S.loc==='mangrove'){const t=mangTrees.reduce((b,t)=>Math.abs(t[1])<Math.abs(b[1])?t:b);controls.target.set(t[0],-0.45,t[1]);camera.position.set(t[0]+3.1,-0.75,t[1]+1.4);return;}
-  if(S.loc==='nanji'){controls.target.set(-3.8,-0.1,-0.45);camera.position.set(-1.0,-1.45,1.25);return;}
+  if(S.loc==='nanji'){
+    /* the rock moves with the tide, so frame by today's water level: aim where the rock is ~0.9 m under water (barnacles, mussels) */
+    const L=TIDE.live&&LIVE.on?liveTide(Date.now()):null,h=L?L.h:-TIDE.amp*Math.cos(2*Math.PI*TIDE.hr/12.42);
+    let x=-9;while(x<5&&tideRock(x,0)-h>-0.9)x+=0.1;
+    const cx=x+2.9,cy=Math.min(-0.45,Math.max(tideRock(cx,1.3)-h+0.5,-1.6));
+    controls.target.set(x,-0.75,-0.45);camera.position.set(cx,cy,1.3);return;}
   if(S.loc==='seamount'){const s=SMT.seeps[0],y=smtFloor(s[0],s[1]);controls.target.set(s[0],y+0.1,s[1]);camera.position.set(s[0]+1.3,y+0.9,s[1]+1.5);return;}
   if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
@@ -112,7 +117,7 @@ function frameCamera(){
   controls.target.set(0,F+(deep?1.3:1.5),0);camera.position.set(dist*0.5,F+(deep?2.2:2.9),dist*0.87);
 }
 function applyLocation(id){
-  exitPilot();
+  exitPilot();CORALU.uBleach.value=CORALU.uDead.value=0;LIVE.site=null;LIVE.sim=null;renderLive();
   if(id!=='spawn'&&SPN.on){SPN.on=false;S.night=SPN.prevNight;$('spSec').hidden=true;}
   if(id==='spawn'&&!SPN.on){SPN.prevNight=S.night;S.night=true;}
   if(id!=='brine'&&brineOn)buildBrine(false);
@@ -122,12 +127,13 @@ function applyLocation(id){
   if(id==='dive'||id==='replay'){enterDive(id==='replay');return;}
   if(DIVE.on)exitDive();
   const L=LOC[id];S.loc=id;
-  Object.assign(S,{water:L.water,temp:L.temp,H:L.H,T:L.T,cur:L.cur,dir:L.dir,sun:L.sun,seep:!!L.seep,torch:S.night&&L.torch==='off'?'white':L.torch});
+  Object.assign(S,{water:L.water,temp:liveTemp(id,L.temp),H:L.H,T:L.T,cur:L.cur,dir:L.dir,sun:L.sun,seep:!!L.seep,torch:S.night&&L.torch==='off'?'white':L.torch});
   $('sDepth').value=toSlider(L.D);$('sTemp').value=S.temp;$('sH').value=S.H;$('sT').value=S.T;$('sSun').value=S.sun;$('sCur').value=S.cur;$('sDir').value=S.dir;
   for(const k in FISH)FISH[k].active=false;for(const k in JELLY)JELLY[k].active=false;for(const k in DRIFT)DRIFT[k].active=false;
   [encWS,encSW,encSQ,encSI].forEach(e=>{e.on=false;e.cool=R(3,8);});
   S.D=L.D;frameCamera();applyDepth(L.D);
   if(id==='spawn'){SPN.on=true;SPN.play=true;SPN.rate=10;spawnColonies();spawnReset(20.95);$('spSec').hidden=false;spawnNote();zoneUpdate();readouts();}
+  liveOnLocation(id);
 }
 const SITE={
   dive:[$t('关岛礁壁 → 马里亚纳海沟'),$t('从关岛的礁壁出发，一路下潜到地球海洋最深处 10,935 m。沿途经过透光层、暮光层、午夜层、深渊层和海沟，各层的生物、水温、压强和光线都按实测资料变化。'),$t('左侧剖面里，珠穆朗玛峰按比例放进了海沟；可以在下方调倍速，或直接拖动深度条。')],

@@ -61,6 +61,7 @@ docs/                 项目文档
 | 40–42 | 34–68 | 自由驾驶、探险任务、触碰发光 |
 | 43–45 exp-* | 40–73 | 三个物理实验：深海声道、压力、全球地形图 |
 | 46–49 | 46–141 | 明信片、共享图鉴、VR、展览模式与语音讲解 |
+| 50-live-ocean | 200 | 现实中的海洋：读取 `data/live.json`，珊瑚白化（`CORALU.uBleach/uDead`）、真实潮位 `liveTide()`、海冰卡片、单轴小折线图与“怎么观察”指南 |
 | 99-main-loop | 65 | 初始化与每帧主循环 |
 
 ## 3. 状态与数据流
@@ -201,6 +202,23 @@ narration/tour.json ──(GitHub Actions：生成导览配音)──▶ tools/g
 
 - **生成**：讲解词里的数字和单位写成汉字读法，避免合成时读错。`gen_tts.py` 对每句话的文本、音色、模型和语速算一个签名，只重新生成签名变了的句子。密钥存在 GitHub 仓库的 Secrets 里，不进代码，也不进网页。
 - **播放**：点击“展览模式”的那一下创建并解锁 `AudioContext`，之后换站时由计时器直接开始播放，不受手机自动播放限制。下一站的音频会提前下载解码。每站停留时间取 `max(设定时长, 音频时长 + 4 秒)`。音频不可用时导览只显示字幕。
+
+## 10b. 现实中的海洋（每天更新的数据）
+
+```
+GitHub Actions（更新现实海洋数据，北京时间 10:23 / 22:23）──▶ tools/fetch_live.py
+    ├─ NOAA Coral Reef Watch 5 km 虚拟站（paracel_islands / hainan_island / gulf_of_aqaba）
+    ├─ Open-Meteo 海洋接口（Météo-France SMOC 模型的逐小时海面高度）
+    └─ NSIDC 海冰指数 v4（每日面积 + 1981–2010 气候态）
+          ▼
+   data/live.json（约 45 KB，提交回仓库，并请求 Pages 重新部署）──▶ 网页（50-live-ocean.js）
+```
+
+- 每个来源独立下载，失败时保留上一次的数值并记在 `errors` 里；`check.py` 在数据超过 3 天时给出警告。
+- 白化：珊瑚材质有 `uBleach` 和 `uDead` 两个 uniform。`bleachOf(DHW)` 按 NOAA 的阈值（4、8、12）分段平滑，`deadOf` 用过去一年的最高 DHW（10–20）。每种生长型有不同的敏感度（几何体属性 `aKind`），再乘以每个群体的随机因子（由实例位置哈希）；朝上的表面先白。
+- 潮汐：逐小时值用 Catmull-Rom 插值，高潮、低潮用三点抛物线求极值时刻；时间按当地 UTC+8 显示。
+- 单文件版本（Claude 里发布的那份）把构建时的 `data/live.json` 快照内联为 `window.SEAFLOOR_LIVE`。
+- 详细说明见 [LIVE_DATA.md](LIVE_DATA.md)。
 
 ## 11. 性能
 

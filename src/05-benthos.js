@@ -115,14 +115,32 @@ function softCoralGeo(){
   grow(new THREE.Vector3(),UP.clone(),0.32,0);
   return finishGeo(acc);
 }
-const coralMat=waterify(lambert(),'coral',{defines:{CAUSTICS:'',FLUO:''}});
+/* Bleaching (driven by real heat stress, see 50-live-ocean.js): uBleach 0..1 turns tissue pale until the white skeleton shows,
+   uDead 0..1 covers dead colonies with a grey-green film of turf algae. Susceptibility differs by growth form (aKind: branching
+   most, massive least) and from colony to colony; upper, sunlit surfaces go first. */
+const CORALU={uBleach:{value:0},uDead:{value:0}};
+const coralMat=waterify(lambert(),'coral',{defines:{CAUSTICS:'',FLUO:''},uniforms:CORALU,
+  vHead:'attribute float aKind; varying float vSus; uniform float uBleach; uniform float uDead;',
+  vBegin:`{ float hh=0.5;
+  #ifdef USE_INSTANCING
+    hh=fract(sin(dot(instanceMatrix[3].xz,vec2(12.9898,78.233)))*43758.5453);
+  #endif
+    vSus=aKind*(0.6+0.8*hh);
+    vFluo*=1.0-0.9*clamp(uBleach*vSus+uDead,0.0,1.0); }`,   /* the fluorescent host pigments fade as the colony bleaches */
+  fHead:'varying float vSus; uniform float uBleach; uniform float uDead;',
+  fColor:`if(uBleach+uDead>0.001){ float n=0.5+0.5*sin(vWPos.x*7.0+sin(vWPos.z*5.0)*2.0)*sin(vWPos.z*6.3+vWPos.y*9.0);
+    float up=smoothstep(-0.2,0.8,vWNrm.y);
+    float b=clamp(uBleach*vSus*(0.7+0.5*up)+(n-0.5)*0.4*uBleach,0.0,1.0);
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.94,0.93,0.88),smoothstep(0.12,0.85,b));
+    float dd=clamp(uDead*vSus*1.2+(n-0.5)*0.5*uDead,0.0,1.0);
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.36,0.37,0.27),smoothstep(0.3,0.8,dd)); }`});
 const NCOR=120;
 const BOMMIE=[[0.3,0.4],[2,-1],[-4,2],[5,4],[-2,-6],[7,-4],[-7,-3],[0,6],[-6,7]];
 const CORAL={
-  branch:{geo:branchCoralGeo(),s:[0.7,1.5],pal:[[0.72,0.56,0.4],[0.6,0.42,0.66],[0.86,0.55,0.6],[0.48,0.6,0.8],[0.8,0.66,0.42]],fluo:[[0.2,1,0.35],[0.1,0.9,0.8],[1,0.35,0.3],[0.3,1,0.5]]},
-  massive:{geo:massiveCoralGeo(),s:[0.35,1.1],pal:[[0.7,0.56,0.37],[0.5,0.36,0.24],[0.53,0.64,0.38],[0.78,0.7,0.36],[0.63,0.47,0.31]],fluo:[[0.3,1,0.3],[1,0.45,0.15],[1,0.3,0.45]]},
-  plate:{geo:plateCoralGeo(),s:[0.5,1.3],pal:[[0.55,0.42,0.27],[0.69,0.56,0.41],[0.48,0.56,0.35],[0.42,0.35,0.28]],fluo:[[0.25,1,0.4],[1,0.35,0.2],[0.2,0.85,1]]},
-  soft:{geo:softCoralGeo(),s:[0.8,1.6],pal:[[0.95,0.4,0.62],[0.75,0.35,0.85],[1,0.55,0.35],[0.95,0.85,0.9]],fluo:[[1,0.3,0.25],[0.2,0.9,0.4]]}
+  branch:{sus:1.25,geo:branchCoralGeo(),s:[0.7,1.5],pal:[[0.72,0.56,0.4],[0.6,0.42,0.66],[0.86,0.55,0.6],[0.48,0.6,0.8],[0.8,0.66,0.42]],fluo:[[0.2,1,0.35],[0.1,0.9,0.8],[1,0.35,0.3],[0.3,1,0.5]]},
+  massive:{sus:0.6,geo:massiveCoralGeo(),s:[0.35,1.1],pal:[[0.7,0.56,0.37],[0.5,0.36,0.24],[0.53,0.64,0.38],[0.78,0.7,0.36],[0.63,0.47,0.31]],fluo:[[0.3,1,0.3],[1,0.45,0.15],[1,0.3,0.45]]},
+  plate:{sus:1.0,geo:plateCoralGeo(),s:[0.5,1.3],pal:[[0.55,0.42,0.27],[0.69,0.56,0.41],[0.48,0.56,0.35],[0.42,0.35,0.28]],fluo:[[0.25,1,0.4],[1,0.35,0.2],[0.2,0.85,1]]},
+  soft:{sus:0.9,geo:softCoralGeo(),s:[0.8,1.6],pal:[[0.95,0.4,0.62],[0.75,0.35,0.85],[1,0.55,0.35],[0.95,0.85,0.9]],fluo:[[1,0.3,0.25],[0.2,0.9,0.4]]}
 };
 for(const k in CORAL){
   const c=CORAL[k],fl=new Float32Array(NCOR*3);
@@ -133,10 +151,14 @@ for(const k in CORAL){
     else{const a=rnd()*6.28,r=3+Math.sqrt(rnd())*16;x=Math.cos(a)*r;z=Math.sin(a)*r;}
     if(Math.hypot(x-6,z-11)<2.5){x-=4;}
     c.spots.push({x,z,s:R(c.s[0],c.s[1]),rot:rnd()*6.28,tilt:(rnd()-0.5)*0.25});
-    const pc=c.pal[Math.floor(rnd()*c.pal.length)];mesh.setColorAt(i,col.setRGB(pc[0],pc[1],pc[2]));
+    /* living stony-coral tissue is dark (symbiotic algae): reflectance roughly 0.1-0.3, so the palette is darkened and a little
+       more saturated; bleached skeleton (0.9) then stands out the way it does on a real reef. Soft corals keep their colours. */
+    const pc0=c.pal[Math.floor(rnd()*c.pal.length)],dk=k==='soft'?1:0.58,mean=(pc0[0]+pc0[1]+pc0[2])/3;
+    const pc=pc0.map(v=>(mean+(v-mean)*(k==='soft'?1:1.35))*dk);mesh.setColorAt(i,col.setRGB(pc[0],pc[1],pc[2]));
     const f=c.fluo[Math.floor(rnd()*c.fluo.length)],fk=R(0.5,1);fl[i*3]=f[0]*fk;fl[i*3+1]=f[1]*fk;fl[i*3+2]=f[2]*fk;
   }
   c.geo.setAttribute('aFluo',new THREE.InstancedBufferAttribute(fl,3));
+  c.geo.setAttribute('aKind',new THREE.Float32BufferAttribute(new Float32Array(c.geo.attributes.position.count).fill(c.sus),1));
   mesh.count=0;scene.add(mesh);c.mesh=mesh;
 }
 let coralForm='';

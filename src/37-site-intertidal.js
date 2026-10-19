@@ -12,7 +12,7 @@
    The whole shore sits in a group that moves down as the tide rises (the sea surface stays at y = 0);
    anything above the surface is clipped, as a diver sees only the underwater part.
    ========================================================= */
-const TIDE={on:false,h:0,amp:2,hr:5.2,play:true,rate:0.25,size:44,seg:220};   /* hr: hours since low water; rate: tide hours per second */
+const TIDE={on:false,h:0,amp:2,hr:5.2,play:true,rate:0.25,size:44,seg:220,live:true,now:null};   /* live: follow the real tide when data/live.json has it */   /* hr: hours since low water; rate: tide hours per second */
 renderer.localClippingEnabled=true;
 const CLIP_SURF=[new THREE.Plane(new THREE.Vector3(0,-1,0),0.015)];
 const tideG=new THREE.Group();tideG.visible=false;scene.add(tideG);
@@ -121,22 +121,31 @@ const tideHr=()=>TIDE.hr%12.42;
 function setTideHr(hr){TIDE.hr=((hr%12.42)+12.42)%12.42;}
 function stepIntertidal(dt,t){
   if(!TIDE.on)return;
-  if(TIDE.play&&!DIVE.on)setTideHr(TIDE.hr+dt*TIDE.rate);
-  const h=-TIDE.amp*Math.cos(2*Math.PI*TIDE.hr/12.42),dh=h-TIDE.h;TIDE.h=h;
+  /* real tide (data/live.json) when following reality; otherwise the simplified 4 m semidiurnal cosine */
+  const L=TIDE.live&&LIVE.on&&!DIVE.on?liveTide(Date.now()):null;TIDE.now=L;
+  let h;
+  if(L){h=L.h;TIDE.hr=L.sinceLow%12.42;}
+  else{if(TIDE.play&&!DIVE.on)setTideHr(TIDE.hr+dt*TIDE.rate);h=-TIDE.amp*Math.cos(2*Math.PI*TIDE.hr/12.42);}
+  const dh=h-TIDE.h;TIDE.h=h;
   tideG.position.y=-h;tideU.uTideH.value=h;floor.position.y=-S.D-0.3-h;
-  if(dh!==0)tideUI();
+  if(dh!==0||L)tideUI();
 }
 let tideUIt=0;
 function tideUI(){
   const now=performance.now();if(now-tideUIt<150)return;tideUIt=now;
-  const h=TIDE.h,hr=TIDE.hr,rising=hr<6.21;
-  $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+(Math.abs(h)>1.85?(h>0?$t('高潮'):$t('低潮')):rising?$t('涨潮'):$t('落潮'));
+  const h=TIDE.h,hr=TIDE.hr,L=TIDE.now;
+  const state=L?(L.nearExt?(L.nearExt>0?$t('高潮'):$t('低潮')):L.rising?$t('涨潮'):$t('落潮')):(Math.abs(h)>1.85?(h>0?$t('高潮'):$t('低潮')):hr<6.21?$t('涨潮'):$t('落潮'));
+  $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+state;
   if(document.activeElement!==$('sTide'))$('sTide').value=Math.round(hr/12.42*1000);
+  $('tideLive').setAttribute('aria-pressed',!!L);$('tidePlay').disabled=false;
   const sub=[[$t('滨螺带'),1.9],[$t('藤壶带'),1.0],[$t('龟足'),0.6],[$t('贻贝床'),-0.1],[$t('鼠尾藻'),0.0],[$t('珊瑚藻与马尾藻'),-1.3]].filter(z=>z[1]<h).map(z=>z[0]);
-  $('tideNote').textContent=$t('距上一次低潮 ')+hr.toFixed(1)+$t(' 小时。现在淹在水下：')+(sub.length?sub.join($t('、')):$t('只有潮下带的海藻和海胆'))+$t('。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。');
+  const under=$t('现在淹在水下：')+(sub.length?sub.join($t('、')):$t('只有潮下带的海藻和海胆'))+$t('。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。');
+  $('tideNote').textContent=L?($t('现实潮位，当地时间 ')+L.clock+$t('。')+(L.next?L.next+$t('。'):'')+under)
+    :($t('距上一次低潮 ')+hr.toFixed(1)+$t(' 小时。')+under);
 }
-$('sTide').addEventListener('input',e=>{setTideHr(+e.target.value/1000*12.42);TIDE.play=false;$('tidePlay').textContent=$t('▶ 播放潮汐');});
-$('tidePlay').addEventListener('click',()=>{TIDE.play=!TIDE.play;$('tidePlay').textContent=TIDE.play?$t('❚❚ 暂停潮汐'):$t('▶ 播放潮汐');});
+$('sTide').addEventListener('input',e=>{TIDE.live=false;setTideHr(+e.target.value/1000*12.42);TIDE.play=false;$('tidePlay').textContent=$t('▶ 播放潮汐');});
+$('tidePlay').addEventListener('click',()=>{if(TIDE.live&&TIDE.now){TIDE.live=false;TIDE.play=true;}else TIDE.play=!TIDE.play;$('tidePlay').textContent=TIDE.play?$t('❚❚ 暂停潮汐'):$t('▶ 播放潮汐');});
+$('tideLive').addEventListener('click',()=>{TIDE.live=true;TIDE.play=false;$('tidePlay').textContent=$t('▶ 快放潮汐');if(!LIVE.on)setLiveOn(true);tideUIt=0;tideUI();});
 const TIDE_INFO={
   tide_rock:[$t('南麂列岛的岩礁海岸'),$t('“贝藻王国” · 浙江温州平阳'),$t('潮水每天涨落两次，岩石上同一个高度被淹没的时间是固定的，于是生物按高度排成一条条带子：最高处是黑色的蓝藻带和滨螺，往下是白花花的藤壶带，再往下是黑紫色的贻贝床，最低处是粉红的珊瑚藻和成片的马尾藻。南麂列岛已记录 422 种藻类、725 种贝类等软体动物，1998 年成为我国第一个加入联合国“人与生物圈”的海洋保护区。'),$t('南麂列岛国家级海洋自然保护区')]
 };

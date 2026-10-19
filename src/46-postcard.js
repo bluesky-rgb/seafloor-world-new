@@ -41,6 +41,6 @@ $('cardSave').addEventListener('click',async()=>{if(!CARD.blob)return;const nm=$
 $('helpBtn').addEventListener('click',()=>{$('help').hidden=false;});$('helpX').addEventListener('click',()=>{$('help').hidden=true;});
 $('welGo').addEventListener('click',()=>{$('welcome').hidden=true;});$('welHelp').addEventListener('click',()=>{$('welcome').hidden=true;$('help').hidden=false;});
 for(const id of['help','sofar','welcome'])$(id).addEventListener('click',e=>{if(e.target.id===id)$(id).hidden=true;});
-window.addEventListener('keydown',e=>{if(e.key==='Escape'){for(const id of['help','sofar','welcome','press','mapOv','card'])$(id).hidden=true;if(VR.on&&!VR.xr)exitVR();else if(TOUR.on)exitTour();}});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){for(const id of['help','sofar','welcome','press','mapOv','card','liveGuide'])$(id).hidden=true;if(VR.on&&!VR.xr)exitVR();else if(TOUR.on)exitTour();}});
 try{if(!localStorage.getItem('seafloor-welcome')){$('welcome').hidden=false;localStorage.setItem('seafloor-welcome','1');}}catch(e){$('welcome').hidden=false;}
 
