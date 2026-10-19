@@ -103,7 +103,7 @@
 
 ## 下一步
 
-详见[项目总览](https://4jt8jty9sk-cpu.github.io/seafloor-world/overview.html)的“遗留问题”和“可扩展方向”。最近的几项：
+详见[项目总览](https://bluesky-rgb.github.io/seafloor-world/overview.html)的“遗留问题”和“可扩展方向”。最近的几项：
 
 1. 收集真机试玩反馈，修正卡顿和看不懂的地方。
 2. 真实的海洋录音（需要授权的录音文件）。

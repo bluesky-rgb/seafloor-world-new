@@ -4,8 +4,8 @@ from docs/overview.tpl.html, the in-page update log and sources in index.html, a
 import html, math, os, re, datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R = lambda *p: open(os.path.join(ROOT, *p), encoding='utf-8').read()
-SITE_URL = 'https://4jt8jty9sk-cpu.github.io/seafloor-world/'
-REPO_URL = 'https://github.com/4jt8jty9sk-cpu/seafloor-world'
+SITE_URL = 'https://bluesky-rgb.github.io/seafloor-world/'
+REPO_URL = 'https://github.com/bluesky-rgb/seafloor-world'
 esc = html.escape
 
 def strip(x):
