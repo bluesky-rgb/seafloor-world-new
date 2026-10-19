@@ -18,10 +18,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=33a0e6da">
+<link rel="stylesheet" href="css/style.css?v=f4719bef">
 </head>
 <body>
-<canvas id="gl" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放；按 G 键用文字描述当前画面"></canvas>
+<canvas id="gl" tabindex="0" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放；也可用方向键转动、+/− 缩放；按 G 键用文字描述当前画面"></canvas>
 
 <div id="hud">
   <h1>海底物理世界</h1>
@@ -354,6 +354,15 @@
             <li data-s="next">声音：真实的海洋录音（需要授权的录音文件）</li>
             <li data-s="done">英文界面与英文语音讲解</li>
             <li>画质：用带骨骼动画的 glTF 模型替换主角生物</li>
+          </ul>
+        </div>
+        <div>
+          <h3>文字描述加上方向，键盘转动视角<time>2026-10-19</time></h3>
+          <ul>
+            <li>文字描述里的生物按由近到远排列，每种后面写出它相对你视线的方向和距离，例如“左前方偏上，约 3.4 m”</li>
+            <li>键盘也能看四周：点一下画面或按 Tab 选中它，方向键转动视角，+/− 缩放；转完再按 G 看新的描述</li>
+            <li>鲸落：开场改在沉底约 1.8 年，鲸肉大多已被吃掉，肋骨露出、长满红色的食骨蠕虫，还有最后几条盲鳗；镜头沿着骨架看过去。往前拖时间滑块仍能看到食腐动物阶段</li>
+            <li>修正：鲸肉被吃掉时原来只变细不变短，留下一根悬在脊骨上方的长“管子”；现在会塌下、变短，贴在骨架上</li>
           </ul>
         </div>
         <div>
@@ -785,7 +794,7 @@
   <div class="ovlBox">
     <button class="ovlX" id="guideX" type="button" aria-label="关闭">×</button>
     <h2 id="guideT">此刻的画面</h2>
-    <p class="note">用文字说明你现在在哪里、周围的环境和附近看得见哪些生物，方便使用读屏软件或看不清三维画面的人。随时按 G 键打开或关闭；换了地点或镜头后点“刷新”。</p>
+    <p class="note">用文字说明你现在在哪里、周围的环境和附近看得见哪些生物（由近到远，括号里是相对你视线的方向和距离），方便使用读屏软件或看不清三维画面的人。随时按 G 键打开或关闭；关掉后可以用方向键转动视角、+/− 缩放，再按 G 看新的描述。</p>
     <p id="guideSum" class="lead" aria-live="polite"></p>
     <div id="guideBody"></div>
     <p class="guideRow"><button id="guideR" type="button">刷新</button></p>
@@ -800,7 +809,7 @@
     <h3>换地点、下潜</h3>
     <p>在控制台“真实地点”里选一个地点，下面的介绍卡会告诉你那里是哪里、有什么看点。带边框的几项是“路线”：一路下潜到马里亚纳海沟、重走卡梅隆 2012 年的下潜、昼夜垂直迁移、三沙永乐龙洞。下潜时底部会出现进度条，可以暂停、调倍速，或拖动直接跳到任意深度。</p>
     <h3>看和认</h3>
-    <p>拖动画面转动视角，滚轮或双指缩放；镜头空闲一会儿会自动缓慢环绕（可在“时间与照明”里关掉）。点击画面里的生物、烟囱、沉船等，会弹出说明卡。第一次遇见的生物会出现在“图鉴”里。</p>
+    <p>拖动画面转动视角，滚轮或双指缩放（键盘：先点一下画面或按 Tab 选中它，方向键转动，+/− 缩放）；镜头空闲一会儿会自动缓慢环绕（可在“时间与照明”里关掉）。点击画面里的生物、烟囱、沉船等，会弹出说明卡。第一次遇见的生物会出现在“图鉴”里。</p>
     <h3>自由驾驶</h3>
     <p>点左下角“自由驾驶”，自己开着水下机器人游。电脑：W/S 前进后退，A/D 左右平移，Q/E 下潜上浮，←/→ 转向，拖动画面转头，Esc 退出。手机：左下摇杆移动，右侧按钮上浮、下潜，拖动画面转头。最高约 1 m/s，海流和波浪会推着你漂，缆绳长 60 m。下潜路线中不能自由驾驶。</p>
     <h3>文字描述（G 键）</h3>
@@ -863,7 +872,7 @@
 <script>/* language: ?lang=en|zh, saved choice, or the browser language; English text is loaded only when needed */
 (function(){var l=null;try{var q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
 if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';window.SEAFLOOR_LANG=l;
-if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=72299108"><\/script>');}})();</script>
-<script src="js/seafloor.js?v=857e46a4"></script>
+if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=94c964cd"><\/script>');}})();</script>
+<script src="js/seafloor.js?v=d756f076"></script>
 </body>
 </html>

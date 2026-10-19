@@ -68,6 +68,8 @@ details code{font-family:var(--f-mono);color:var(--fg);font-size:11px}
 #guideBody ul{margin:2px 0 0;padding-left:1.2em;font-size:13px;line-height:1.7;color:var(--fg)}
 #guideBody li{margin:2px 0}
 #guideBody i{color:var(--muted)}
+#guideBody .gdir{color:var(--accent);font-size:12px}
+#gl:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .guideRow{margin-top:14px!important}
 #guideR{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;font:inherit;font-size:13px;padding:5px 14px;cursor:pointer}
 .ovl{position:fixed;inset:0;background:rgba(2,10,15,.72);display:grid;place-items:center;padding:16px;z-index:10}

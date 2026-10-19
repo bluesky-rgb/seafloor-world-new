@@ -3,7 +3,7 @@
    Succession after Smith & Baco (2003): mobile scavengers (flesh gone within ~2 yr, 40–60 kg/day),
    enrichment opportunists (~2 yr, Osedax on exposed bone), sulfophilic stage (decades: bacterial mats, mussels).
    ========================================================= */
-const WF={t:0.25};
+const WF={t:1.8};   /* opens ~1.8 years in: flesh mostly gone, ribs showing with Osedax, the last hagfish still there */
 function wfStages(t){
   const scav=t<0.1?1:t<2?1-(t-0.1)/1.9:0;
   const enrich=t<0.3?t/0.3*0.5:t<1?0.5+0.5*(t-0.3)/0.7:t<4?1:t<10?1-(t-4)/6:0;
@@ -77,7 +77,8 @@ function buildWhaleFall(on){
 }
 function applyWF(){
   if(!wfOn)return;const st=wfStages(WF.t),f=Math.pow(st.scav,0.8);
-  flesh.visible=f>0.02;flesh.scale.set(13*(0.25+0.75*f),13*(0.25+0.75*f),13);
+  /* as it is eaten the carcass slumps: it flattens and sinks onto the skeleton and shortens, so the ribs show through */
+  flesh.visible=f>0.02;flesh.scale.set(13*(0.35+0.65*f),13*(0.15+0.85*f),13*(0.6+0.4*f));flesh.position.y=0.12+0.33*f;
   osedax.count=Math.round(900*st.enrich*(1-0.7*f));WFU.uOse.value=st.enrich*0.8*(1-f);WFU.uMat.value=st.sulfo;
   wfMussels.count=Math.round(120*st.sulfo);crabs.count=Math.round(NCR*Math.max(0.25,Math.min(1,st.scav+st.enrich*0.5)));
   bones.scale.set(1,1-0.45*Math.max(0,(WF.t-20)/40),1);

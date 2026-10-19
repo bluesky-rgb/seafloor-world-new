@@ -108,7 +108,7 @@ function frameCamera(){
   if(S.loc==='vent'){const y=floorY(0,-1);controls.target.set(0,y+4.9,-1);camera.position.set(2.4,y+4.0,1.2);return;}
   if(S.loc==='deep'){const F=-S.D;controls.target.set(SEEP.x,F+0.5,SEEP.z);camera.position.set(SEEP.x+2.6,F+1.7,SEEP.z+3.2);return;}
   if(S.loc==='slope'){const y=floorY(-0.4,-1.6);controls.target.set(-0.6,y+0.85,-2.2);camera.position.set(1.5,y+0.95,2.2);return;}
-  if(S.loc==='whalefall'){controls.target.set(0,floorY(0,0)+0.3,0.5);camera.position.set(5.2,floorY(0,0)+3.4,5.6);return;}
+  if(S.loc==='whalefall'){const y=floorY(0,0);controls.target.set(0.3,y+0.2,-1.5);camera.position.set(-2.4,y+1.2,4.6);return;}
   controls.target.set(0,F+(deep?1.3:1.5),0);camera.position.set(dist*0.5,F+(deep?2.2:2.9),dist*0.87);
 }
 function applyLocation(id){
