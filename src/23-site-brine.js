@@ -17,7 +17,7 @@ const brineGroup=new THREE.Group();brineGroup.visible=false;scene.add(brineGroup
 const brTerrGeo=new THREE.PlaneGeometry(BR.ax*5,BR.az*5,150,240);brTerrGeo.rotateX(-Math.PI/2);
 brTerrGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(brTerrGeo.attributes.position.count*3),3));
 const brTerr=new THREE.Mesh(brTerrGeo,waterify(lambert(),'brineTerr'));brineGroup.add(brTerr);
-const brMus=new THREE.InstancedMesh(musselGeo,urchinMat,4000);brMus.frustumCulled=false;brMus.count=0;brineGroup.add(brMus);
+const brMus=new THREE.InstancedMesh(musselGeo,urchinMat,6500);brMus.frustumCulled=false;brMus.count=0;brineGroup.add(brMus);
 const deadCrabGeo=(()=>{const acc=Acc(),c=()=>[0.92,0.66,0.52];
   addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.1,0,0,0,0,0.5,0.2,0.42),c);
   for(const sg of[1,-1]){for(let k=0;k<4;k++)addGeo(acc,new THREE.CylinderGeometry(0.03,0.02,0.75,4),M4(sg*0.62,0.08,-0.25+k*0.17,0.15,0,sg*1.25),c);
@@ -90,7 +90,9 @@ function buildBrine(on){
   p.needsUpdate=true;c.needsUpdate=true;brTerrGeo.computeVertexNormals();brTerrGeo.computeBoundingSphere();
   brSurf.position.y=BR.base+BR.L;
   let k=0;const cc=new THREE.Color();
-  for(let tries=0;tries<20000&&k<4000;tries++){const a=rnd()*6.28,q=0.985+Math.pow(rnd(),1.7)*0.27;
+  /* the bed is densest right at the shore, where methane-rich brine seeps under the mussels; it thins out away from the lake */
+  const nm=Math.round(6500*Math.max(0.5,PERF.k));
+  for(let tries=0;tries<30000&&k<nm;tries++){const a=rnd()*6.28,q=0.985+Math.pow(rnd(),2.4)*0.27;
     if(rnd()>0.55+0.45*Math.sin(a*5+1.3)*Math.sin(a*3)&&q>1.12)continue;
     const x=Math.cos(a)*BR.ax*q,z=BR.zc+Math.sin(a)*BR.az*q;
     _q.setFromEuler(_e.set(R(-0.9,0.9),rnd()*6.28,R(-0.9,0.9)));_s.setScalar(R(0.05,0.072));_p.set(x,brineFloor(x,z)+0.03,z);_m.compose(_p,_q,_s);brMus.setMatrixAt(k,_m);

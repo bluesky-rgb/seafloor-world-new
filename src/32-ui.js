@@ -97,16 +97,17 @@ function frameCamera(){
   if(S.loc==='seamount'){const s=SMT.seeps[0],y=smtFloor(s[0],s[1]);controls.target.set(s[0],y+0.1,s[1]);camera.position.set(s[0]+1.3,y+0.9,s[1]+1.5);return;}
   if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
-  if(S.loc==='arctic'){const e=arcEdge(3);controls.target.set(e+5,-2.0,-1);camera.position.set(e-2.5,-2.6,6);return;}
+  if(S.loc==='arctic'){const e=arcEdge(3);controls.target.set(e+4.5,-2.3,-1.5);camera.position.set(e-2.8,-3.1,4.6);return;}
   if(S.loc==='ice'){controls.target.set(ICE.hx,-5.5,ICE.hz);camera.position.set(ICE.hx+7,-9,ICE.hz+9.5);return;}
   if(S.loc==='spawn'){const b=BOMMIE[0],y=floorY(b[0],b[1]),tg=new THREE.Vector3(b[0],y+1.6,b[1]);let best=null,bs=-1;
     for(let k=0;k<12;k++){const an=k/12*6.283,cp=new THREE.Vector3(b[0]+Math.cos(an)*4.3,y+1.4,b[1]+Math.sin(an)*4.3);let m=1e9;
       rocks.children.forEach(r=>{if(!r.visible)return;const p=r.position.clone();p.y=F+r.userData.base;for(let u=0;u<=1;u+=0.1){const q=cp.clone().lerp(tg,u);m=Math.min(m,q.distanceTo(p)-r.scale.x*1.1);}});
       if(m>bs){bs=m;best=cp;}}
     controls.target.copy(tg);camera.position.copy(best);return;}
-  if(S.loc==='brine'){const y=floorY0(0,BR.zc)+BR.L;controls.target.set(0,y,BR.zc-2.5);camera.position.set(5.0,y+0.9,BR.zc+6.0);return;}
-  if(S.loc==='vent'){const y=floorY(0,-1);controls.target.set(0,y+3.6,-1);camera.position.set(3.6,y+4.4,4.2);return;}
+  if(S.loc==='brine'){const y=floorY0(0,BR.zc)+BR.L;controls.target.set(2.8,y-0.1,BR.zc-5);camera.position.set(6.3,y+0.75,BR.zc+1.5);return;}
+  if(S.loc==='vent'){const y=floorY(0,-1);controls.target.set(0,y+4.9,-1);camera.position.set(2.4,y+4.0,1.2);return;}
   if(S.loc==='deep'){const F=-S.D;controls.target.set(SEEP.x,F+0.5,SEEP.z);camera.position.set(SEEP.x+2.6,F+1.7,SEEP.z+3.2);return;}
+  if(S.loc==='slope'){const y=floorY(-0.4,-1.6);controls.target.set(-0.6,y+0.85,-2.2);camera.position.set(1.5,y+0.95,2.2);return;}
   if(S.loc==='whalefall'){controls.target.set(0,floorY(0,0)+0.3,0.5);camera.position.set(5.2,floorY(0,0)+3.4,5.6);return;}
   controls.target.set(0,F+(deep?1.3:1.5),0);camera.position.set(dist*0.5,F+(deep?2.2:2.9),dist*0.87);
 }
@@ -145,7 +146,7 @@ const SITE={
   spawn:[$t('海南三亚鹿回头 · 珊瑚产卵之夜'),$t('春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。'),$t('把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。')],
   monterey:[$t('加州蒙特雷湾巨藻林 · 12 m'),$t('冷水上升流养出的海底森林。巨藻随涌浪整片摆动，水温约 12 °C，对造礁珊瑚来说太冷了。'),$t('在“环境参数”里调大有效波高或波周期，看巨藻和海底沙纹怎样变化。')],
   eilat:[$t('红海埃拉特中光层礁 · 55 m'),$t('红海的海水极清，55 m 深处仍有几个百分点的阳光。光越弱，珊瑚越长成扁平的盘状，好接住更多光。'),$t('看面板里的“此处剩余阳光”：红光几乎为零，所以这里的一切都是蓝绿色。')],
-  slope:[$t('南海北部陆坡 · 600 m'),$t('暮光层的底部，阳光几乎耗尽，只有手电照亮的一小片海底。灯笼鱼、银斧鱼在这一带活动，竹珊瑚被触碰时会沿枝条传出蓝光。'),$t('关掉手电，剩下的光点全部来自生物发光。')],
+  slope:[$t('南海北部陆坡 · 600 m'),$t('暮光层的底部，阳光几乎耗尽，只有手电照亮的一小片海底。竹珊瑚在陆坡的硬底上长成一片“珊瑚园”，被触碰时会沿枝条传出蓝光；灯笼鱼、银斧鱼在这一带活动。'),$t('关掉手电，剩下的光点全部来自生物发光。')],
   deep:[$t('南海海马冷泉 · 1,390 m'),$t('海底渗出甲烷，细菌把它当作能量来源，养活了贻贝床、管栖蠕虫和白色的细菌席。这里冒出的气泡是甲烷。'),$t('点击贻贝、管栖蠕虫和细菌席，看它们怎样靠化学能生活。')],
   brine:[$t('墨西哥湾 NR1 海底盐池 · 650 m'),$t('比海水重得多的卤水在海底积成一个湖，有清晰的湖面和湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。'),$t('点击湖面会荡开慢慢的波纹；贴近湖面斜看，湖面才会像镜子一样倒映出对岸。')],
   whalefall:[$t('蒙特雷峡谷鲸落 · 1,800 m'),$t('一头灰鲸沉到海底后，几十年里会依次养活食腐动物、食骨蠕虫和靠硫化物生活的细菌群落。'),$t('拖动面板里“经过的时间”滑块，从几周快进到几十年。')],

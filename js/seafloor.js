@@ -27,6 +27,7 @@ if(LANG==='en'){
     if(pv&&pv.nodeType===1&&!/^(SUB|SUP)$/.test(pv.nodeName)&&/^[A-Za-z0-9(“‘]/.test(r))r=' '+r;n.nodeValue=r;});
   document.querySelectorAll('[title],[placeholder],[aria-label],[alt]').forEach(e=>['title','placeholder','aria-label','alt'].forEach(a=>{if(e.hasAttribute(a))e.setAttribute(a,tr(e.getAttribute(a)));}));
   document.title=tr(document.title);
+  document.querySelectorAll('a[href$="/overview.html"],a[href="overview.html"]').forEach(a=>{a.href=a.getAttribute('href').replace(/overview\.html$/,'overview.en.html');});
 }
 /* language switch buttons: the label names the other language, in that language */
 for(const id of['langBtn','welLang']){const b=$(id);if(!b)continue;b.textContent=LANG==='en'?'中文':'English';b.lang=LANG==='en'?'zh-CN':'en';b.addEventListener('click',()=>setLang(LANG==='en'?'zh':'en'));}
@@ -634,10 +635,17 @@ function buildFans(on){
   fanOn=on;const deep=S.D>200,trop=S.temp>=18;
   const pal=ROST.on?[[0.92,0.2,0.22],[0.98,0.45,0.5],[0.95,0.9,0.85]]:deep?[[0.94,0.92,0.86],[0.95,0.78,0.78],[0.9,0.88,0.8]]:trop?[[0.85,0.18,0.15],[0.55,0.2,0.65],[0.95,0.72,0.2]]:[[0.95,0.35,0.15],[0.9,0.45,0.2],[0.95,0.6,0.25]];
   U.uDeepFan.value=deep&&!ROST.on?1:0;
-  FANS.forEach((m,i)=>{m.visible=on;if(!on)return;const u=m.userData;
-    m.position.set(u.x,floorY(u.x,u.z)-0.02,u.z);const c=pal[i%pal.length];m.material.color.setRGB(c[0],c[1],c[2]);
-    u.yaw=Math.atan2(CUR.x,CUR.z)+Math.PI/2;m.rotation.set(0,u.yaw,0);});
+  const garden=S.loc==='slope';
+  FANS.forEach((m,i)=>{m.visible=on;if(!on)return;const u=m.userData,g=garden&&SLOPE_GARDEN[i];
+    const x=g?g[0]:u.x,z=g?g[1]:u.z;
+    m.position.set(x,floorY(x,z)-0.02,z);m.scale.setScalar(g?g[2]:1);const c=pal[i%pal.length];m.material.color.setRGB(c[0],c[1],c[2]);
+    /* the fan's plane faces the current (its normal is along the flow) so it sieves the most water */
+    u.yaw=Math.atan2(CUR.x,CUR.z)+(g?g[3]:0);m.rotation.set(0,u.yaw,0);});
 }
+/* northern South China Sea slope, 600 m: deep-sea bamboo corals grow in clusters ("coral gardens") on hard ground of the slope,
+   so at this site the fans are gathered into one garden in front of the camera instead of being scattered. [x, z, scale, yaw jitter] */
+const SLOPE_GARDEN=[[-0.5,-0.9,1.3,0.1],[1.0,-1.9,1.15,-0.2],[-2.0,-2.3,1.45,0.15],[2.5,-0.9,0.8,0.3],[-1.4,0.7,0.7,-0.25],
+  [0.3,-3.7,1.6,0.05],[-3.3,-0.7,1.05,-0.1],[2.7,-3.0,1.25,0.2],[-1.0,-5.3,1.7,-0.15]];
 /* glass sponges (Euplectella-type lattice vases) */
 const spongeGeo=(()=>{const pts=[];for(let i=0;i<=16;i++){const t=i/16;pts.push(new THREE.Vector2(0.12+0.1*Math.sin(t*2.6)+0.06*t,t));}
   const g=new THREE.LatheGeometry(pts,28);const acc=Acc();addGeo(acc,g,null,()=>[0.92,0.9,0.8]);return finishGeo(acc);})();
@@ -646,7 +654,8 @@ const spongeMat=waterify(lambert({side:THREE.DoubleSide}),'sponge',{fColor:`{ ve
   if(lat>0.09&&dg>0.07&&dg2>0.07&&vLocal.y<0.97) discard; }`});
 const sponges=new THREE.InstancedMesh(spongeGeo,spongeMat,10);sponges.frustumCulled=false;sponges.count=0;scene.add(sponges);
 function buildSponges(on){sponges.count=on?10:0;if(!on)return;
-  for(let i=0;i<10;i++){const a=i*2.4+0.7,r=3+i*1.3;const x=Math.cos(a)*r,z=Math.sin(a)*r;_q.setFromEuler(_e.set(R(-0.1,0.1),rnd()*6,R(-0.1,0.1)));const h=R(0.3,0.9);_s.set(h*0.9,h,h*0.9);_p.set(x,floorY(x,z)-0.02,z);_m.compose(_p,_q,_s);sponges.setMatrixAt(i,_m);}
+  const garden=S.loc==='slope';
+  for(let i=0;i<10;i++){const a=i*2.4+0.7,r=garden?1.6+i*0.5:3+i*1.3;const x=Math.cos(a)*r+(garden?-0.4:0),z=Math.sin(a)*r-(garden?1.8:0);_q.setFromEuler(_e.set(R(-0.1,0.1),rnd()*6,R(-0.1,0.1)));const h=R(0.3,0.9);_s.set(h*0.9,h,h*0.9);_p.set(x,floorY(x,z)-0.02,z);_m.compose(_p,_q,_s);sponges.setMatrixAt(i,_m);}
   sponges.instanceMatrix.needsUpdate=true;}
 
 function urchinGeo(spine,col){
@@ -2089,7 +2098,7 @@ vfMesh('scalyfoot',(()=>{const acc=Acc();addGeo(acc,new THREE.SphereGeometry(1,1
 vfMesh('rimicaris',(()=>{const acc=Acc(),c=()=>[0.96,0.82,0.74];addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0,0.25,0.15,0,0,0,0.28,0.24,0.55),c);
   addGeo(acc,new THREE.SphereGeometry(1,8,5),M4(0,0.2,-0.45,0,0,0,0.16,0.12,0.4),c);addGeo(acc,triGeo([0,0.2,-0.8, 0.22,0.2,-1.05, -0.22,0.2,-1.05],true),null,c);
   for(const s of[1,-1])for(let k=0;k<4;k++)addGeo(acc,new THREE.CylinderGeometry(0.02,0.015,0.45,3),M4(s*0.22,0.05,0.25-k*0.15,0,0,s*1.0),c);
-  return finishGeo(acc);})(),vMat,160);
+  return finishGeo(acc);})(),vMat,560);
 vfMesh('kiwa',(()=>{const acc=Acc(),c=(x,y,z)=>(Math.sin(x*40)*Math.sin(z*40+y*30)>0.3?[0.98,0.96,0.9]:[0.88,0.84,0.78]);
   addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.3,0,0,0,0,0.5,0.3,0.62),c);
   for(const s of[1,-1]){for(let k=0;k<3;k++)addGeo(acc,new THREE.CylinderGeometry(0.04,0.03,0.9,4),M4(s*0.75,0.18,-0.25+k*0.25,0,0,s*1.1),c);
@@ -2114,8 +2123,10 @@ function buildVent(on){
   let mn=0,n=0;for(const c of CHIM){mn+=floorY(c.x,c.z);n++;}ventBase=mn/n;ventGroup.position.set(0,ventBase-0.25,0);
   CHIM.forEach((c,i)=>{c.y0=floorY(c.x,c.z)-ventGroup.position.y-0.35;chimMeshes[i].position.y=c.y0;});
   const live=CHIM.filter(c=>!c.dead&&c.smoke>0),act=CHIM.filter(c=>!c.dead);
+  /* half of each population goes on the main chimney, the one in view when you arrive */
+  const pickLive=i=>i%2===0?CHIM[0]:live[(i>>1)%live.length];
   const fill=(key,count,pick)=>{const m=VFA[key];let k=0;for(let i=0;i<count;i++){const r=pick(i);if(!r)continue;setInst(m,k++,r.pos,r.n,r.s,rnd()*6.28);}m.count=k;m.instanceMatrix.needsUpdate=true;};
-  fill('scalyfoot',700,i=>{const c=live[i%live.length];onChimney(c,R(0.5,0.93),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.035,0.05)};});
+  fill('scalyfoot',700,i=>{const c=pickLive(i);onChimney(c,R(0.5,0.93),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.035,0.05)};});
   fill('kiwa',14,i=>{const c=live[i%2];onChimney(c,R(0.55,0.85),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.1,0.14)};});
   fill('giga',320,i=>{const c=act[i%act.length];onChimney(c,R(0.12,0.55),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.04,0.06)};});
   const ring=(c,d0,d1)=>{const a=rnd()*6.28,d=c.r0+R(d0,d1),x=c.x+Math.cos(a)*d,z=c.z+Math.sin(a)*d;return{pos:new THREE.Vector3(x,floorY(x,z)-ventGroup.position.y+0.02,z),n:new THREE.Vector3(R(-0.2,0.2),1,R(-0.2,0.2)).normalize()};};
@@ -2123,13 +2134,15 @@ function buildVent(on){
   fill('barnacle',280,i=>{if(i<120){const c=CHIM.filter(c=>c.dead)[i%2];onChimney(c,R(0.05,0.9),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.05,0.08)};}
     const r=ring(CHIM[0],3,8);r.s=R(0.05,0.08);return r;});
   fill('ventanem',70,i=>{const r=ring(CHIM[0],4.5,10);r.s=R(0.07,0.11);return r;});
-  shrimpS.length=0;const m=VFA.rimicaris;for(let i=0;i<160;i++)shrimpS.push({c:live[i%live.length],u:R(0.8,0.98),a:rnd()*6.28,s:R(0.04,0.055),ph:rnd()*6.28});m.count=160;
+  /* Rimicaris swarm in the warm water around the orifices, up to thousands per square metre; they cluster in patches */
+  shrimpS.length=0;const m=VFA.rimicaris,ns=Math.round(560*Math.max(0.5,PERF.k));
+  for(let i=0;i<ns;i++){const c=i%5<3?CHIM[0]:live[i%live.length],cl=(i*7)%9;shrimpS.push({c,u:Math.min(0.98,0.72+0.26*Math.sqrt(rnd())),a:cl*0.7+R(-0.35,0.35),s:R(0.04,0.055),ph:rnd()*6.28});}m.count=ns;
 }
 /* black smoke */
 const NSMK=3200;
 const smoke=makePoints(NSMK,`varying float vA; void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
   vec3 v=vWPos-cameraPosition; float d=length(v); vec3 T=exp(-uC*d);
-  vec3 c=vec3(0.07,0.062,0.055)*(torchAt(vWPos,1.0)*1.6+lightAt(-vWPos.y)*uSky);
+  vec3 c=vec3(0.05,0.042,0.034)*(torchAt(vWPos,1.0)*1.6+lightAt(-vWPos.y)*uSky); /* metal-sulfide particles: albedo of a few percent, slightly brown */
   c=c*T+bgCol(v/d)*(1.0-T);
   gl_FragColor=vec4(c,vA*(1.0-r*r)*clamp(T.g*1.3,0.0,1.0));`);
 smoke.pts.material.vertexShader=smoke.pts.material.vertexShader.replace('attribute float aSeed;','attribute float aSeed; varying float vA;').replace('vSeed=aSeed;','vSeed=aSeed; vA=aSeed;');
@@ -2327,7 +2340,7 @@ const brineGroup=new THREE.Group();brineGroup.visible=false;scene.add(brineGroup
 const brTerrGeo=new THREE.PlaneGeometry(BR.ax*5,BR.az*5,150,240);brTerrGeo.rotateX(-Math.PI/2);
 brTerrGeo.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(brTerrGeo.attributes.position.count*3),3));
 const brTerr=new THREE.Mesh(brTerrGeo,waterify(lambert(),'brineTerr'));brineGroup.add(brTerr);
-const brMus=new THREE.InstancedMesh(musselGeo,urchinMat,4000);brMus.frustumCulled=false;brMus.count=0;brineGroup.add(brMus);
+const brMus=new THREE.InstancedMesh(musselGeo,urchinMat,6500);brMus.frustumCulled=false;brMus.count=0;brineGroup.add(brMus);
 const deadCrabGeo=(()=>{const acc=Acc(),c=()=>[0.92,0.66,0.52];
   addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.1,0,0,0,0,0.5,0.2,0.42),c);
   for(const sg of[1,-1]){for(let k=0;k<4;k++)addGeo(acc,new THREE.CylinderGeometry(0.03,0.02,0.75,4),M4(sg*0.62,0.08,-0.25+k*0.17,0.15,0,sg*1.25),c);
@@ -2400,7 +2413,9 @@ function buildBrine(on){
   p.needsUpdate=true;c.needsUpdate=true;brTerrGeo.computeVertexNormals();brTerrGeo.computeBoundingSphere();
   brSurf.position.y=BR.base+BR.L;
   let k=0;const cc=new THREE.Color();
-  for(let tries=0;tries<20000&&k<4000;tries++){const a=rnd()*6.28,q=0.985+Math.pow(rnd(),1.7)*0.27;
+  /* the bed is densest right at the shore, where methane-rich brine seeps under the mussels; it thins out away from the lake */
+  const nm=Math.round(6500*Math.max(0.5,PERF.k));
+  for(let tries=0;tries<30000&&k<nm;tries++){const a=rnd()*6.28,q=0.985+Math.pow(rnd(),2.4)*0.27;
     if(rnd()>0.55+0.45*Math.sin(a*5+1.3)*Math.sin(a*3)&&q>1.12)continue;
     const x=Math.cos(a)*BR.ax*q,z=BR.zc+Math.sin(a)*BR.az*q;
     _q.setFromEuler(_e.set(R(-0.9,0.9),rnd()*6.28,R(-0.9,0.9)));_s.setScalar(R(0.05,0.072));_p.set(x,brineFloor(x,z)+0.03,z);_m.compose(_p,_q,_s);brMus.setMatrixAt(k,_m);
@@ -3149,16 +3164,17 @@ function frameCamera(){
   if(S.loc==='seamount'){const s=SMT.seeps[0],y=smtFloor(s[0],s[1]);controls.target.set(s[0],y+0.1,s[1]);camera.position.set(s[0]+1.3,y+0.9,s[1]+1.5);return;}
   if(S.loc==='abyss'){const y=abySurf(1.5,0);controls.target.set(1.5,y+0.35,0);camera.position.set(-2.6,y+1.9,4.4);return;}
   if(S.loc==='rost'){const c=ROST.centers[0],y=floorY(c[0],c[1]);controls.target.set(c[0],y+0.8,c[1]);camera.position.set(c[0]+2.3,y+1.5,c[1]+3.3);return;}
-  if(S.loc==='arctic'){const e=arcEdge(3);controls.target.set(e+5,-2.0,-1);camera.position.set(e-2.5,-2.6,6);return;}
+  if(S.loc==='arctic'){const e=arcEdge(3);controls.target.set(e+4.5,-2.3,-1.5);camera.position.set(e-2.8,-3.1,4.6);return;}
   if(S.loc==='ice'){controls.target.set(ICE.hx,-5.5,ICE.hz);camera.position.set(ICE.hx+7,-9,ICE.hz+9.5);return;}
   if(S.loc==='spawn'){const b=BOMMIE[0],y=floorY(b[0],b[1]),tg=new THREE.Vector3(b[0],y+1.6,b[1]);let best=null,bs=-1;
     for(let k=0;k<12;k++){const an=k/12*6.283,cp=new THREE.Vector3(b[0]+Math.cos(an)*4.3,y+1.4,b[1]+Math.sin(an)*4.3);let m=1e9;
       rocks.children.forEach(r=>{if(!r.visible)return;const p=r.position.clone();p.y=F+r.userData.base;for(let u=0;u<=1;u+=0.1){const q=cp.clone().lerp(tg,u);m=Math.min(m,q.distanceTo(p)-r.scale.x*1.1);}});
       if(m>bs){bs=m;best=cp;}}
     controls.target.copy(tg);camera.position.copy(best);return;}
-  if(S.loc==='brine'){const y=floorY0(0,BR.zc)+BR.L;controls.target.set(0,y,BR.zc-2.5);camera.position.set(5.0,y+0.9,BR.zc+6.0);return;}
-  if(S.loc==='vent'){const y=floorY(0,-1);controls.target.set(0,y+3.6,-1);camera.position.set(3.6,y+4.4,4.2);return;}
+  if(S.loc==='brine'){const y=floorY0(0,BR.zc)+BR.L;controls.target.set(2.8,y-0.1,BR.zc-5);camera.position.set(6.3,y+0.75,BR.zc+1.5);return;}
+  if(S.loc==='vent'){const y=floorY(0,-1);controls.target.set(0,y+4.9,-1);camera.position.set(2.4,y+4.0,1.2);return;}
   if(S.loc==='deep'){const F=-S.D;controls.target.set(SEEP.x,F+0.5,SEEP.z);camera.position.set(SEEP.x+2.6,F+1.7,SEEP.z+3.2);return;}
+  if(S.loc==='slope'){const y=floorY(-0.4,-1.6);controls.target.set(-0.6,y+0.85,-2.2);camera.position.set(1.5,y+0.95,2.2);return;}
   if(S.loc==='whalefall'){controls.target.set(0,floorY(0,0)+0.3,0.5);camera.position.set(5.2,floorY(0,0)+3.4,5.6);return;}
   controls.target.set(0,F+(deep?1.3:1.5),0);camera.position.set(dist*0.5,F+(deep?2.2:2.9),dist*0.87);
 }
@@ -3197,7 +3213,7 @@ const SITE={
   spawn:[$t('海南三亚鹿回头 · 珊瑚产卵之夜'),$t('春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。'),$t('把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。')],
   monterey:[$t('加州蒙特雷湾巨藻林 · 12 m'),$t('冷水上升流养出的海底森林。巨藻随涌浪整片摆动，水温约 12 °C，对造礁珊瑚来说太冷了。'),$t('在“环境参数”里调大有效波高或波周期，看巨藻和海底沙纹怎样变化。')],
   eilat:[$t('红海埃拉特中光层礁 · 55 m'),$t('红海的海水极清，55 m 深处仍有几个百分点的阳光。光越弱，珊瑚越长成扁平的盘状，好接住更多光。'),$t('看面板里的“此处剩余阳光”：红光几乎为零，所以这里的一切都是蓝绿色。')],
-  slope:[$t('南海北部陆坡 · 600 m'),$t('暮光层的底部，阳光几乎耗尽，只有手电照亮的一小片海底。灯笼鱼、银斧鱼在这一带活动，竹珊瑚被触碰时会沿枝条传出蓝光。'),$t('关掉手电，剩下的光点全部来自生物发光。')],
+  slope:[$t('南海北部陆坡 · 600 m'),$t('暮光层的底部，阳光几乎耗尽，只有手电照亮的一小片海底。竹珊瑚在陆坡的硬底上长成一片“珊瑚园”，被触碰时会沿枝条传出蓝光；灯笼鱼、银斧鱼在这一带活动。'),$t('关掉手电，剩下的光点全部来自生物发光。')],
   deep:[$t('南海海马冷泉 · 1,390 m'),$t('海底渗出甲烷，细菌把它当作能量来源，养活了贻贝床、管栖蠕虫和白色的细菌席。这里冒出的气泡是甲烷。'),$t('点击贻贝、管栖蠕虫和细菌席，看它们怎样靠化学能生活。')],
   brine:[$t('墨西哥湾 NR1 海底盐池 · 650 m'),$t('比海水重得多的卤水在海底积成一个湖，有清晰的湖面和湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。'),$t('点击湖面会荡开慢慢的波纹；贴近湖面斜看，湖面才会像镜子一样倒映出对岸。')],
   whalefall:[$t('蒙特雷峡谷鲸落 · 1,800 m'),$t('一头灰鲸沉到海底后，几十年里会依次养活食腐动物、食骨蠕虫和靠硫化物生活的细菌群落。'),$t('拖动面板里“经过的时间”滑块，从几周快进到几十年。')],
@@ -3780,7 +3796,7 @@ function podMesh(key,geo,n,o){
 const NARM=podMesh('narwhalM',narwhalGeo(true),3,{fHead:NARW_SPOTS,fColor:NARW_FCOL}),NARF=podMesh('narwhalF',narwhalGeo(false),4,{fHead:NARW_SPOTS,fColor:NARW_FCOL}),BELU=podMesh('beluga',belugaGeo(),6);
 /* a pod travels along the edge in the open water; members keep loose station, and each comes up to breathe now and then */
 function startPod(sp,near){
-  const c=controls.target,dir=rnd()<0.5?1:-1,P={sp,dir,zc:c.z-dir*(near?12:40),end:c.z+dir*40,lane:R(3,5.5),y0:R(-4.2,-2.8),v:sp==='narwhal'?1.6:1.2,m:[]};
+  const c=controls.target,dir=rnd()<0.5?1:-1,P={sp,dir,zc:c.z-dir*(near?7:40),end:c.z+dir*40,lane:near?R(2.6,3.4):R(3,5.5),y0:near?R(-3.3,-2.7):R(-4.2,-2.8),v:sp==='narwhal'?1.6:1.2,m:[]};
   const add=(mesh,s,dx,dy,dz,grey)=>{const i=P.m.filter(q=>q.mesh===mesh).length;if(i>=mesh.instanceMatrix.count)return null;
     const q={mesh,i,s,dx,dy,dz,ph:rnd()*6.28,hz:(sp==='narwhal'?0.55:0.45)*Math.sqrt(4.2/s),surf:R(3,25),y:P.y0+dy,pos:new THREE.Vector3()};
     mesh.setColorAt(i,_cl.setScalar(grey||1));mesh.instanceColor.needsUpdate=true;P.m.push(q);return q;};

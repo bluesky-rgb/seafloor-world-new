@@ -39,7 +39,7 @@ vfMesh('scalyfoot',(()=>{const acc=Acc();addGeo(acc,new THREE.SphereGeometry(1,1
 vfMesh('rimicaris',(()=>{const acc=Acc(),c=()=>[0.96,0.82,0.74];addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0,0.25,0.15,0,0,0,0.28,0.24,0.55),c);
   addGeo(acc,new THREE.SphereGeometry(1,8,5),M4(0,0.2,-0.45,0,0,0,0.16,0.12,0.4),c);addGeo(acc,triGeo([0,0.2,-0.8, 0.22,0.2,-1.05, -0.22,0.2,-1.05],true),null,c);
   for(const s of[1,-1])for(let k=0;k<4;k++)addGeo(acc,new THREE.CylinderGeometry(0.02,0.015,0.45,3),M4(s*0.22,0.05,0.25-k*0.15,0,0,s*1.0),c);
-  return finishGeo(acc);})(),vMat,160);
+  return finishGeo(acc);})(),vMat,560);
 vfMesh('kiwa',(()=>{const acc=Acc(),c=(x,y,z)=>(Math.sin(x*40)*Math.sin(z*40+y*30)>0.3?[0.98,0.96,0.9]:[0.88,0.84,0.78]);
   addGeo(acc,new THREE.SphereGeometry(1,12,8),M4(0,0.3,0,0,0,0,0.5,0.3,0.62),c);
   for(const s of[1,-1]){for(let k=0;k<3;k++)addGeo(acc,new THREE.CylinderGeometry(0.04,0.03,0.9,4),M4(s*0.75,0.18,-0.25+k*0.25,0,0,s*1.1),c);
@@ -64,8 +64,10 @@ function buildVent(on){
   let mn=0,n=0;for(const c of CHIM){mn+=floorY(c.x,c.z);n++;}ventBase=mn/n;ventGroup.position.set(0,ventBase-0.25,0);
   CHIM.forEach((c,i)=>{c.y0=floorY(c.x,c.z)-ventGroup.position.y-0.35;chimMeshes[i].position.y=c.y0;});
   const live=CHIM.filter(c=>!c.dead&&c.smoke>0),act=CHIM.filter(c=>!c.dead);
+  /* half of each population goes on the main chimney, the one in view when you arrive */
+  const pickLive=i=>i%2===0?CHIM[0]:live[(i>>1)%live.length];
   const fill=(key,count,pick)=>{const m=VFA[key];let k=0;for(let i=0;i<count;i++){const r=pick(i);if(!r)continue;setInst(m,k++,r.pos,r.n,r.s,rnd()*6.28);}m.count=k;m.instanceMatrix.needsUpdate=true;};
-  fill('scalyfoot',700,i=>{const c=live[i%live.length];onChimney(c,R(0.5,0.93),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.035,0.05)};});
+  fill('scalyfoot',700,i=>{const c=pickLive(i);onChimney(c,R(0.5,0.93),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.035,0.05)};});
   fill('kiwa',14,i=>{const c=live[i%2];onChimney(c,R(0.55,0.85),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.1,0.14)};});
   fill('giga',320,i=>{const c=act[i%act.length];onChimney(c,R(0.12,0.55),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.04,0.06)};});
   const ring=(c,d0,d1)=>{const a=rnd()*6.28,d=c.r0+R(d0,d1),x=c.x+Math.cos(a)*d,z=c.z+Math.sin(a)*d;return{pos:new THREE.Vector3(x,floorY(x,z)-ventGroup.position.y+0.02,z),n:new THREE.Vector3(R(-0.2,0.2),1,R(-0.2,0.2)).normalize()};};
@@ -73,13 +75,15 @@ function buildVent(on){
   fill('barnacle',280,i=>{if(i<120){const c=CHIM.filter(c=>c.dead)[i%2];onChimney(c,R(0.05,0.9),rnd()*6.28,_sp);return{pos:_sp.pos.clone(),n:_sp.n.clone(),s:R(0.05,0.08)};}
     const r=ring(CHIM[0],3,8);r.s=R(0.05,0.08);return r;});
   fill('ventanem',70,i=>{const r=ring(CHIM[0],4.5,10);r.s=R(0.07,0.11);return r;});
-  shrimpS.length=0;const m=VFA.rimicaris;for(let i=0;i<160;i++)shrimpS.push({c:live[i%live.length],u:R(0.8,0.98),a:rnd()*6.28,s:R(0.04,0.055),ph:rnd()*6.28});m.count=160;
+  /* Rimicaris swarm in the warm water around the orifices, up to thousands per square metre; they cluster in patches */
+  shrimpS.length=0;const m=VFA.rimicaris,ns=Math.round(560*Math.max(0.5,PERF.k));
+  for(let i=0;i<ns;i++){const c=i%5<3?CHIM[0]:live[i%live.length],cl=(i*7)%9;shrimpS.push({c,u:Math.min(0.98,0.72+0.26*Math.sqrt(rnd())),a:cl*0.7+R(-0.35,0.35),s:R(0.04,0.055),ph:rnd()*6.28});}m.count=ns;
 }
 /* black smoke */
 const NSMK=3200;
 const smoke=makePoints(NSMK,`varying float vA; void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
   vec3 v=vWPos-cameraPosition; float d=length(v); vec3 T=exp(-uC*d);
-  vec3 c=vec3(0.07,0.062,0.055)*(torchAt(vWPos,1.0)*1.6+lightAt(-vWPos.y)*uSky);
+  vec3 c=vec3(0.05,0.042,0.034)*(torchAt(vWPos,1.0)*1.6+lightAt(-vWPos.y)*uSky); /* metal-sulfide particles: albedo of a few percent, slightly brown */
   c=c*T+bgCol(v/d)*(1.0-T);
   gl_FragColor=vec4(c,vA*(1.0-r*r)*clamp(T.g*1.3,0.0,1.0));`);
 smoke.pts.material.vertexShader=smoke.pts.material.vertexShader.replace('attribute float aSeed;','attribute float aSeed; varying float vA;').replace('vSeed=aSeed;','vSeed=aSeed; vA=aSeed;');

@@ -256,10 +256,17 @@ function buildFans(on){
   fanOn=on;const deep=S.D>200,trop=S.temp>=18;
   const pal=ROST.on?[[0.92,0.2,0.22],[0.98,0.45,0.5],[0.95,0.9,0.85]]:deep?[[0.94,0.92,0.86],[0.95,0.78,0.78],[0.9,0.88,0.8]]:trop?[[0.85,0.18,0.15],[0.55,0.2,0.65],[0.95,0.72,0.2]]:[[0.95,0.35,0.15],[0.9,0.45,0.2],[0.95,0.6,0.25]];
   U.uDeepFan.value=deep&&!ROST.on?1:0;
-  FANS.forEach((m,i)=>{m.visible=on;if(!on)return;const u=m.userData;
-    m.position.set(u.x,floorY(u.x,u.z)-0.02,u.z);const c=pal[i%pal.length];m.material.color.setRGB(c[0],c[1],c[2]);
-    u.yaw=Math.atan2(CUR.x,CUR.z)+Math.PI/2;m.rotation.set(0,u.yaw,0);});
+  const garden=S.loc==='slope';
+  FANS.forEach((m,i)=>{m.visible=on;if(!on)return;const u=m.userData,g=garden&&SLOPE_GARDEN[i];
+    const x=g?g[0]:u.x,z=g?g[1]:u.z;
+    m.position.set(x,floorY(x,z)-0.02,z);m.scale.setScalar(g?g[2]:1);const c=pal[i%pal.length];m.material.color.setRGB(c[0],c[1],c[2]);
+    /* the fan's plane faces the current (its normal is along the flow) so it sieves the most water */
+    u.yaw=Math.atan2(CUR.x,CUR.z)+(g?g[3]:0);m.rotation.set(0,u.yaw,0);});
 }
+/* northern South China Sea slope, 600 m: deep-sea bamboo corals grow in clusters ("coral gardens") on hard ground of the slope,
+   so at this site the fans are gathered into one garden in front of the camera instead of being scattered. [x, z, scale, yaw jitter] */
+const SLOPE_GARDEN=[[-0.5,-0.9,1.3,0.1],[1.0,-1.9,1.15,-0.2],[-2.0,-2.3,1.45,0.15],[2.5,-0.9,0.8,0.3],[-1.4,0.7,0.7,-0.25],
+  [0.3,-3.7,1.6,0.05],[-3.3,-0.7,1.05,-0.1],[2.7,-3.0,1.25,0.2],[-1.0,-5.3,1.7,-0.15]];
 /* glass sponges (Euplectella-type lattice vases) */
 const spongeGeo=(()=>{const pts=[];for(let i=0;i<=16;i++){const t=i/16;pts.push(new THREE.Vector2(0.12+0.1*Math.sin(t*2.6)+0.06*t,t));}
   const g=new THREE.LatheGeometry(pts,28);const acc=Acc();addGeo(acc,g,null,()=>[0.92,0.9,0.8]);return finishGeo(acc);})();
@@ -268,7 +275,8 @@ const spongeMat=waterify(lambert({side:THREE.DoubleSide}),'sponge',{fColor:`{ ve
   if(lat>0.09&&dg>0.07&&dg2>0.07&&vLocal.y<0.97) discard; }`});
 const sponges=new THREE.InstancedMesh(spongeGeo,spongeMat,10);sponges.frustumCulled=false;sponges.count=0;scene.add(sponges);
 function buildSponges(on){sponges.count=on?10:0;if(!on)return;
-  for(let i=0;i<10;i++){const a=i*2.4+0.7,r=3+i*1.3;const x=Math.cos(a)*r,z=Math.sin(a)*r;_q.setFromEuler(_e.set(R(-0.1,0.1),rnd()*6,R(-0.1,0.1)));const h=R(0.3,0.9);_s.set(h*0.9,h,h*0.9);_p.set(x,floorY(x,z)-0.02,z);_m.compose(_p,_q,_s);sponges.setMatrixAt(i,_m);}
+  const garden=S.loc==='slope';
+  for(let i=0;i<10;i++){const a=i*2.4+0.7,r=garden?1.6+i*0.5:3+i*1.3;const x=Math.cos(a)*r+(garden?-0.4:0),z=Math.sin(a)*r-(garden?1.8:0);_q.setFromEuler(_e.set(R(-0.1,0.1),rnd()*6,R(-0.1,0.1)));const h=R(0.3,0.9);_s.set(h*0.9,h,h*0.9);_p.set(x,floorY(x,z)-0.02,z);_m.compose(_p,_q,_s);sponges.setMatrixAt(i,_m);}
   sponges.instanceMatrix.needsUpdate=true;}
 
 function urchinGeo(spine,col){

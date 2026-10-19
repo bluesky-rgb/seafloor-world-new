@@ -62,10 +62,15 @@ for s in ('bottom', 'end'):
 
 before = {('docs', f): read('docs', f) for f in ('CHANGELOG.md', 'ROADMAP.md', 'SOURCES.md')}
 before[('overview.html',)] = read('overview.html')
+before[('overview.en.html',)] = read('overview.en.html')
 subprocess.run([sys.executable, P('tools', 'sync_docs.py')], capture_output=True)
 for f, old in before.items():
     if read(*f) != old:
         errors.append('%s was out of date with the in-page log (now regenerated; commit it)' % '/'.join(f))
+
+ov_miss = json.loads(subprocess.run([sys.executable, P('tools', 'build_overview.py'), '--missing'], capture_output=True, text=True).stdout or '[]')
+if ov_miss:
+    errors.append('overview.en.html: %d strings untranslated, add them to i18n/overview.en.json (first: %s)' % (len(ov_miss), ov_miss[0]))
 
 for w in warnings: print('warning:', w)
 for e in errors: print('error:', e)

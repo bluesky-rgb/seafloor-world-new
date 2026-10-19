@@ -21,6 +21,7 @@ if(LANG==='en'){
     if(pv&&pv.nodeType===1&&!/^(SUB|SUP)$/.test(pv.nodeName)&&/^[A-Za-z0-9(“‘]/.test(r))r=' '+r;n.nodeValue=r;});
   document.querySelectorAll('[title],[placeholder],[aria-label],[alt]').forEach(e=>['title','placeholder','aria-label','alt'].forEach(a=>{if(e.hasAttribute(a))e.setAttribute(a,tr(e.getAttribute(a)));}));
   document.title=tr(document.title);
+  document.querySelectorAll('a[href$="/overview.html"],a[href="overview.html"]').forEach(a=>{a.href=a.getAttribute('href').replace(/overview\.html$/,'overview.en.html');});
 }
 /* language switch buttons: the label names the other language, in that language */
 for(const id of['langBtn','welLang']){const b=$(id);if(!b)continue;b.textContent=LANG==='en'?'中文':'English';b.lang=LANG==='en'?'zh-CN':'en';b.addEventListener('click',()=>setLang(LANG==='en'?'zh':'en'));}

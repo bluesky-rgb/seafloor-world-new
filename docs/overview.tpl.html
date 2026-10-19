@@ -125,6 +125,7 @@ footer .wrap{padding-block:36px 56px;color:var(--muted);font-size:.88rem;display
     <a class="btn pri" href="{{SITE_URL}}" target="_blank" rel="noopener">打开三维场景</a>
     <a class="btn" href="{{REPO_URL}}" target="_blank" rel="noopener">GitHub 仓库</a>
     <a class="btn" href="{{REPO_URL}}/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">技术实现说明</a>
+    <a class="btn" href="overview.en.html" lang="en">English</a>
   </div>
   <div class="stats">{{STATS}}</div>
 </div></header>
@@ -198,7 +199,7 @@ index.html 内的更新记录 ──sync_docs.py──▶ docs/CHANGELOG.md · R
   <p class="col sub">下面每一条都说明了原因，以及要解决需要什么。标着“需要你”的几条，单靠写代码完成不了。</p>
   <div class="issues col">
     <div class="issue"><span class="tag">需要你</span><h3>真实的海洋录音</h3><p>现在的声音是用 Web Audio 合成的：浪声、呼吸与气泡、抹香鲸的咔嗒声、深海低鸣。真实录音（鲸歌、珊瑚礁的噼啪声、冰下海豹的叫声）会大大增强沉浸感，但录音有版权，不能随意下载使用。</p><p class="need">提供允许使用的录音文件（自己录的，或明确标注可商用/可署名使用的，例如部分 NOAA、MBARI 公开声学数据），我负责剪辑、按地点和深度混音、加上来源说明。</p></div>
-    <div class="issue"><span class="tag">工作量大</span><h3>英文界面</h3><p>目前所有文字都是中文：界面、地点介绍、图鉴、信息卡、任务、讲解词和页面内文档，合计上千条。做英文版需要先把文字从代码里抽出来做成语言包，再逐条翻译、配英文讲解音频。</p><p class="need">确认要不要做、优先翻译哪些部分（建议先做界面和地点介绍），以及英文讲解用哪个声音。</p></div>
+    <div class="issue"><span class="tag">翻译</span><h3>英文版的剩余部分</h3><p>界面、地点介绍、图鉴、信息卡、任务、讲解词（含英文配音）和本总览页都已有英文版（地址后加 <code>?lang=en</code>，或点右上角 English）。页面内每次更新的详细说明、仓库里的 Markdown 文档仍只有中文，英文译文是机器辅助加人工校对，可能有不够地道的地方。</p><p class="need">如果有母语为英文的读者，请他们看一遍，把别扭的句子告诉我。</p></div>
     <div class="issue"><span class="tag">需要真机</span><h3>手机、陀螺仪和 VR 头显的实测</h3><p>测试都在电脑上的无头浏览器里跑。已经加了流畅模式和卡顿自动切换，但不同手机的性能、陀螺仪方向和 WebXR 头显的表现，需要在真机上试。</p><p class="need">用你的手机（以及有的话 VR 头显）打开网站试一遍，把卡顿或看不懂的地方告诉我。</p></div>
     <div class="issue"><span class="tag">画质</span><h3>生物仍是代码生成的简化造型</h3><p>为了在手机上流畅运行、不依赖外部文件，生物都是用几何体拼出来的，没有贴图和骨骼动画，一眼能看出是模型。章鱼、马尾藻等造型偏卡通。</p><p class="need">如果要更逼真，可以换成带骨骼动画的 glTF 模型。需要找到授权合适的模型（或请人制作），并接受网页体积变大。</p></div>
     <div class="issue"><span class="tag">数据</span><h3>部分数值是估计</h3><p>北极浮冰边缘的水深取约 300 m、南麂列岛的潮差简化为 4 m，没有找到实测值；全球地形图的网格约 37 km，海沟在图上只显示约 9,000 m 深。这些都已在页面上注明。</p><p class="need">如果能找到当地的实测资料（例如潮汐表、测深图），可以替换成准确数值。</p></div>
@@ -227,7 +228,7 @@ index.html 内的更新记录 ──sync_docs.py──▶ docs/CHANGELOG.md · R
       <li>北极海冰面积 <span>· 用 NSIDC 的每日数据画出冰缘的季节变化</span></li>
     </ul></div>
     <div><h3>体验与教学</h3><ul>
-      <li>英文和其他语言 <span>· 见遗留问题</span></li>
+      <li>更多语言 <span>· 语言包结构已就绪，加一份译文即可</span></li>
       <li>课堂模式 <span>· 老师选好地点和问题，学生边看边答</span></li>
       <li>录制视频 <span>· 把导览直接导出成视频，便于分享</span></li>
       <li>每个地点多段讲解 <span>· 从现在的一段扩成“看点—原理—保护”三段</span></li>

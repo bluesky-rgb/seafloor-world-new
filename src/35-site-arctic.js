@@ -156,7 +156,7 @@ function podMesh(key,geo,n,o){
 const NARM=podMesh('narwhalM',narwhalGeo(true),3,{fHead:NARW_SPOTS,fColor:NARW_FCOL}),NARF=podMesh('narwhalF',narwhalGeo(false),4,{fHead:NARW_SPOTS,fColor:NARW_FCOL}),BELU=podMesh('beluga',belugaGeo(),6);
 /* a pod travels along the edge in the open water; members keep loose station, and each comes up to breathe now and then */
 function startPod(sp,near){
-  const c=controls.target,dir=rnd()<0.5?1:-1,P={sp,dir,zc:c.z-dir*(near?12:40),end:c.z+dir*40,lane:R(3,5.5),y0:R(-4.2,-2.8),v:sp==='narwhal'?1.6:1.2,m:[]};
+  const c=controls.target,dir=rnd()<0.5?1:-1,P={sp,dir,zc:c.z-dir*(near?7:40),end:c.z+dir*40,lane:near?R(2.6,3.4):R(3,5.5),y0:near?R(-3.3,-2.7):R(-4.2,-2.8),v:sp==='narwhal'?1.6:1.2,m:[]};
   const add=(mesh,s,dx,dy,dz,grey)=>{const i=P.m.filter(q=>q.mesh===mesh).length;if(i>=mesh.instanceMatrix.count)return null;
     const q={mesh,i,s,dx,dy,dz,ph:rnd()*6.28,hz:(sp==='narwhal'?0.55:0.45)*Math.sqrt(4.2/s),surf:R(3,25),y:P.y0+dy,pos:new THREE.Vector3()};
     mesh.setColorAt(i,_cl.setScalar(grey||1));mesh.instanceColor.needsUpdate=true;P.m.push(q);return q;};
