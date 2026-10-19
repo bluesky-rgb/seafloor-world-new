@@ -4,11 +4,11 @@
 
 A real-time 3D ocean built from real sites and measured data, from a 10 m coral reef down to the 10,935 m Challenger Deep. Runs in any modern browser (WebGL); the interface is in Chinese.
 
-**在线体验：<https://bluesky-rgb.github.io/seafloor-world/>**（第一次打开可以先点“看 8 分钟展览导览”）
+**在线体验：<https://bluesky-rgb.github.io/seafloor-world-new/>**（第一次打开可以先点“看 8 分钟展览导览”）
 
 ## 项目文档
 
-- **[项目总览（网页）](https://bluesky-rgb.github.io/seafloor-world/overview.html)**：研究思路、地点深度剖面、物理模型、技术架构、开发时间线、遗留问题、可扩展方向和可搜索的资料库
+- **[项目总览（网页）](https://bluesky-rgb.github.io/seafloor-world-new/overview.html)**：研究思路、地点深度剖面、物理模型、技术架构、开发时间线、遗留问题、可扩展方向和可搜索的资料库
 - [项目总结](docs/PROJECT.md)：目标、场景一览、物理模型、功能、技术结构、已知限制和下一步
 - [技术实现说明](docs/ARCHITECTURE.md)：代码结构、渲染与水下光学、主循环、各功能实现、语音讲解流程、性能、开发流程
 - [更新记录](docs/CHANGELOG.md)：31 次更新，逐项说明加了什么
