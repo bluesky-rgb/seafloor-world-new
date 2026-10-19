@@ -4,7 +4,11 @@
 const canvas=$('gl');
 let renderer;
 try{renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});}catch(e){$('err').hidden=false;return;}
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
+/* performance: phones and weak GPUs start in the light mode (lower resolution, no bloom, about half the repeated plants and animals) */
+const PERF={low:false,k:1,user:null,samp:[],t0:0,done:false,ready:false};
+try{PERF.user=localStorage.getItem('seafloor-perf');}catch(e){}
+{const mob=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent),mem=navigator.deviceMemory||8;PERF.low=PERF.user?PERF.user==='low':(mob&&mem<=4)||mem<=2;PERF.k=PERF.low?0.45:1;}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,PERF.low?1:1.75));
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 const scene=new THREE.Scene();

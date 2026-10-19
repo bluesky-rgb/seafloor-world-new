@@ -191,7 +191,22 @@ function stepTurtles(dt,t){
 }
 
 /* deep-sea anglerfish (Melanocetus) with glowing esca */
-const anglerGeo=buildFishGeo({h:0.7,w:0.55,tailH:0.16,dorsal:0.05,anal:0.04,col:(x,y,z,f)=>mixc([0.12,0.1,0.1],[0.05,0.04,0.04],sstep(-0.3,0.4,y/0.7))});
+/* Melanocetus: a near-spherical velvety black body, a huge upturned mouth lined with long glassy fangs, tiny eyes,
+   small fins; the female's lure (illicium) arches from the head with the glowing esca at its tip */
+const anglerGeo=(()=>{const acc=Acc(),blk=(x,y,z)=>mixc([0.1,0.08,0.08],[0.04,0.035,0.035],sstep(-0.3,0.4,y));
+  const b=new THREE.SphereGeometry(1,24,16);const P=b.attributes.position;
+  for(let i=0;i<P.count;i++){let x=P.getX(i)*0.42,y=P.getY(i)*0.5,z=P.getZ(i)*0.5;if(z<-0.1){const t=(-z-0.1)/0.4;x*=1-0.6*t;y*=1-0.45*t;}P.setXYZ(i,x,y,z);}
+  b.computeVertexNormals();addGeo(acc,b,null,blk);
+  addGeo(acc,new THREE.SphereGeometry(1,16,8,0,Math.PI*2,0,Math.PI/2),M4(0,0.0,0.38,-1.2,0,0,0.3,0.22,0.24),()=>[0.02,0.015,0.02]);          /* open mouth */
+  addGeo(acc,new THREE.SphereGeometry(1,16,8),M4(0,-0.12,0.42,0.5,0,0,0.3,0.1,0.16),blk);                                                     /* jutting lower jaw */
+  const fang=new THREE.ConeGeometry(0.018,0.16,5);
+  for(let k=0;k<9;k++){const a=(k/8-0.5)*2.4;addGeo(acc,fang,M4(Math.sin(a)*0.25,-0.05,0.42+Math.cos(a)*0.12,0,0,0),()=>[0.85,0.85,0.82]);         /* lower fangs pointing up */
+    if(k%2)addGeo(acc,fang,M4(Math.sin(a)*0.22,0.14,0.38+Math.cos(a)*0.1,Math.PI,0,0),()=>[0.8,0.8,0.78]);}                                        /* upper fangs pointing down */
+  for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(0.025,8,6),M4(sg*0.2,0.24,0.33),()=>[0.25,0.25,0.3]);
+    addGeo(acc,triGeo([sg*0.36,-0.05,0.0, sg*0.5,-0.1,-0.1, sg*0.4,-0.18,0.05]),null,()=>[0.08,0.07,0.07]);}
+  addGeo(acc,triGeo([0,0,-0.45, 0,0.2,-0.68, 0,0,-0.6, 0,0,-0.45, 0,0,-0.6, 0,-0.2,-0.68]),null,()=>[0.07,0.06,0.06]);
+  addGeo(acc,triGeo([0,0.42,-0.15, 0,0.55,-0.3, 0,0.35,-0.36]),null,()=>[0.07,0.06,0.06]);
+  return finishGeo(acc);})();
 const anglerMat=waterify(lambert({side:THREE.DoubleSide}),'angler');
 const anglers=[0,1,2].map(i=>{const g=new THREE.Group();g.add(new THREE.Mesh(anglerGeo,anglerMat));
   const st=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.01,0.35,4),anglerMat);st.position.set(0,0.62,0.32);st.rotation.x=0.9;g.add(st);

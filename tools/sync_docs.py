@@ -24,3 +24,6 @@ w('CHANGELOG.md', '# 更新记录\n\n由页面内“更新记录、路线图与�
 w('ROADMAP.md', '# 路线图\n\n功能按顺序逐项加入，每项完成后在页面和这里同步记录。\n\n' + '\n'.join(road) + '\n')
 w('SOURCES.md', '# 资料来源\n\n页面中的物理参数、地点和生物资料引用自以下来源（共 %d 条）。\n\n' % len(src) + '\n'.join(src) + '\n')
 print('changelog %d, roadmap %d, sources %d' % (len(log), len(road), len(src)))
+
+import subprocess, sys
+subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'build_overview.py')], check=True)

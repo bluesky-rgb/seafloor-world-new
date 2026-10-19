@@ -90,7 +90,7 @@ const tUrchins=new THREE.InstancedMesh(urchinT.geometry,urchinT.material,60);tUr
 regPick(tideMesh,'tide_rock');regPick(tetras,'tetraclita');regPick(polls,'capitulum');regPick(tMussels,'mytilus');regPick(winks,'littorina');regPick(sargs,'sargassum');regPick(tAnems,'tanem');regPick(tUrchins,'heliocidaris');
 /* scatter instances over the shore where the elevation falls in a band; ab = how strongly to prefer the band centre */
 function tideScatter(mesh,n,e0,e1,sc,opt){
-  opt=opt||{};let k=0;const cap=mesh.instanceMatrix.count;
+  opt=opt||{};n=Math.round(n*PERF.k);let k=0;const cap=mesh.instanceMatrix.count;
   const zr=opt.zr||9;for(let i=0;i<n*60&&k<Math.min(n,cap);i++){const x=R(-13,8),z=R(-zr,zr);const e=tideRock(x,z);if(e<e0||e>e1)continue;
     if(opt.crev){const[d1,d2]=cell2(x*0.42+5,z*0.42+2);if(d2-d1>0.12)continue;}
     if(opt.p&&rnd()>opt.p(x,z,e))continue;

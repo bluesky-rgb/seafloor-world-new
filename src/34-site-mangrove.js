@@ -80,6 +80,7 @@ function seagrassMesh(key,n,curl,width){
   m.frustumCulled=false;m.count=0;m.userData.width=width;scene.add(m);return m;}
 const enhalus=seagrassMesh('enhalus',6500,0.04,0.016),thalassia=seagrassMesh('thalassia',11000,0.12,0.009);
 function plantBlades(m,n,lenR,clump,dens){
+  n=Math.round(n*PERF.k);
   const yaw=m.geometry.attributes.aYaw.array,len=m.geometry.attributes.aLen.array,ph=m.geometry.attributes.aPh.array;let k=0;
   for(let tries=0;tries<n*6&&k<n;tries++){const x=R(MANG.bankX,12),z=R(-11,11);if(rnd()>dens(x,z))continue;
     const c=Math.floor(R(clump[0],clump[1]+1)),base=rnd()*6.28;

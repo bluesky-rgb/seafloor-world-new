@@ -91,14 +91,31 @@ const encWS=new Enc({R0:34,fwd:[11,18],fwdDark:[7,10],y:[-1,3],cool:[22,40],spd:
 
 /* sperm whale (Physeter macrocephalus): horizontal flukes beat up and down */
 function spermGeo(){
+  /* proportions after photographs: a box-like head about a third of the length with a blunt front, a narrow underslung
+     lower jaw lined with white, prune-like wrinkled skin behind the head, a low dorsal hump followed by "knuckles",
+     broad triangular flukes. The blowhole sits at the front, to the left. Healed squid scars streak the head. */
   const acc=Acc();
-  const body=latheZ([[0.001,-0.5],[0.012,-0.47],[0.02,-0.4],[0.04,-0.25],[0.065,-0.08],[0.078,0.08],[0.082,0.25],[0.08,0.42],[0.07,0.48],[0.04,0.5],[0.001,0.505]],24);
-  addGeo(acc,body,M4(0,0,0,0,0,0,0.9,1.12,1),(x,y,z)=>{const wr=0.5+0.5*Math.sin(z*160+Math.sin(x*80)*2);return mixc([0.31,0.3,0.3],[0.2,0.2,0.21],wr*0.6*sstep(-0.3,0.1,z));});
-  addGeo(acc,new THREE.CylinderGeometry(0.012,0.009,0.3,8),M4(0,-0.08,0.33,Math.PI/2),()=>[0.82,0.82,0.8]);
-  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(sg*0.075,-0.05,0.17,0,sg*0.5,sg*0.4,0.05,0.008,0.025),()=>[0.25,0.25,0.26]);
-  addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(0,0.058,-0.18,0,0,0,0.015,0.02,0.05),()=>[0.27,0.26,0.26]);
-  addGeo(acc,triGeo([0,0,-0.47, 0.13,0,-0.56, 0.02,0,-0.52,  0,0,-0.47, -0.02,0,-0.52, -0.13,0,-0.56,  0,0,-0.47, 0.02,0,-0.52, -0.02,0,-0.52],true),null,()=>[0.24,0.24,0.25]);
-  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.006,6,4),M4(sg*0.072,-0.04,0.22),()=>[0.02,0.02,0.02]);
+  const W=a=>a<0.3?0.012+0.05*sstep(0,0.3,a):a<0.62?0.062+0.022*sstep(0.3,0.5,a):0.084-0.008*sstep(0.62,0.9,a);
+  const Hh=a=>a<0.3?0.02+0.058*sstep(0,0.3,a):a<0.62?0.078+0.018*sstep(0.3,0.5,a):0.096+0.006*sstep(0.62,0.8,a);
+  const cap=a=>a>0.965?Math.sqrt(Math.max(0,1-Math.pow((a-0.965)/0.035,2))):1;
+  addColored(acc,loftGeo(150,40,(a,b)=>{const ph=b*Math.PI*2,c=Math.cos(ph),sn=Math.sin(ph),z=-0.5+a;
+    const n=2+1.6*sstep(0.6,0.75,a),sp=(v,k)=>Math.sign(v)*Math.pow(Math.abs(v),2/k);   /* superellipse: round body, boxy head */
+    let x=W(a)*cap(a)*sp(c,n),y=Hh(a)*cap(a)*sp(sn,n)*(sn<0?0.92:1)+0.012*sstep(0.6,0.9,a);
+    if(sn>0){y+=0.018*Math.exp(-Math.pow((a-0.36)/0.035,2))*Math.pow(sn,6);                                  /* dorsal hump */
+      for(let k=0;k<5;k++)y+=0.006*Math.exp(-Math.pow((a-0.3+k*0.035)/0.008,2))*Math.pow(sn,8);}            /* knuckles */
+    const wr=sstep(0.25,0.4,a)*sstep(0.68,0.58,a)*(0.5+0.5*Math.sin(z*420+Math.sin(ph*9)*2));                /* wrinkled skin */
+    let col=mixc([0.27,0.26,0.25],[0.19,0.18,0.18],wr*0.7);
+    if(a>0.62){const[d1,d2]=cell2(z*90+ph*3,y*90);if(d2-d1<0.04)col=mixc(col,[0.55,0.54,0.52],0.6);}        /* scars */
+    if(a>0.6&&sn<-0.55)col=mixc(col,[0.82,0.8,0.78],sstep(-0.55,-0.85,sn)*sstep(0.6,0.66,a));              /* pale underside where the jaw tucks in */
+    return[x,y,z,...col];}));
+  /* lower jaw: long, narrow, rod-like, white-lipped, tucked under the head */
+  addColored(acc,loftGeo(30,10,(a,b)=>{const ph=b*Math.PI*2,z=0.17+a*0.29,w=0.016*(1-0.4*a)+0.004,h=0.012*(1-0.3*a)+0.003;
+    const x=w*Math.cos(ph),y=-0.088-0.004*a+h*Math.sin(ph);return[x,y,z,...(Math.sin(ph)>0.2?[0.85,0.84,0.82]:[0.6,0.58,0.56])];}));
+  for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(1,10,6),M4(sg*0.078,-0.06,0.2,0,sg*0.5,-sg*0.4,0.05,0.008,0.024),()=>[0.24,0.23,0.23]);   /* flippers */
+    addGeo(acc,new THREE.SphereGeometry(0.006,6,4),M4(sg*0.077,-0.035,0.24),()=>[0.02,0.02,0.02]);}                                               /* small eyes far back */
+  addGeo(acc,new THREE.SphereGeometry(1,8,4),M4(0.035,0.103,0.475,0,0.4,0,0.016,0.004,0.008),()=>[0.06,0.06,0.06]);                                  /* blowhole, front left */
+  for(const sg of[1,-1])addColored(acc,loftGeo(14,8,(a,b)=>{const ph=b*Math.PI*2,x=sg*(0.006+0.14*a),ch=0.07*(1-0.8*a)+0.008,cz=-0.512-0.045*a;
+    return[x,0.004*Math.sin(ph),cz+0.5*ch*Math.cos(ph),...[0.22,0.21,0.21]];}));
   return finishGeo(acc);
 }
 const SPW=makeSwimmer('sperm',spermGeo(),{vBegin:'float bt=clamp(-0.05-position.z,0.0,1.0); transformed.y+=sin(aPhase-position.z*4.0)*0.35*bt*bt;'});
@@ -106,19 +123,20 @@ const encSW=new Enc({R0:42,fwd:[13,20],fwdDark:[8,11],y:[-3,4],cool:[30,55],spd:
 
 /* giant squid (Architeuthis dux): seen only at the edge of the light */
 function squidGeo(){
-  const acc=Acc(),red=(x,y)=>mixc([0.78,0.45,0.4],[0.58,0.2,0.18],sstep(-0.02,0.02,y));
-  addGeo(acc,latheZ([[0.022,0.285],[0.027,0.3],[0.028,0.36],[0.024,0.43],[0.012,0.48],[0.001,0.5]],14),null,red);
-  addGeo(acc,triGeo([0,0,0.5, 0.05,0,0.465, 0,0,0.43,  0,0,0.5, 0,0,0.43, -0.05,0,0.465],true),null,()=>[0.6,0.24,0.2]);
-  addGeo(acc,new THREE.SphereGeometry(0.021,12,8),M4(0,0,0.27),red);
-  for(const sg of[1,-1])addGeo(acc,new THREE.SphereGeometry(0.0135,10,8),M4(sg*0.019,0.004,0.272),()=>[0.04,0.04,0.06]);
-  const cone=new THREE.ConeGeometry(0.006,0.22,5);cone.translate(0,0.11,0);
-  for(let k=0;k<8;k++){const a=k/8*Math.PI*2,dir=new THREE.Vector3(Math.cos(a)*0.13,Math.sin(a)*0.13,-1).normalize();
-    addGeo(acc,cone,new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a)*0.012,Math.sin(a)*0.012,0.255),new THREE.Quaternion().setFromUnitVectors(UP,dir),new THREE.Vector3(1,1,1)),red);}
-  const ten=new THREE.CylinderGeometry(0.0022,0.0022,0.7,4);ten.translate(0,0.35,0);
-  for(const sg of[1,-1]){const dir=new THREE.Vector3(sg*0.03,-0.02,-1).normalize(),q=new THREE.Quaternion().setFromUnitVectors(UP,dir);
-    addGeo(acc,ten,new THREE.Matrix4().compose(new THREE.Vector3(sg*0.006,-0.004,0.255),q,new THREE.Vector3(1,1,1)),red);
-    const end=new THREE.Vector3(sg*0.006,-0.004,0.255).addScaledVector(dir,0.7);
-    addGeo(acc,new THREE.SphereGeometry(1,8,5),M4(end.x,end.y,end.z,0,0,0,0.007,0.004,0.045),red);}
+  /* mantle ~2 m with a pair of rhomboid fins at the tip, the largest eyes in the animal kingdom (~27 cm), eight
+     thick arms lined with pale suckers and two feeding tentacles ending in clubs; skin red-brown with dark chromatophores */
+  const acc=Acc(),skin=(x,y,z)=>{const[d1]=cell2(z*160,Math.atan2(y,x)*6);return mixc(mixc([0.8,0.48,0.42],[0.56,0.2,0.18],sstep(-0.02,0.02,y)),[0.35,0.1,0.1],d1<0.22?0.6:0);};
+  addColored(acc,loftGeo(40,16,(a,b)=>{const ph=b*Math.PI*2,z=0.27+a*0.23,r=(0.028*Math.pow(Math.sin(Math.PI*(0.08+0.6*a)),0.6))*(1-sstep(0.85,1,a)*0.9)+0.002;
+    const x=r*Math.cos(ph),y=r*Math.sin(ph)*0.95;return[x,y,z,...skin(x,y,z)];}));
+  for(const sg of[1,-1])addGeo(acc,triGeo([0,0,0.5, sg*0.055,0,0.455, 0,0,0.41],true),null,()=>[0.62,0.24,0.2]);
+  addGeo(acc,new THREE.SphereGeometry(1,14,10),M4(0,0,0.262,0,0,0,0.026,0.024,0.03),skin);                                                        /* head */
+  for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(0.0145,12,8),M4(sg*0.022,0.004,0.266),()=>[0.06,0.06,0.09]);
+    addGeo(acc,new THREE.SphereGeometry(0.006,8,6),M4(sg*0.035,0.006,0.27),()=>[0.75,0.78,0.8]);}                                                 /* eye shine */
+  for(let k=0;k<8;k++){const a0=k/8*Math.PI*2,L=0.2+0.03*Math.sin(k);
+    addColored(acc,loftGeo(18,6,(a,b)=>{const ph=b*Math.PI*2,z=0.24-a*L,sp=0.012+a*0.05,cx=Math.cos(a0)*sp,cy=Math.sin(a0)*sp,r=0.0065*(1-0.85*a)+0.0008;
+      const inner=Math.cos(ph-a0-Math.PI)>0.4;const x=cx+r*Math.cos(ph),y=cy+r*Math.sin(ph);return[x,y,z,...(inner&&Math.sin(a*90)>0?[0.9,0.82,0.75]:skin(x,y,z))];}));}
+  for(const sg of[1,-1])addColored(acc,loftGeo(40,5,(a,b)=>{const ph=b*Math.PI*2,z=0.24-a*0.72,cx=sg*(0.006+a*0.03),cy=-0.004-a*0.012,club=sstep(0.86,0.93,a)*sstep(1,0.97,a);
+    const r=0.0022+0.006*club;const x=cx+r*Math.cos(ph),y=cy+r*Math.sin(ph)*(1-0.4*club);return[x,y,z,...(club>0.3&&Math.sin(a*400)>0?[0.9,0.8,0.72]:skin(x,y,z))];}));
   return finishGeo(acc);
 }
 const SQD=makeSwimmer('squid',squidGeo(),{vBegin:`{ float a=clamp((0.26-position.z)/0.75,0.0,1.0);

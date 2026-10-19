@@ -1,0 +1,258 @@
+<title>海底物理世界总览</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (~44em) inside a wider frame for the depth chart and tables; a horizontal section index under the masthead.
+   Palette after a printed bathymetric chart: pale sea-chart paper, navy ink, sounding teal, and amber for open questions. */
+:root{
+  --paper:#eef3f2; --panel:#f8fbfa; --ink:#10232e; --muted:#4e6570; --rule:#c6d4d5;
+  --teal:#0b6e7f; --teal-soft:#d5e8ea; --amber:#9a5a22; --amber-soft:#f3e4d3;
+  --z1:#dcecee; --z2:#cbe0e4; --z3:#b8d2d9; --z4:#a4c3cc; --z5:#90b3be;
+  --display:"Noto Serif SC","Songti SC","STSong",serif;
+  --body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0b1820; --panel:#112430; --ink:#dce8ea; --muted:#93aab1; --rule:#24414c;
+  --teal:#56c3cf; --teal-soft:#16343d; --amber:#e3a66b; --amber-soft:#3a2a1b;
+  --z1:#173845; --z2:#132f3b; --z3:#0f2630; --z4:#0b1d26; --z5:#08151c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0b1820; --panel:#112430; --ink:#dce8ea; --muted:#93aab1; --rule:#24414c;
+  --teal:#56c3cf; --teal-soft:#16343d; --amber:#e3a66b; --amber-soft:#3a2a1b;
+  --z1:#173845; --z2:#132f3b; --z3:#0f2630; --z4:#0b1d26; --z5:#08151c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.75 var(--body);margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.col{max-width:44em}
+a{color:var(--teal);text-underline-offset:3px}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.3;margin:0}
+h2{font-size:1.65rem;font-weight:800}
+h3{font-size:1.1rem;font-weight:600}
+p{margin:0}
+.eyebrow{font:500 .78rem/1 var(--mono);letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+/* masthead */
+header.top{border-bottom:1px solid var(--rule)}
+header.top .wrap{padding-block:56px 36px;display:grid;gap:18px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:.02em}
+.lead{font-size:1.12rem;color:var(--ink);max-width:40em}
+.links{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:1px solid var(--teal);border-radius:999px;text-decoration:none;font-weight:500;font-size:.95rem}
+.btn.pri{background:var(--teal);color:var(--paper)}
+.stats{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:10px;font-family:var(--mono)}
+.stats div{display:grid}
+.stats b{font-size:1.6rem;font-weight:500;font-variant-numeric:tabular-nums}
+.stats span{font-family:var(--body);font-size:.82rem;color:var(--muted)}
+/* section index */
+nav.idx{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--rule)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+nav.idx .wrap{display:flex;gap:18px;overflow-x:auto;padding-block:10px;scrollbar-width:none}
+nav.idx a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:.9rem}
+nav.idx a:hover{color:var(--teal)}
+section{padding-block:56px;border-bottom:1px solid var(--rule)}
+section .wrap{display:grid;gap:22px}
+.sub{color:var(--muted)}
+/* method: a real sequence */
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:0;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:3.2em 1fr;gap:4px 14px;padding:14px 0;border-top:1px solid var(--rule)}
+ol.steps li::before{content:counter(s,decimal-leading-zero);font:500 1.05rem/1.6 var(--mono);color:var(--teal);grid-row:span 2}
+ol.steps li b{font-weight:700}
+ol.steps li p{color:var(--muted);font-size:.95rem}
+.principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.principles div{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:16px 18px;display:grid;gap:6px}
+.principles p{font-size:.93rem;color:var(--muted)}
+/* depth chart */
+.chart{overflow-x:auto;background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:8px}
+.chart svg{display:block;min-width:620px;width:100%;height:auto}
+.chart text{font-family:var(--body);fill:var(--ink)}
+.chart .ax{font-family:var(--mono);fill:var(--muted);font-size:11px}
+.chart .zl{font-size:11px;fill:var(--muted)}
+.chart .lead-line{stroke:var(--muted);stroke-width:.8;fill:none;opacity:.6}
+.chart .dot{fill:var(--teal)}
+.chart .bar{fill:var(--teal);opacity:.55}
+.chart .z1{fill:var(--z1)}.chart .z2{fill:var(--z2)}.chart .z3{fill:var(--z3)}.chart .z4{fill:var(--z4)}.chart .z5{fill:var(--z5)}
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--rule)}
+th{font-weight:500;color:var(--muted);font-size:.82rem;letter-spacing:.04em;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num{font-family:var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+td:first-child{font-weight:500;min-width:9em}
+/* architecture */
+.arch{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.arch .box{border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:14px 16px;display:grid;gap:6px;align-content:start}
+.arch .box code{font:500 .85rem var(--mono);color:var(--teal)}
+.arch .box p{font-size:.9rem;color:var(--muted)}
+.flow{font:400 .88rem/1.9 var(--mono);color:var(--muted);background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;overflow-x:auto;white-space:pre}
+/* timeline */
+ol.tl{list-style:none;margin:0;padding:0;display:grid}
+ol.tl li{display:grid;grid-template-columns:7.2em 1fr;gap:4px 16px;padding:10px 0;border-top:1px solid var(--rule)}
+ol.tl time{font:400 .82rem/1.9 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+ol.tl p{font-size:.9rem;color:var(--muted)}
+ol.tl b{font-weight:500}
+details.more>summary{cursor:pointer;color:var(--teal);font-weight:500;padding:6px 0}
+/* open issues */
+.issues{display:grid;gap:12px}
+.issue{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--amber);border-radius:6px;padding:14px 16px}
+.issue .tag{grid-row:span 3;font:500 .74rem/1 var(--mono);color:var(--amber);background:var(--amber-soft);padding:5px 7px;border-radius:4px;align-self:start;white-space:nowrap}
+.issue p{font-size:.93rem;color:var(--muted)}
+.issue p.need{color:var(--ink)}
+.issue p.need::before{content:"需要：";font-weight:700;color:var(--amber)}
+/* ideas */
+.ideas{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}
+.ideas h3{margin-bottom:8px}
+.ideas ul{margin:0;padding-left:1.2em;display:grid;gap:6px;font-size:.94rem}
+.ideas li span{color:var(--muted)}
+/* sources */
+.srcbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.srcbar input{flex:1 1 260px;min-width:0;padding:9px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit}
+.srcbar span{font:.85rem var(--mono);color:var(--muted)}
+ol.src{margin:0;padding-left:2.6em;display:grid;gap:6px;font-size:.92rem;columns:1}
+ol.src li::marker{font-family:var(--mono);color:var(--muted);font-size:.8rem}
+ol.src a{word-break:break-word}
+footer .wrap{padding-block:36px 56px;color:var(--muted);font-size:.88rem;display:grid;gap:6px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+@media (max-width:560px){ol.tl li{grid-template-columns:1fr}ol.steps li{grid-template-columns:2.4em 1fr}}
+</style>
+
+<header class="top"><div class="wrap">
+  <p class="eyebrow">项目总览 · 更新于 {{DATE}}</p>
+  <h1>海底物理世界</h1>
+  <p class="lead">在浏览器里打开的三维海洋：从潮间带的藤壶到 10,935 m 的海沟底。每个场景都选自真实地点、取自实测数据，画面上的光、水流和生物分布尽量由物理和生态规律算出来，凡是放大或简化的地方都在页面上写明。</p>
+  <div class="links">
+    <a class="btn pri" href="{{SITE_URL}}" target="_blank" rel="noopener">打开三维场景</a>
+    <a class="btn" href="{{REPO_URL}}" target="_blank" rel="noopener">GitHub 仓库</a>
+    <a class="btn" href="{{REPO_URL}}/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">技术实现说明</a>
+  </div>
+  <div class="stats">{{STATS}}</div>
+</div></header>
+
+<nav class="idx" aria-label="章节"><div class="wrap">
+  <a href="#method">研究思路</a><a href="#sites">地点与深度</a><a href="#models">物理模型</a><a href="#arch">技术架构</a><a href="#timeline">开发过程</a><a href="#issues">遗留问题</a><a href="#ideas">可扩展方向</a><a href="#sources">资料库</a>
+</div></nav>
+
+<section id="method"><div class="wrap">
+  <p class="eyebrow">研究思路</p>
+  <h2>先找到真实的地方，再让物理来画</h2>
+  <p class="col sub">项目的出发点是把海洋“大、诡秘、物种丰富”的样子展示出来，但不靠想象去画。每加一个场景，都按同一套流程走一遍。</p>
+  <ol class="steps col">
+    <li><b>选一个真实地点和一个现象</b><p>例如南海西沙的珊瑚礁、戴维森海山脚下的章鱼花园、北极的浮冰边缘。地点要有公开的考察记录，现象要能讲清楚一个道理（光怎样消失、潮汐怎样分带、温泉怎样缩短孵化期）。</p></li>
+    <li><b>查资料，把文字变成参数</b><p>水深、水温、水质、浪高和周期、海流、太阳高度，以及生物的种类、大小、颜色和密度。数字都来自论文、保护区资料、考察机构和百科，在“资料库”里逐条列出。</p></li>
+    <li><b>用物理模型算出画面</b><p>同一套水下光学、波浪和生态规则用于所有场景：换一个地点，只是换参数。生物出现在哪里，由它的深度、水温和生境范围决定，而不是手工摆放。</p></li>
+    <li><b>搭场景、做生物</b><p>地形、生物造型和动画都在代码里生成，没有外部贴图和模型文件，所以整个网站是纯静态的，打开即用。</p></li>
+    <li><b>截图检验，对照照片修改</b><p>每个场景都在浏览器里截图检查：颜色是否像真实水下照片、生物比例是否对、有没有看不清或穿模的地方。不对就改参数或造型，再截一次。</p></li>
+    <li><b>写说明，标注简化</b><p>每个功能都配中文说明；凡是为了看清而放大的、为了性能而简化的、找不到实测值只能估计的，都在页面上写明。</p></li>
+    <li><b>讲解、检查、发布</b><p>展览模式的讲解词由 MiniMax 语音模型在 GitHub 上自动配音；每次提交自动检查构建、讲解与音频的对应、文档同步，再发布到 GitHub Pages。</p></li>
+  </ol>
+  <div class="principles">
+    <div><h3>真实地点</h3><p>每个场景都对应地图上的一个点，在全球地形图上能找到。</p></div>
+    <div><h3>能算就不画</h3><p>颜色随深度变蓝、光柱、沙纹、气泡大小、潮位，都由公式算出。</p></div>
+    <div><h3>简化要写明</h3><p>估计值和简化（例如潮差取 4 m）在页面上直接说明，不假装精确。</p></div>
+    <div><h3>每个功能都有说明</h3><p>欢迎卡、玩法说明、地点介绍、图鉴、点击生物的信息卡和语音讲解。</p></div>
+  </div>
+</div></section>
+
+<section id="sites"><div class="wrap">
+  <p class="eyebrow">地点与深度</p>
+  <h2>{{N_SITES}} 个地点，从潮间带到海沟</h2>
+  <p class="col sub">左侧是水深（对数刻度），背景色带是海洋的分层。圆点是固定地点，竖条是一段深度范围或下潜路线。</p>
+  <div class="chart">{{DEPTH_SVG}}</div>
+  <div class="tbl"><table><thead><tr><th>地点</th><th>深度</th><th>看点</th></tr></thead><tbody>{{SITE_ROWS}}</tbody></table></div>
+</div></section>
+
+<section id="models"><div class="wrap">
+  <p class="eyebrow">物理与生态模型</p>
+  <h2>画面背后的公式</h2>
+  <div class="tbl"><table><thead><tr><th>现象</th><th>做法</th></tr></thead><tbody>{{MODEL_ROWS}}</tbody></table></div>
+</div></section>
+
+<section id="arch"><div class="wrap">
+  <p class="eyebrow">技术架构</p>
+  <h2>一个纯静态网站，加两条自动化流程</h2>
+  <div class="arch">
+    <div class="box"><h3>三维场景</h3><code>three.js r128 · WebGL</code><p>自写的着色器补丁 <code>waterify()</code> 给所有材质加上水下光学：按红绿蓝三个波段衰减、散射背景、手电锥光、焦散和沙纹。</p></div>
+    <div class="box"><h3>源码</h3><code>src/ · {{N_SRC}} 个文件</code><p>按功能拆分（光学、海底、鱼群、各个地点、界面、导览……），由 <code>tools/build.py</code> 拼成页面加载的 <code>js/seafloor.js</code>，只依赖 Python。</p></div>
+    <div class="box"><h3>后期处理</h3><code>渲染 → 泛光 → 白平衡</code><p>半浮点精度渲染，泛光让生物发光有光晕，最后做白平衡、暗角、手电光晕和温泉上方的折射扰动。流畅模式会关掉泛光。</p></div>
+    <div class="box"><h3>语音讲解</h3><code>narration/tour.json → MiniMax</code><p>讲解词一改，GitHub Actions 就调用 MiniMax 语音合成生成 mp3 并提交回仓库。密钥只存在仓库的加密变量里，网页只播放生成好的音频。</p></div>
+    <div class="box"><h3>自动检查</h3><code>tools/check.py · smoke_test.py</code><p>每次推送检查构建是否最新、语法、讲解与音频是否对应、文档是否同步；本地用无头浏览器跑场景、导览、地图、明信片、VR 和驾驶。</p></div>
+    <div class="box"><h3>发布</h3><code>GitHub Pages · Claude 页面</code><p>仓库根目录直接作为网站。另有一个把所有文件合成单个 HTML 的版本，发布在 Claude 里，带所有访客共享的图鉴。</p></div>
+  </div>
+  <div class="flow">src/*.js ──build.py──▶ js/seafloor.js ──▶ index.html ──▶ GitHub Pages
+narration/tour.json ──GitHub Actions + MiniMax──▶ audio/tour/*.mp3 + manifest.json
+index.html 内的更新记录 ──sync_docs.py──▶ docs/CHANGELOG.md · ROADMAP.md · SOURCES.md · overview.html</div>
+</div></section>
+
+<section id="timeline"><div class="wrap">
+  <p class="eyebrow">开发过程</p>
+  <h2>{{N_LOG}} 次更新</h2>
+  <p class="col sub">按页面内的更新记录整理，最新的在最上面。每一条在主页面的“更新记录、路线图与资料来源”里都有完整说明。</p>
+  <ol class="tl col">{{TIMELINE_TOP}}</ol>
+  <details class="more col"><summary>展开更早的 {{N_LOG_MORE}} 次更新</summary><ol class="tl">{{TIMELINE_REST}}</ol></details>
+</div></section>
+
+<section id="issues"><div class="wrap">
+  <p class="eyebrow">遗留问题</p>
+  <h2>还没做好、或者做不了的地方</h2>
+  <p class="col sub">下面每一条都说明了原因，以及要解决需要什么。标着“需要你”的几条，单靠写代码完成不了。</p>
+  <div class="issues col">
+    <div class="issue"><span class="tag">需要你</span><h3>真实的海洋录音</h3><p>现在的声音是用 Web Audio 合成的：浪声、呼吸与气泡、抹香鲸的咔嗒声、深海低鸣。真实录音（鲸歌、珊瑚礁的噼啪声、冰下海豹的叫声）会大大增强沉浸感，但录音有版权，不能随意下载使用。</p><p class="need">提供允许使用的录音文件（自己录的，或明确标注可商用/可署名使用的，例如部分 NOAA、MBARI 公开声学数据），我负责剪辑、按地点和深度混音、加上来源说明。</p></div>
+    <div class="issue"><span class="tag">工作量大</span><h3>英文界面</h3><p>目前所有文字都是中文：界面、地点介绍、图鉴、信息卡、任务、讲解词和页面内文档，合计上千条。做英文版需要先把文字从代码里抽出来做成语言包，再逐条翻译、配英文讲解音频。</p><p class="need">确认要不要做、优先翻译哪些部分（建议先做界面和地点介绍），以及英文讲解用哪个声音。</p></div>
+    <div class="issue"><span class="tag">需要真机</span><h3>手机、陀螺仪和 VR 头显的实测</h3><p>测试都在电脑上的无头浏览器里跑。已经加了流畅模式和卡顿自动切换，但不同手机的性能、陀螺仪方向和 WebXR 头显的表现，需要在真机上试。</p><p class="need">用你的手机（以及有的话 VR 头显）打开网站试一遍，把卡顿或看不懂的地方告诉我。</p></div>
+    <div class="issue"><span class="tag">画质</span><h3>生物仍是代码生成的简化造型</h3><p>为了在手机上流畅运行、不依赖外部文件，生物都是用几何体拼出来的，没有贴图和骨骼动画，一眼能看出是模型。章鱼、马尾藻等造型偏卡通。</p><p class="need">如果要更逼真，可以换成带骨骼动画的 glTF 模型。需要找到授权合适的模型（或请人制作），并接受网页体积变大。</p></div>
+    <div class="issue"><span class="tag">数据</span><h3>部分数值是估计</h3><p>北极浮冰边缘的水深取约 300 m、南麂列岛的潮差简化为 4 m，没有找到实测值；全球地形图的网格约 37 km，海沟在图上只显示约 9,000 m 深。这些都已在页面上注明。</p><p class="need">如果能找到当地的实测资料（例如潮汐表、测深图），可以替换成准确数值。</p></div>
+    <div class="issue"><span class="tag">模型</span><h3>物理是简化模型，不是数值模拟</h3><p>鱼群用群游规则，水流和波浪用解析公式，光学只分红绿蓝三个波段，没有真正的流体和辐射传输计算。对于展示和教学足够，但不能当科研工具用。</p><p class="need">保持现状即可；如果某个现象需要更精确，可以针对它单独做（例如用实测光谱代替三个波段）。</p></div>
+    <div class="issue"><span class="tag">审阅</span><h3>内容没有经过海洋学专家审阅</h3><p>所有说明文字都对照了公开资料，但没有请专业人士逐条把关。</p><p class="need">如果要用于课堂或展览，建议请海洋生物或海洋物理方向的老师看一遍图鉴和地点介绍。</p></div>
+    <div class="issue"><span class="tag">无障碍</span><h3>键盘和读屏支持有限</h3><p>三维画面主要靠鼠标和手指操作，图鉴和面板可以用键盘，但场景本身对读屏软件不友好。</p><p class="need">可以加一个纯文字的“场景导览”模式，把当前画面里有什么用文字列出来。</p></div>
+  </div>
+</div></section>
+
+<section id="ideas"><div class="wrap">
+  <p class="eyebrow">可扩展方向</p>
+  <h2>接下来可以做什么</h2>
+  <div class="ideas">
+    <div><h3>新的地点和现象</h3><ul>
+      <li>大堡礁珊瑚白化 <span>· 用水温驱动的时间线，对比白化前后</span></li>
+      <li>马尾藻海 <span>· 漂浮在大洋中央的海藻森林和它的居民</span></li>
+      <li>“失落之城”热液区 <span>· 白色碳酸盐烟囱，与黑烟囱对照</span></li>
+      <li>座头鲸的歌声 <span>· 声音沿深海声道传播，与现有的声道实验结合</span></li>
+      <li>海底峡谷与浊流 <span>· 泥沙沿峡谷冲下的过程</span></li>
+      <li>南海北部的海草床儒艮历史 <span>· 用历史记录讲“功能性灭绝”</span></li>
+    </ul></div>
+    <div><h3>接入真实数据</h3><ul>
+      <li>Argo 浮标 <span>· 用全球浮标的实测温盐剖面驱动下潜时的水温</span></li>
+      <li>NOAA 珊瑚礁监测 <span>· 按当下的热应力显示各地珊瑚的白化风险</span></li>
+      <li>潮汐预报 <span>· 让潮间带的潮位和真实时刻同步</span></li>
+      <li>北极海冰面积 <span>· 用 NSIDC 的每日数据画出冰缘的季节变化</span></li>
+    </ul></div>
+    <div><h3>体验与教学</h3><ul>
+      <li>英文和其他语言 <span>· 见遗留问题</span></li>
+      <li>课堂模式 <span>· 老师选好地点和问题，学生边看边答</span></li>
+      <li>录制视频 <span>· 把导览直接导出成视频，便于分享</span></li>
+      <li>每个地点多段讲解 <span>· 从现在的一段扩成“看点—原理—保护”三段</span></li>
+      <li>真实录音的声景 <span>· 见遗留问题</span></li>
+    </ul></div>
+  </div>
+</div></section>
+
+<section id="sources"><div class="wrap">
+  <p class="eyebrow">资料库</p>
+  <h2>{{N_SOURCES}} 条资料来源</h2>
+  <p class="col sub">页面上的地点、参数和生物资料引用自下列来源，最新加入的在最上面。可以按关键词筛选，例如“珊瑚”“NOAA”“冰”。</p>
+  <div class="srcbar"><input id="srcQ" type="search" placeholder="筛选资料，例如：鲸、海冰、Science" aria-label="筛选资料"><span id="srcN"></span></div>
+  <ol class="src" id="srcList">{{SOURCES}}</ol>
+</div></section>
+
+<footer><div class="wrap">
+  <p>本页由仓库里的 <code>tools/build_overview.py</code> 根据主页面的更新记录、资料来源和 <code>docs/PROJECT.md</code> 自动生成，内容与主页面保持同步。</p>
+  <p>代码与文字：<a href="{{REPO_URL}}" target="_blank" rel="noopener">{{REPO_URL}}</a></p>
+</div></footer>
+
+<script>
+(function(){
+  var q=document.getElementById('srcQ'),items=[].slice.call(document.querySelectorAll('#srcList li')),n=document.getElementById('srcN');
+  function f(){var v=q.value.trim().toLowerCase(),k=0;items.forEach(function(li){var on=!v||li.textContent.toLowerCase().indexOf(v)>=0;li.hidden=!on;if(on)k++;});n.textContent=v?('匹配 '+k+' / '+items.length+' 条'):('共 '+items.length+' 条');}
+  q.addEventListener('input',f);f();
+})();
+</script>

@@ -56,6 +56,7 @@ docs/                 项目文档
 | 31-habitat-rebuild | 137 | 光学参数计算、生境判定、场景重建 `rebuild()` |
 | 32-ui | 186 | 控制台、读数、地点切换 `applyLocation()` |
 | 33–37 site-* | 150–240 | 深海平原、海草床与红树林、北极浮冰边缘、海山章鱼花园、岩礁潮间带（用到 `regPick`，所以排在 30 之后）。潮间带用一个随潮位整体升降的 `Group` 表现潮汐，海面以上用裁剪平面 `CLIP_SURF` 隐去 |
+| 38-perf | 25 | 画质切换与卡顿自动检测（流畅模式：像素比 1、关闭泛光、重复生物约 45%） |
 | 40–42 | 34–68 | 自由驾驶、探险任务、触碰发光 |
 | 43–45 exp-* | 40–73 | 三个物理实验：深海声道、压力、全球地形图 |
 | 46–49 | 46–141 | 明信片、共享图鉴、VR、展览模式与语音讲解 |
@@ -218,7 +219,7 @@ python3 -m http.server 8000
 # 改完 src/ 之后
 python3 tools/build.py        # 拼接生成 js/seafloor.js 并检查语法
 python3 tools/stamp.py        # 更新 index.html 里的版本标记
-python3 tools/sync_docs.py    # 页面内更新记录有改动时，同步到 docs/
+python3 tools/sync_docs.py    # 页面内更新记录有改动时，同步到 docs/，并重新生成项目总览 overview.html
 python3 tools/check.py        # 提交前总检查（CI 也会跑同样的检查）
 python3 tools/smoke_test.py   # 浏览器冒烟测试：场景、导览与配音、地图、明信片、VR、驾驶（需安装 playwright）
 

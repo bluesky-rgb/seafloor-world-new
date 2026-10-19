@@ -44,11 +44,12 @@ for s in ('bottom', 'end'):
     if s not in ids:
         errors.append('narration: missing "%s"' % s)
 
-before = {f: read('docs', f) for f in ('CHANGELOG.md', 'ROADMAP.md', 'SOURCES.md')}
+before = {('docs', f): read('docs', f) for f in ('CHANGELOG.md', 'ROADMAP.md', 'SOURCES.md')}
+before[('overview.html',)] = read('overview.html')
 subprocess.run([sys.executable, P('tools', 'sync_docs.py')], capture_output=True)
 for f, old in before.items():
-    if read('docs', f) != old:
-        errors.append('docs/%s was out of date with the in-page log (now regenerated; commit it)' % f)
+    if read(*f) != old:
+        errors.append('%s was out of date with the in-page log (now regenerated; commit it)' % '/'.join(f))
 
 for w in warnings: print('warning:', w)
 for e in errors: print('error:', e)

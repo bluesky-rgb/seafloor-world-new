@@ -22,7 +22,7 @@ function frame(now){
   if(capTimer>0){capTimer-=rdt;if(capTimer<=0)$('cap').classList.remove('on');}
   if(TOUR.on)stepTour(rdt);
   if(VR.on)stepVR(rdt);else if(PILOT.on)stepPilot(rdt,t);else controls.update();
-  stepMissions(rdt);stepStir(rdt);
+  stepMissions(rdt);stepStir(rdt);stepPerf(rdt);
   const fy=floorY(camera.position.x,camera.position.z)+0.4;
   camera.position.y=Math.min(Math.max(camera.position.y,fy),ICE.on?-ICE.h-0.5:underArcIce(camera.position.x-0.4,camera.position.z)?-ARC.h-0.4:-0.3);
   if(brineOn&&brineQ(camera.position.x,camera.position.z)<1.05)camera.position.y=Math.max(camera.position.y,BR.base+BR.L+0.3);

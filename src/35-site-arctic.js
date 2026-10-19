@@ -197,7 +197,7 @@ function buildArctic(on){
   if(!on){mels.count=arcBlocks.count=0;ARC.pod=null;[NARM,NARF,BELU].forEach(m=>m.count=0);return;}
   /* Melosira in patches, densest a few metres in from the edge */
   let k=0;const cl=[];for(let i=0;i<34;i++)cl.push([R(-24,-0.6),R(-26,26),R(0.6,2.6)]);
-  for(let i=0;i<1400;i++){const c=cl[i%cl.length],a=rnd()*6.28,rr=Math.sqrt(rnd())*c[2],z=c[1]+Math.sin(a)*rr,x=arcEdge(z)+c[0]+Math.cos(a)*rr;
+  for(let i=0;i<1400*PERF.k;i++){const c=cl[i%cl.length],a=rnd()*6.28,rr=Math.sqrt(rnd())*c[2],z=c[1]+Math.sin(a)*rr,x=arcEdge(z)+c[0]+Math.cos(a)*rr;
     if(x>arcEdge(z)-0.3)continue;const L=0.12+1.1*Math.pow(rnd(),2.2);
     _q.identity();_s.set(1,L,1);_p.set(x,-ARC.h+arcRel(x,z)+0.03,z);_m.compose(_p,_q,_s);mels.setMatrixAt(k++,_m);}
   mels.count=k;mels.instanceMatrix.needsUpdate=true;

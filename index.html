@@ -158,6 +158,11 @@
         <button type="button" data-k="blue" aria-pressed="false">蓝光手电</button>
       </div>
       <p class="note">白光手电照亮约十来米。蓝光手电配黄色滤镜（荧光潜水的标准做法）：滤掉反射的蓝光，只剩珊瑚、海葵自己发出的荧光，夜里最明显。在黑暗里（夜潜或 200 m 以下）用手指或鼠标快速划过画面，能看到浮游生物被惊扰发出的蓝光。拖动画面可转动视角，镜头空闲时会自动缓慢环绕。</p>
+      <div class="seg" id="perfSeg">
+        <button type="button" data-p="high" aria-pressed="true">高画质</button>
+        <button type="button" data-p="low" aria-pressed="false">流畅（手机）</button>
+      </div>
+      <p class="note">流畅模式降低渲染分辨率、关闭泛光，并把海草、藤壶、章鱼等大量重复的生物减到约一半。打开页面后如果明显卡顿，会自动切换到流畅模式。</p>
       <label class="check"><input id="cTour" type="checkbox" checked> 自动漫游镜头</label>
       <label class="check"><input id="cSound" type="checkbox"> 声音（合成模拟：浪声、呼吸与气泡、抹香鲸的咔嗒声、深海低鸣）</label>
     </section>
@@ -314,6 +319,7 @@
 
     <details id="logDet">
       <summary>更新记录、路线图与资料来源</summary>
+      <p class="note">研究思路、技术架构、遗留问题、可扩展方向和可搜索的资料库，整理在单独的<a href="https://4jt8jty9sk-cpu.github.io/seafloor-world/overview.html" target="_blank" rel="noopener">项目总览</a>页面。</p>
       <div class="log">
         <div>
           <h3>路线图 · 依次增加</h3>
@@ -342,9 +348,22 @@
             <li data-s="done">新生境：北极浮冰边缘（一角鲸、白鲸、冰藻）</li>
             <li data-s="done">新生境：海山（戴维森海山章鱼花园）</li>
             <li data-s="done">新生境：潮间带（南麂列岛，可播放的潮汐）</li>
-            <li data-s="next">画质：更多生物重做（抹香鲸、大王乌贼、深海鱼）</li>
-            <li>声音：真实的海洋录音</li>
-            <li>英文界面、手机性能模式</li>
+            <li data-s="done">画质：抹香鲸、大王乌贼、深海鮟鱇重做</li>
+            <li data-s="done">手机流畅模式（自动检测卡顿）</li>
+            <li data-s="done">项目总览页：研究思路、遗留问题与资料库</li>
+            <li data-s="next">声音：真实的海洋录音（需要授权的录音文件）</li>
+            <li>英文界面</li>
+            <li>画质：用带骨骼动画的 glTF 模型替换主角生物</li>
+          </ul>
+        </div>
+        <div>
+          <h3>流畅模式、深海生物重做与项目总览<time>2026-10-18</time></h3>
+          <ul>
+            <li>新增“画质”切换：高画质 / 流畅（手机）。流畅模式把渲染分辨率降到 1 倍、关闭泛光，并把海草、藤壶、贻贝、章鱼、直链藻等大量重复的生物减到约 45%。手机和内存小的设备默认用流畅模式；打开页面后若明显卡顿（帧时间中位数超过 45 ms），会自动切换并提示</li>
+            <li>抹香鲸重做：约占体长三分之一的方块形头部、窄长的白边下颌、头部后方的褶皱皮肤、背峰和其后的一串“指节”、宽大的三角形尾叶，喷气孔在头部前端偏左，头上有与乌贼搏斗留下的浅色疤痕</li>
+            <li>大王乌贼重做：带菱形鳍的外套膜、动物界最大的眼睛、八条粗壮带吸盘的腕和两条末端为触腕穗的长触腕，皮肤上有深色色素细胞</li>
+            <li>深海鮟鱇重做：近球形的天鹅绒黑色身体、向上张开的大嘴和玻璃般的长獠牙、小眼睛，头顶的诱饵照旧发光</li>
+            <li>新增独立的“项目总览”页面：研究思路与方法、19 个地点的深度剖面、物理与生态模型、技术架构、开发时间线、遗留问题、可扩展方向和全部资料来源（可搜索）</li>
           </ul>
         </div>
         <div>
@@ -776,6 +795,7 @@
       <li><b>看和认</b>：拖动画面转视角，点击生物看它是谁。</li>
       <li><b>自己开</b>：点“自由驾驶”，用键盘或摇杆开着水下机器人四处探索。</li>
       <li><b>玩点别的</b>：做探险任务；在夜里或深海用手指划水，看浮游生物发光。</li>
+      <li><b>了解项目</b>：研究思路、遗留问题和全部资料来源见<a href="https://4jt8jty9sk-cpu.github.io/seafloor-world/overview.html" target="_blank" rel="noopener">项目总览</a>。</li>
     </ul>
     <div class="row"><button id="welTour" type="button" class="pri">看 8 分钟展览导览</button><button id="welGo" type="button">自己探索</button><button id="welHelp" type="button">看完整玩法说明</button></div>
   </div>
@@ -796,6 +816,6 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/seafloor.js?v=9e2a660d"></script>
+<script src="js/seafloor.js?v=413d9899"></script>
 </body>
 </html>

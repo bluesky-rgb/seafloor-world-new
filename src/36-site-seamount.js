@@ -79,7 +79,7 @@ function buildSeamount(on){
   /* mothers crowd round the springs, each needing a hand's breadth of rock */
   const grid=new Map(),key=(x,z)=>Math.floor(x/0.24)+','+Math.floor(z/0.24);let k=0;
   const free=(x,z)=>{const gx=Math.floor(x/0.24),gz=Math.floor(z/0.24);for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const q=grid.get((gx+a)+','+(gz+b));if(q&&Math.hypot(q[0]-x,q[1]-z)<0.3)return false;}return true;};
-  for(let i=0;i<30000&&k<octos.instanceMatrix.count;i++){const x=R(-9,9),z=R(-9,9);const w=seepW(x,z);if(rnd()>Math.min(0.9,w*w)+0.004)continue;if(!free(x,z))continue;
+  for(let i=0;i<30000&&k<octos.instanceMatrix.count*PERF.k;i++){const x=R(-9,9),z=R(-9,9);const w=seepW(x,z);if(rnd()>Math.min(0.9,w*w)+0.004)continue;if(!free(x,z))continue;
     const[d1,d2]=cell2(x*0.75+3.1,z*0.75+1.7);if(d2-d1<0.05&&rnd()<0.6)continue;                       /* not right in the open crack */
     grid.set(key(x,z),[x,z]);const n=smtNormal(x,z);_q.setFromUnitVectors(UP,n);_e.set(0,rnd()*6.28,0);_q.multiply(new THREE.Quaternion().setFromEuler(_e));
     _s.setScalar(R(0.85,1.15));_p.set(x,smtFloor(x,z)-0.01,z);_m.compose(_p,_q,_s);octos.setMatrixAt(k++,_m);}
