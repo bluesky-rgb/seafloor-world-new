@@ -130,27 +130,27 @@ let tideUIt=0;
 function tideUI(){
   const now=performance.now();if(now-tideUIt<150)return;tideUIt=now;
   const h=TIDE.h,hr=TIDE.hr,rising=hr<6.21;
-  $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+(Math.abs(h)>1.85?(h>0?'高潮':'低潮'):rising?'涨潮':'落潮');
+  $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+(Math.abs(h)>1.85?(h>0?$t('高潮'):$t('低潮')):rising?$t('涨潮'):$t('落潮'));
   if(document.activeElement!==$('sTide'))$('sTide').value=Math.round(hr/12.42*1000);
-  const sub=[['滨螺带',1.9],['藤壶带',1.0],['龟足',0.6],['贻贝床',-0.1],['鼠尾藻',0.0],['珊瑚藻与马尾藻',-1.3]].filter(z=>z[1]<h).map(z=>z[0]);
-  $('tideNote').textContent='距上一次低潮 '+hr.toFixed(1)+' 小时。现在淹在水下：'+(sub.length?sub.join('、'):'只有潮下带的海藻和海胆')+'。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。';
+  const sub=[[$t('滨螺带'),1.9],[$t('藤壶带'),1.0],[$t('龟足'),0.6],[$t('贻贝床'),-0.1],[$t('鼠尾藻'),0.0],[$t('珊瑚藻与马尾藻'),-1.3]].filter(z=>z[1]<h).map(z=>z[0]);
+  $('tideNote').textContent=$t('距上一次低潮 ')+hr.toFixed(1)+$t(' 小时。现在淹在水下：')+(sub.length?sub.join($t('、')):$t('只有潮下带的海藻和海胆'))+$t('。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。');
 }
-$('sTide').addEventListener('input',e=>{setTideHr(+e.target.value/1000*12.42);TIDE.play=false;$('tidePlay').textContent='▶ 播放潮汐';});
-$('tidePlay').addEventListener('click',()=>{TIDE.play=!TIDE.play;$('tidePlay').textContent=TIDE.play?'❚❚ 暂停潮汐':'▶ 播放潮汐';});
+$('sTide').addEventListener('input',e=>{setTideHr(+e.target.value/1000*12.42);TIDE.play=false;$('tidePlay').textContent=$t('▶ 播放潮汐');});
+$('tidePlay').addEventListener('click',()=>{TIDE.play=!TIDE.play;$('tidePlay').textContent=TIDE.play?$t('❚❚ 暂停潮汐'):$t('▶ 播放潮汐');});
 const TIDE_INFO={
-  tide_rock:['南麂列岛的岩礁海岸','“贝藻王国” · 浙江温州平阳','潮水每天涨落两次，岩石上同一个高度被淹没的时间是固定的，于是生物按高度排成一条条带子：最高处是黑色的蓝藻带和滨螺，往下是白花花的藤壶带，再往下是黑紫色的贻贝床，最低处是粉红的珊瑚藻和成片的马尾藻。南麂列岛已记录 422 种藻类、725 种贝类等软体动物，1998 年成为我国第一个加入联合国“人与生物圈”的海洋保护区。','南麂列岛国家级海洋自然保护区']
+  tide_rock:[$t('南麂列岛的岩礁海岸'),$t('“贝藻王国” · 浙江温州平阳'),$t('潮水每天涨落两次，岩石上同一个高度被淹没的时间是固定的，于是生物按高度排成一条条带子：最高处是黑色的蓝藻带和滨螺，往下是白花花的藤壶带，再往下是黑紫色的贻贝床，最低处是粉红的珊瑚藻和成片的马尾藻。南麂列岛已记录 422 种藻类、725 种贝类等软体动物，1998 年成为我国第一个加入联合国“人与生物圈”的海洋保护区。'),$t('南麂列岛国家级海洋自然保护区')]
 };
 Object.assign(CHIM_INFO,TIDE_INFO);
-CAT.push(['tetraclita','鳞笠藤壶','Tetraclita','潮间带中高潮区'],['capitulum','龟足','Capitulum mitella','潮间带岩缝'],['mytilus','厚壳贻贝','Mytilus coruscus','潮间带中低潮区'],
-  ['littorina','短滨螺','Littorina brevicula','潮间带高潮区'],['sargassum','鼠尾藻与马尾藻','Sargassum','潮间带至潮下带'],['tanem','绿海葵','Actiniaria','潮间带低潮区'],['heliocidaris','紫海胆','Heliocidaris crassispina','低潮线以下岩礁']);
+CAT.push(['tetraclita',$t('鳞笠藤壶'),'Tetraclita',$t('潮间带中高潮区')],['capitulum',$t('龟足'),'Capitulum mitella',$t('潮间带岩缝')],['mytilus',$t('厚壳贻贝'),'Mytilus coruscus',$t('潮间带中低潮区')],
+  ['littorina',$t('短滨螺'),'Littorina brevicula',$t('潮间带高潮区')],['sargassum',$t('鼠尾藻与马尾藻'),'Sargassum',$t('潮间带至潮下带')],['tanem',$t('绿海葵'),'Actiniaria',$t('潮间带低潮区')],['heliocidaris',$t('紫海胆'),'Heliocidaris crassispina',$t('低潮线以下岩礁')]);
 CAT.slice(-7).forEach(c=>CATMAP[c[0]]=c);
 Object.assign(FACTS,{
-  tetraclita:'藤壶是甲壳动物，幼体漂流一阵后头朝下粘在岩石上，一辈子不再移动。涨潮时打开壳板、伸出羽毛似的蔓足扫食浮游生物；退潮时关紧壳板，把一点海水锁在里面熬过几个小时的日晒。',
-  capitulum:'也是一种藤壶，有一根肉质的柄，顶端一簇尖尖的壳板像乌龟的脚，因此叫“龟足”。成群挤在浪大的岩缝里。',
-  mytilus:'用足丝把自己牢牢粘在岩石上，层层叠叠铺成贻贝床，经得住大浪。它们滤食浮游生物，床缝里又住着许多小动物。',
-  littorina:'住在潮间带最高处，退潮时能在空气里待很久，靠刮食岩石上的微藻和蓝藻为生。',
-  sargassum:'鼠尾藻矮小粗壮，长在潮间带较高处；更低处的马尾藻能长得很高，靠小小的气囊让藻体在水里立起来。南麂列岛的潮下带上部几乎全被马尾藻覆盖。',
-  tanem:'退潮时缩成一团、身上粘着碎壳和沙粒防晒，涨潮后才张开触手。',
-  heliocidaris:'躲在低潮线以下的岩缝里啃食海藻，是我国东南沿海常见的食用海胆。'
+  tetraclita:$t('藤壶是甲壳动物，幼体漂流一阵后头朝下粘在岩石上，一辈子不再移动。涨潮时打开壳板、伸出羽毛似的蔓足扫食浮游生物；退潮时关紧壳板，把一点海水锁在里面熬过几个小时的日晒。'),
+  capitulum:$t('也是一种藤壶，有一根肉质的柄，顶端一簇尖尖的壳板像乌龟的脚，因此叫“龟足”。成群挤在浪大的岩缝里。'),
+  mytilus:$t('用足丝把自己牢牢粘在岩石上，层层叠叠铺成贻贝床，经得住大浪。它们滤食浮游生物，床缝里又住着许多小动物。'),
+  littorina:$t('住在潮间带最高处，退潮时能在空气里待很久，靠刮食岩石上的微藻和蓝藻为生。'),
+  sargassum:$t('鼠尾藻矮小粗壮，长在潮间带较高处；更低处的马尾藻能长得很高，靠小小的气囊让藻体在水里立起来。南麂列岛的潮下带上部几乎全被马尾藻覆盖。'),
+  tanem:$t('退潮时缩成一团、身上粘着碎壳和沙粒防晒，涨潮后才张开触手。'),
+  heliocidaris:$t('躲在低潮线以下的岩缝里啃食海藻，是我国东南沿海常见的食用海胆。')
 });
-SPECIES.push(['tetraclita','鳞笠藤壶'],['capitulum','龟足'],['mytilus','厚壳贻贝'],['littorina','短滨螺'],['sargassum','马尾藻'],['tanem','绿海葵'],['heliocidaris','紫海胆']);
+SPECIES.push(['tetraclita',$t('鳞笠藤壶')],['capitulum',$t('龟足')],['mytilus',$t('厚壳贻贝')],['littorina',$t('短滨螺')],['sargassum',$t('马尾藻')],['tanem',$t('绿海葵')],['heliocidaris',$t('紫海胆')]);

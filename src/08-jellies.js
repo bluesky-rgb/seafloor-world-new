@@ -56,12 +56,12 @@ void main(){
 const bellGeo=new THREE.SphereGeometry(1,28,14,0,Math.PI*2,0,Math.PI*0.5);
 const combGeo=(()=>{const g=new THREE.SphereGeometry(1,28,18);g.scale(0.62,1,0.62);return g;})();
 const JELLY={
-  moon:{name:'海月水母',type:0,n:12,r:[0.12,0.22],freq:0.8,pulse:1,col:[0.72,0.82,0.95],col2:[0.95,0.45,0.78],geo:bellGeo},
-  nettle:{name:'太平洋金黄水母',type:1,n:7,r:[0.17,0.27],freq:0.55,pulse:1,col:[0.98,0.62,0.22],col2:[0.55,0.15,0.06],geo:bellGeo,
+  moon:{name:$t('海月水母'),type:0,n:12,r:[0.12,0.22],freq:0.8,pulse:1,col:[0.72,0.82,0.95],col2:[0.95,0.45,0.78],geo:bellGeo},
+  nettle:{name:$t('太平洋金黄水母'),type:1,n:7,r:[0.17,0.27],freq:0.55,pulse:1,col:[0.98,0.62,0.22],col2:[0.55,0.15,0.06],geo:bellGeo,
     tent:[{k:8,len:2.4,seg:14,col:[0.9,0.55,0.25],w:0.95},{k:4,len:1.2,seg:10,col:[0.98,0.85,0.7],w:0.35}]},
-  atolla:{name:'冠水母',type:2,n:7,r:[0.06,0.1],freq:0.45,pulse:1,col:[0.55,0.03,0.04],col2:[0,0,0],geo:bellGeo,tent:[{k:1,len:0.9,seg:14,col:[0.5,0.05,0.05],w:0.9}]},
-  cucumber:{name:'游泳海参',type:4,n:6,r:[0.12,0.2],freq:0.2,pulse:0,col:[0.98,0.4,0.48],col2:[0.45,0.06,0.1],geo:(()=>{const g=new THREE.SphereGeometry(1,24,14);g.scale(0.5,0.42,1);return g;})()},
-  comb:{name:'栉水母',type:3,n:10,r:[0.04,0.08],freq:0.2,pulse:0,col:[0.06,0.07,0.09],col2:[0,0,0],geo:combGeo}
+  atolla:{name:$t('冠水母'),type:2,n:7,r:[0.06,0.1],freq:0.45,pulse:1,col:[0.55,0.03,0.04],col2:[0,0,0],geo:bellGeo,tent:[{k:1,len:0.9,seg:14,col:[0.5,0.05,0.05],w:0.9}]},
+  cucumber:{name:$t('游泳海参'),type:4,n:6,r:[0.12,0.2],freq:0.2,pulse:0,col:[0.98,0.4,0.48],col2:[0.45,0.06,0.1],geo:(()=>{const g=new THREE.SphereGeometry(1,24,14);g.scale(0.5,0.42,1);return g;})()},
+  comb:{name:$t('栉水母'),type:3,n:10,r:[0.04,0.08],freq:0.2,pulse:0,col:[0.06,0.07,0.09],col2:[0,0,0],geo:combGeo}
 };
 for(const key in JELLY){
   const J=JELLY[key];const ph=new Float32Array(J.n);for(let i=0;i<J.n;i++)ph[i]=rnd()*6.28;

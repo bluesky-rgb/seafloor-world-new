@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Generate the exhibition-mode voice-over with the MiniMax text-to-speech API.
 
-Reads narration/tour.json and writes audio/tour/<id>.mp3 plus audio/tour/manifest.json
+Reads narration/tour.json and writes audio/tour/<id>.mp3 plus audio/tour/manifest.json;
+with --lang en it reads narration/tour.en.json and writes audio/tour/en/ instead
 (duration of each clip and a hash of the text it was made from). Clips whose text,
 voice and model are unchanged are skipped, so re-running only pays for edited lines.
 
@@ -10,6 +11,7 @@ Environment variables:
   MINIMAX_API_HOST   optional, default https://api.minimax.cn (China accounts);
                      international accounts use https://api.minimax.io
   MINIMAX_VOICE_ID   optional, default "Chinese (Mandarin)_Male_Announcer"
+  MINIMAX_VOICE_ID_EN optional (English), default "English_Deep-VoicedGentleman"
   MINIMAX_MODEL      optional, default speech-2.8-hd
   MINIMAX_SPEED      optional, default 0.95
 Only the Python standard library is used.
@@ -17,14 +19,15 @@ Only the Python standard library is used.
 import hashlib, json, os, sys, time, urllib.request, urllib.error
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, 'narration', 'tour.json')
-OUT = os.path.join(ROOT, 'audio', 'tour')
+EN = '--lang' in sys.argv and sys.argv[sys.argv.index('--lang') + 1] == 'en'
+SRC = os.path.join(ROOT, 'narration', 'tour.en.json' if EN else 'tour.json')
+OUT = os.path.join(ROOT, 'audio', 'tour', 'en') if EN else os.path.join(ROOT, 'audio', 'tour')
 
 key = os.environ.get('MINIMAX_API_KEY', '').strip()
 if not key:
     sys.exit('MINIMAX_API_KEY is not set. Add it under the repository Settings > Secrets and variables > Actions.')
 host = (os.environ.get('MINIMAX_API_HOST') or 'https://api.minimax.cn').rstrip('/')
-voice = os.environ.get('MINIMAX_VOICE_ID') or 'Chinese (Mandarin)_Male_Announcer'
+voice = (os.environ.get('MINIMAX_VOICE_ID_EN') or 'English_Deep-VoicedGentleman') if EN else (os.environ.get('MINIMAX_VOICE_ID') or 'Chinese (Mandarin)_Male_Announcer')
 model = os.environ.get('MINIMAX_MODEL') or 'speech-2.8-hd'
 speed = float(os.environ.get('MINIMAX_SPEED') or 0.95)
 
@@ -39,7 +42,7 @@ def synth(text):
         'model': model, 'text': text, 'stream': False,
         'voice_setting': {'voice_id': voice, 'speed': speed, 'vol': 1, 'pitch': 0},
         'audio_setting': {'sample_rate': 32000, 'bitrate': 128000, 'format': 'mp3', 'channel': 1},
-        'language_boost': 'Chinese', 'output_format': 'hex',
+        'language_boost': 'English' if EN else 'Chinese', 'output_format': 'hex',
     }
     req = urllib.request.Request(host + '/v1/t2a_v2', data=json.dumps(body).encode(),
                                  headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})

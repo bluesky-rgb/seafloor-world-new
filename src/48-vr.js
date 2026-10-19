@@ -45,8 +45,8 @@ function enterVR(){
   const start=()=>{window.addEventListener('deviceorientation',onDevOri);};
   try{if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')start();}).catch(()=>{});else start();}catch(e){}
   resize();
-  vrHint('<b>手机分屏 VR</b>：把手机横过来；有纸盒眼镜就放进去，没有也可以直接看。<br>转动手机（或用手指拖动）看四周，<b>轻点屏幕</b>开始或停止朝视线方向游动。',9);
-  setTimeout(()=>{if(VR.on&&!VR.xr&&!VR.gyro)vrHint('这个页面读不到手机的陀螺仪（浏览器不支持，或者没有允许访问“动作与方向”），画面不会跟着手机转。<b>用手指左右上下拖动</b>来看四周，轻点屏幕开始或停止游动。',10);},2200);
+  vrHint($t('<b>手机分屏 VR</b>：把手机横过来；有纸盒眼镜就放进去，没有也可以直接看。<br>转动手机（或用手指拖动）看四周，<b>轻点屏幕</b>开始或停止朝视线方向游动。'),9);
+  setTimeout(()=>{if(VR.on&&!VR.xr&&!VR.gyro)vrHint($t('这个页面读不到手机的陀螺仪（浏览器不支持，或者没有允许访问“动作与方向”），画面不会跟着手机转。<b>用手指左右上下拖动</b>来看四周，轻点屏幕开始或停止游动。'),10);},2200);
 }
 function exitVR(){
   if(!VR.on)return;
@@ -74,7 +74,7 @@ function stepVR(rdt){
   }else{_ve.set(VR.pitch,VR.yaw,0,'YXZ');camera.quaternion.setFromEuler(_ve);}
   if(VR.glide){camera.getWorldDirection(_vv);vrMove(_vv,0.5*Math.min(rdt,0.25));}
   VR.lblT-=rdt;if(VR.lblT<=0){VR.lblT=0.3;
-    const z=Math.max(-camera.position.y,0),top='−'+fmtD(z)+' m · '+$('hZone').textContent+(VR.glide?' · 游动中':'');
+    const z=Math.max(-camera.position.y,0),top='−'+fmtD(z)+' m · '+$('hZone').textContent+(VR.glide?$t(' · 游动中'):'');
     const cap=$('cap').classList.contains('on')?$('capT').textContent:'';
     document.querySelectorAll('#vrUI .vt').forEach(e=>e.textContent=top);document.querySelectorAll('#vrUI .vc').forEach(e=>e.textContent=cap);
     document.querySelectorAll('#vrUI .dot').forEach(e=>e.classList.toggle('go',VR.glide));}
@@ -127,15 +127,15 @@ function enterXR(){
       scene.add(camera);renderer.xr.enabled=false;VR.xr=false;VR.on=false;
       controls.enabled=true;camera.getWorldDirection(_vv);controls.target.copy(camera.position).addScaledVector(_vv,3);controls.update();
       resize();last=performance.now();requestAnimationFrame(frame);
-      $('vrNote').textContent='已退出头显 VR。';
+      $('vrNote').textContent=$t('已退出头显 VR。');
     });
     last=performance.now();renderer.setAnimationLoop(frame);
-  }).catch(err=>{$('vrNote').textContent='没能进入头显 VR：'+(err&&err.message?err.message:'浏览器拒绝了请求')+'。可以改用上面的手机分屏 VR。';});
+  }).catch(err=>{$('vrNote').textContent=$t('没能进入头显 VR：')+(err&&err.message?err.message:$t('浏览器拒绝了请求'))+$t('。可以改用上面的手机分屏 VR。');});
 }
 $('vrXR').addEventListener('click',enterXR);
 (function vrCheck(){
-  const no='这台设备的浏览器没有提供头显 VR（WebXR），所以这里只有手机分屏模式。用 VR 头显时，请在头显自带的浏览器里打开这个页面。';
-  try{if(navigator.xr&&navigator.xr.isSessionSupported)navigator.xr.isSessionSupported('immersive-vr').then(ok=>{$('vrXR').hidden=!ok;$('vrNote').textContent=ok?'检测到 VR 头显，可以用“进入头显 VR”。头显模式里没有泛光和白平衡后期处理，颜色会比屏幕上偏蓝一些。':no;}).catch(()=>{$('vrNote').textContent=no;});
+  const no=$t('这台设备的浏览器没有提供头显 VR（WebXR），所以这里只有手机分屏模式。用 VR 头显时，请在头显自带的浏览器里打开这个页面。');
+  try{if(navigator.xr&&navigator.xr.isSessionSupported)navigator.xr.isSessionSupported('immersive-vr').then(ok=>{$('vrXR').hidden=!ok;$('vrNote').textContent=ok?$t('检测到 VR 头显，可以用“进入头显 VR”。头显模式里没有泛光和白平衡后期处理，颜色会比屏幕上偏蓝一些。'):no;}).catch(()=>{$('vrNote').textContent=no;});
   else $('vrNote').textContent=no;}catch(e){$('vrNote').textContent=no;}
 })();
 

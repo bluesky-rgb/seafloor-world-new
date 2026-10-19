@@ -156,21 +156,21 @@ function stepMangrove(dt,t){
     m.position.set(u.x+sw*0.15,u.y,u.z);m.rotation.set(0.1*Math.sin(t*0.9+u.ph),u.yaw+0.2*Math.sin(t*0.3+u.ph),sw);});
 }
 const MANG_INFO={
-  enhalus_flower:['海菖蒲的雄花','直径约几毫米 · 漂在水面上','海菖蒲是开花植物。雄花成熟后脱离植株浮上水面，像一粒粒白色小泡沫随水漂动；雌花长在长柄上伸到水面，两者在水面相遇完成授粉。','新村潟湖'],
-  mang_mud:['潟湖软泥','细颗粒淤泥 · 富含有机质','红树林和海草的叶片落下、腐烂，连同潮水带来的细泥一起沉积下来，把大量碳埋进泥里，几百上千年都不会释放。那些小洞是蟹和蠕虫的洞穴，白色碎屑是贝壳。','新村潟湖']
+  enhalus_flower:[$t('海菖蒲的雄花'),$t('直径约几毫米 · 漂在水面上'),$t('海菖蒲是开花植物。雄花成熟后脱离植株浮上水面，像一粒粒白色小泡沫随水漂动；雌花长在长柄上伸到水面，两者在水面相遇完成授粉。'),$t('新村潟湖')],
+  mang_mud:[$t('潟湖软泥'),$t('细颗粒淤泥 · 富含有机质'),$t('红树林和海草的叶片落下、腐烂，连同潮水带来的细泥一起沉积下来，把大量碳埋进泥里，几百上千年都不会释放。那些小洞是蟹和蠕虫的洞穴，白色碎屑是贝壳。'),$t('新村潟湖')]
 };
 Object.assign(CHIM_INFO,MANG_INFO);
-CAT.push(['enhalus','海菖蒲','Enhalus acoroides','潮间带至约 4 m'],['thalassia','泰来草','Thalassia hemprichii','潮间带至浅海'],
-  ['rhizophora','红海榄','Rhizophora stylosa','红树林 · 潮间带'],['avicennia','白骨壤','Avicennia marina','红树林 · 潮间带'],
-  ['oyster','牡蛎','Ostreidae','潮间带 · 红树林根上'],['seahorse','大海马','Hippocampus kuda','海草床 · 浅海'],['cassiopea','仙后水母（倒立水母）','Cassiopea','红树林与海草床浅水']);
+CAT.push(['enhalus',$t('海菖蒲'),'Enhalus acoroides',$t('潮间带至约 4 m')],['thalassia',$t('泰来草'),'Thalassia hemprichii',$t('潮间带至浅海')],
+  ['rhizophora',$t('红海榄'),'Rhizophora stylosa',$t('红树林 · 潮间带')],['avicennia',$t('白骨壤'),'Avicennia marina',$t('红树林 · 潮间带')],
+  ['oyster',$t('牡蛎'),'Ostreidae',$t('潮间带 · 红树林根上')],['seahorse',$t('大海马'),'Hippocampus kuda',$t('海草床 · 浅海')],['cassiopea',$t('仙后水母（倒立水母）'),'Cassiopea',$t('红树林与海草床浅水')]);
 CAT.slice(-7).forEach(c=>CATMAP[c[0]]=c);
 Object.assign(FACTS,{
-  enhalus:'世界上最大的海草之一，带状叶片长 30–150 cm，靠粗壮的地下茎扎在软泥里抵御风浪和潮流。',
-  thalassia:'叶片较短而弯，常和海菖蒲混生。海草不是海藻，而是从陆地回到海里的开花植物，有根、茎、叶，靠地下茎在泥里蔓延。',
-  rhizophora:'一根根弯曲的支柱根把树干撑在潮间带的软泥上，也挡住了风浪。根间是小鱼小虾躲避捕食者的“育儿所”。',
-  avicennia:'从泥里竖起一根根铅笔似的呼吸根，在缺氧的淤泥里给根系通气。',
-  oyster:'附着在被潮水淹没的根和石头上，靠过滤海水里的浮游生物为生，同时帮助净化水质。',
-  seahorse:'用尾巴缠住海草，靠伪装和吸管一样的嘴吸食小型甲壳动物。海马由雄性的育儿袋孵育后代。',
-  cassiopea:'倒着躺在泥上、口腕朝上，因为体内共生的藻类要晒太阳进行光合作用；被惊扰时会放出带刺细胞的黏液。'
+  enhalus:$t('世界上最大的海草之一，带状叶片长 30–150 cm，靠粗壮的地下茎扎在软泥里抵御风浪和潮流。'),
+  thalassia:$t('叶片较短而弯，常和海菖蒲混生。海草不是海藻，而是从陆地回到海里的开花植物，有根、茎、叶，靠地下茎在泥里蔓延。'),
+  rhizophora:$t('一根根弯曲的支柱根把树干撑在潮间带的软泥上，也挡住了风浪。根间是小鱼小虾躲避捕食者的“育儿所”。'),
+  avicennia:$t('从泥里竖起一根根铅笔似的呼吸根，在缺氧的淤泥里给根系通气。'),
+  oyster:$t('附着在被潮水淹没的根和石头上，靠过滤海水里的浮游生物为生，同时帮助净化水质。'),
+  seahorse:$t('用尾巴缠住海草，靠伪装和吸管一样的嘴吸食小型甲壳动物。海马由雄性的育儿袋孵育后代。'),
+  cassiopea:$t('倒着躺在泥上、口腕朝上，因为体内共生的藻类要晒太阳进行光合作用；被惊扰时会放出带刺细胞的黏液。')
 });
-SPECIES.push(['enhalus','海菖蒲'],['thalassia','泰来草'],['rhizophora','红海榄'],['avicennia','白骨壤'],['oyster','牡蛎'],['seahorse','大海马'],['cassiopea','倒立水母']);
+SPECIES.push(['enhalus',$t('海菖蒲')],['thalassia',$t('泰来草')],['rhizophora',$t('红海榄')],['avicennia',$t('白骨壤')],['oyster',$t('牡蛎')],['seahorse',$t('大海马')],['cassiopea',$t('倒立水母')]);

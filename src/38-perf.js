@@ -16,6 +16,6 @@ function stepPerf(rdt){
   if(PERF.done||PERF.user||document.hidden)return;
   PERF.t0+=rdt;if(PERF.t0<3)return;PERF.samp.push(rdt);
   if(PERF.t0>10){PERF.done=true;const s=PERF.samp.sort((a,b)=>a-b),med=s[s.length>>1];
-    if(med>0.045&&!PERF.low){applyPerf(true,false);showCaption('已切换到流畅模式','画面较卡，已自动降低分辨率和重复生物的数量。可以在控制台“时间与照明”下面改回高画质。',8);}}
+    if(med>0.045&&!PERF.low){applyPerf(true,false);showCaption($t('已切换到流畅模式'),$t('画面较卡，已自动降低分辨率和重复生物的数量。可以在控制台“时间与照明”下面改回高画质。'),8);}}
 }
 applyPerf(PERF.low,false,true);PERF.ready=true;   /* resize() runs later in the main loop setup */

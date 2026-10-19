@@ -2,7 +2,7 @@
 
 按真实地点和实测数据搭建的三维海底世界：从 10 m 的珊瑚礁，一路下潜到 10,935 m 的马里亚纳海沟底。直接在浏览器里运行，不需要安装任何东西。
 
-A real-time 3D ocean built from real sites and measured data, from a 10 m coral reef down to the 10,935 m Challenger Deep. Runs in any modern browser (WebGL); the interface is in Chinese.
+A real-time 3D ocean built from real sites and measured data, from a 10 m coral reef down to the 10,935 m Challenger Deep. Runs in any modern browser (WebGL), in Chinese or English (button at the top of the console, or add `?lang=en` to the address), with a spoken English tour.
 
 **在线体验：<https://bluesky-rgb.github.io/seafloor-world-new/>**（第一次打开可以先点“看 8 分钟展览导览”）
 

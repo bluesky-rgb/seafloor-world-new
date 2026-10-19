@@ -12,7 +12,7 @@ import argparse, asyncio, functools, http.server, json, os, sys, threading
 from playwright.async_api import async_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ap = argparse.ArgumentParser(); ap.add_argument('--three-dir'); ap.add_argument('--shots'); ap.add_argument('--port', type=int, default=8791)
+ap = argparse.ArgumentParser(); ap.add_argument('--three-dir'); ap.add_argument('--shots'); ap.add_argument('--port', type=int, default=8791); ap.add_argument('--lang', default='zh')
 args = ap.parse_args()
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
@@ -56,7 +56,7 @@ async def main():
                 else: await r.continue_()
             await pg.route('**/*', route)
         await pg.add_init_script('window.__starts=[];const o=AudioBufferSourceNode.prototype.start;AudioBufferSourceNode.prototype.start=function(...a){window.__starts.push(this.buffer?+this.buffer.duration.toFixed(1):0);return o.apply(this,a)}')
-        await pg.goto('http://127.0.0.1:%d/' % args.port); await pg.wait_for_timeout(1500)
+        await pg.goto('http://127.0.0.1:%d/?lang=%s' % (args.port, args.lang)); await pg.wait_for_timeout(1500)
         await pg.evaluate("()=>{const w=document.getElementById('welcome');if(w)w.hidden=true}")
         for name, js in CHECKS:
             try: r = await pg.evaluate(js)

@@ -27,7 +27,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--abyss);color:var
 #panelHead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line)}
 #panel.closed #panelHead{border-bottom:none}
 #panelHead span{font-size:12px;letter-spacing:.14em;color:var(--muted)}
-#toggle{background:none;border:1px solid var(--line);color:var(--fg);border-radius:6px;font:inherit;font-size:12px;padding:4px 10px;cursor:pointer}
+#toggle,#langBtn{background:none;border:1px solid var(--line);color:var(--fg);border-radius:6px;font:inherit;font-size:12px;padding:4px 10px;cursor:pointer}
 #panelBody{overflow:auto;padding:12px 16px 18px;display:grid;gap:18px;align-content:start}
 section{display:grid;gap:10px}
 section h2{margin:0;font-size:11px;letter-spacing:.16em;color:var(--accent);font-weight:500}

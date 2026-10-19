@@ -47,11 +47,11 @@ function stepSpawn(rdt,t){
 function spawnPhase(){const T=SPN.t;return T<21?'setting':T<22?'release':T<23?'rise':'slick';}
 function spawnNote(){
   const T=SPN.t,ph=spawnPhase(),hm=hhmm(T);
-  const txt={setting:'<b>“含卵”</b>：珊瑚虫把卵精束顶到口部，整块珊瑚表面布满粉红色的小点，随时准备释放。',
-    release:'<b>释放</b>：鹿角珊瑚一丛接一丛地放出卵精束。每个卵精束直径约 1–2 mm，里面裹着几十粒卵和成千上万个精子，因为卵富含脂质，比海水轻，便慢慢往上飘。',
-    rise:'<b>上浮</b>：卵精束以约每秒 1 cm 的速度上升，几分钟就能到达水面，在那里散开，卵和其他珊瑚的精子相遇受精。受精窗口只有约 2 小时。',
-    slick:'<b>浮层</b>：水面聚起一层粉红色的卵层。接下来几天，受精卵发育成幼虫，随海流漂走，再找一块礁石定居。'}[ph];
-  $('spNote').innerHTML=txt+' 已释放约 '+SPN.rel.toLocaleString('en-US')+' 个卵精束（画面中放大约 15 倍显示）。';
+  const txt={setting:$t('<b>“含卵”</b>：珊瑚虫把卵精束顶到口部，整块珊瑚表面布满粉红色的小点，随时准备释放。'),
+    release:$t('<b>释放</b>：鹿角珊瑚一丛接一丛地放出卵精束。每个卵精束直径约 1–2 mm，里面裹着几十粒卵和成千上万个精子，因为卵富含脂质，比海水轻，便慢慢往上飘。'),
+    rise:$t('<b>上浮</b>：卵精束以约每秒 1 cm 的速度上升，几分钟就能到达水面，在那里散开，卵和其他珊瑚的精子相遇受精。受精窗口只有约 2 小时。'),
+    slick:$t('<b>浮层</b>：水面聚起一层粉红色的卵层。接下来几天，受精卵发育成幼虫，随海流漂走，再找一块礁石定居。')}[ph];
+  $('spNote').innerHTML=txt+$t(' 已释放约 ')+SPN.rel.toLocaleString('en-US')+$t(' 个卵精束（画面中放大约 15 倍显示）。');
   $('spTV').textContent=hm;if(document.activeElement!==$('sSp'))$('sSp').value=Math.round((T-20)*60);
   [...$('spRate').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.r==='pause'?!SPN.play:(SPN.play&&+b.dataset.r===SPN.rate)));
 }

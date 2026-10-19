@@ -12,27 +12,27 @@ const WATER={
   lagoon:   {a:[0.450,0.120,0.300], b:[0.35,0.40,0.45]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
 };
 const LOC={
-  xisha:   {name:'南海西沙群岛珊瑚礁',D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
-  nanji:   {name:'浙江南麂列岛 · 岩礁潮间带',D:5,water:'shelf',temp:22,H:0.6,T:7,cur:0.1,dir:200,sun:60,torch:'off'},
-  monterey:{name:'加州蒙特雷湾巨藻林',D:12,water:'temperate',temp:12,H:1.6,T:12,cur:0.08,dir:30,sun:55,torch:'off'},
-  eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
-  slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
-  deep:    {name:'南海海马冷泉',D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
-  mangrove:{name:'海南陵水新村潟湖 · 海草床与红树林',D:1.6,water:'lagoon',temp:28,H:0.3,T:5,cur:0.05,dir:30,sun:70,torch:'off'},
-  abyss:   {name:'太平洋克拉里昂-克利珀顿区 · 深海平原',D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
-  vent:    {name:'西南印度洋龙旂热液区',D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
-  whalefall:{name:'蒙特雷峡谷鲸落',D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
-  bluehole:{name:'三沙永乐龙洞',D:300.9,water:'clear',temp:30,H:0.6,T:6,cur:0.01,dir:60,sun:70,torch:'off'},
-  truk:    {name:'密克罗尼西亚特鲁克泻湖 · 富士川丸沉船',D:34,water:'clear',temp:28,H:0.5,T:6,cur:0.02,dir:90,sun:70,torch:'off'},
-  rost:    {name:'挪威罗弗敦外海 · 勒斯特冷水珊瑚礁',D:320,water:'clear',temp:7,H:2,T:10,cur:0.15,dir:30,sun:40,torch:'white'},
-  arctic:  {name:'加拿大北极庞德因莱特 · 浮冰边缘',D:300,water:'arctic',temp:-1.6,H:0.2,T:5,cur:0.04,dir:90,sun:35,torch:'off'},
-  seamount:{name:'加州戴维森海山 · 章鱼花园',D:3200,water:'clear',temp:1.6,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
-  ice:     {name:'南极麦克默多湾 · 海冰之下',D:24,water:'clear',temp:-1.9,H:0,T:8,cur:0.02,dir:60,sun:25,torch:'off'},
-  spawn:   {name:'海南三亚鹿回头珊瑚礁 · 产卵之夜',D:6,water:'ocean',temp:27,H:0.5,T:6,cur:0.05,dir:120,sun:70,torch:'white'},
-  brine:   {name:'墨西哥湾 NR1 海底盐池',D:650,water:'clear',temp:6.5,H:1.5,T:8,cur:0.02,dir:60,sun:60,torch:'white'},
-  dvm:     {name:'北太平洋副热带开阔大洋',D:4800,water:'clear',temp:26,H:1.2,T:8,cur:0.05,dir:90,sun:60,torch:'off'},
-  replay:  {name:'重走 2012 · 深海挑战者号',D:10898,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'},
-  dive:    {name:'关岛礁壁 → 马里亚纳海沟',D:10935,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'}
+  xisha:   {name:$t('南海西沙群岛珊瑚礁'),D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
+  nanji:   {name:$t('浙江南麂列岛 · 岩礁潮间带'),D:5,water:'shelf',temp:22,H:0.6,T:7,cur:0.1,dir:200,sun:60,torch:'off'},
+  monterey:{name:$t('加州蒙特雷湾巨藻林'),D:12,water:'temperate',temp:12,H:1.6,T:12,cur:0.08,dir:30,sun:55,torch:'off'},
+  eilat:   {name:$t('红海埃拉特中光层礁'),D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
+  slope:   {name:$t('南海北部陆坡'),D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
+  deep:    {name:$t('南海海马冷泉'),D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
+  mangrove:{name:$t('海南陵水新村潟湖 · 海草床与红树林'),D:1.6,water:'lagoon',temp:28,H:0.3,T:5,cur:0.05,dir:30,sun:70,torch:'off'},
+  abyss:   {name:$t('太平洋克拉里昂-克利珀顿区 · 深海平原'),D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
+  vent:    {name:$t('西南印度洋龙旂热液区'),D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
+  whalefall:{name:$t('蒙特雷峡谷鲸落'),D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
+  bluehole:{name:$t('三沙永乐龙洞'),D:300.9,water:'clear',temp:30,H:0.6,T:6,cur:0.01,dir:60,sun:70,torch:'off'},
+  truk:    {name:$t('密克罗尼西亚特鲁克泻湖 · 富士川丸沉船'),D:34,water:'clear',temp:28,H:0.5,T:6,cur:0.02,dir:90,sun:70,torch:'off'},
+  rost:    {name:$t('挪威罗弗敦外海 · 勒斯特冷水珊瑚礁'),D:320,water:'clear',temp:7,H:2,T:10,cur:0.15,dir:30,sun:40,torch:'white'},
+  arctic:  {name:$t('加拿大北极庞德因莱特 · 浮冰边缘'),D:300,water:'arctic',temp:-1.6,H:0.2,T:5,cur:0.04,dir:90,sun:35,torch:'off'},
+  seamount:{name:$t('加州戴维森海山 · 章鱼花园'),D:3200,water:'clear',temp:1.6,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
+  ice:     {name:$t('南极麦克默多湾 · 海冰之下'),D:24,water:'clear',temp:-1.9,H:0,T:8,cur:0.02,dir:60,sun:25,torch:'off'},
+  spawn:   {name:$t('海南三亚鹿回头珊瑚礁 · 产卵之夜'),D:6,water:'ocean',temp:27,H:0.5,T:6,cur:0.05,dir:120,sun:70,torch:'white'},
+  brine:   {name:$t('墨西哥湾 NR1 海底盐池'),D:650,water:'clear',temp:6.5,H:1.5,T:8,cur:0.02,dir:60,sun:60,torch:'white'},
+  dvm:     {name:$t('北太平洋副热带开阔大洋'),D:4800,water:'clear',temp:26,H:1.2,T:8,cur:0.05,dir:90,sun:60,torch:'off'},
+  replay:  {name:$t('重走 2012 · 深海挑战者号'),D:10898,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'},
+  dive:    {name:$t('关岛礁壁 → 马里亚纳海沟'),D:10935,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'}
 };
 const S={D:10,H:0.8,T:6,sun:75,water:'clear',adapt:true,temp:28,cur:0.15,dir:120,loc:null,seep:false,night:false,torch:'off',tour:true};
 const W={k:0,w:0,L:0};

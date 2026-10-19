@@ -251,3 +251,11 @@ python3 tools/build_single.py
 **改讲解词**
 
 编辑 `narration/tour.json` 并提交，配音会自动重新生成；不要改 `id`，否则网页对不上。换音色或语速：在仓库 Settings → Secrets and variables → Actions → Variables 里设置 `MINIMAX_VOICE_ID`、`MINIMAX_SPEED`，再手动运行一次“生成导览配音”。
+
+## 多语言（中文 / English）
+
+- 中文是原文，写在代码和页面里；英文译文放在 `i18n/en.json`（中文原文 → 英文），`tools/i18n.py` 从中生成页面用的 `i18n/en.js`。
+- 代码里每一段要显示的中文都写成 `$t('中文')`：英文模式下返回译文，中文模式下原样返回。页面里静态的中文（按钮、说明、玩法）由 `00-i18n.js` 在启动时逐个文字节点替换，并在英文需要的地方补上空格。
+- 语言的选择顺序：网址参数 `?lang=en|zh` → 访客上次的选择 → 浏览器语言。切换语言会刷新页面。英文译文只在英文模式下加载（约 190 KB）。
+- 英文语音讲解：`narration/tour.en.json`，由同一个工作流 `gen_tts.py --lang en` 生成到 `audio/tour/en/`。
+- `tools/check.py` 会检查每一段中文都有译文、`i18n/en.js` 是最新的，以及英文讲解词与中文讲解词的条目一一对应。新加中文后运行 `python3 tools/i18n.py` 查看缺哪些，翻译后写进 `i18n/en.json`。

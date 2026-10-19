@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=d3981398">
+<link rel="stylesheet" href="css/style.css?v=4f4555e4">
 </head>
 <body>
 <canvas id="gl" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放"></canvas>
@@ -60,7 +60,7 @@
 </div>
 
 <aside id="panel">
-  <div id="panelHead"><span>控制台</span><span class="ph"><button id="helpBtn" type="button">玩法说明</button><button id="toggle" type="button">收起</button></span></div>
+  <div id="panelHead"><span>控制台</span><span class="ph"><button id="langBtn" type="button" lang="en">English</button><button id="helpBtn" type="button">玩法说明</button><button id="toggle" type="button">收起</button></span></div>
   <div id="panelBody">
     <section>
       <p id="about">这里的每个场景都按真实地点和实测数据搭建：光在水里怎样衰减、波浪和海流怎样推动海藻与水母、哪种生物会出现在哪个深度和水温。拖动画面转动视角，滚轮或双指缩放，点击生物可以看它是谁。</p>
@@ -352,8 +352,18 @@
             <li data-s="done">手机流畅模式（自动检测卡顿）</li>
             <li data-s="done">项目总览页：研究思路、遗留问题与资料库</li>
             <li data-s="next">声音：真实的海洋录音（需要授权的录音文件）</li>
-            <li>英文界面</li>
+            <li data-s="done">英文界面与英文语音讲解</li>
             <li>画质：用带骨骼动画的 glTF 模型替换主角生物</li>
+          </ul>
+        </div>
+        <div>
+          <h3>英文版<time>2026-10-19</time></h3>
+          <ul>
+            <li>整个页面有了英文版：控制台右上角和欢迎卡上的 “English / 中文” 按钮切换语言，选择会被记住；英文浏览器第一次打开时默认显示英文，也可以在网址后加 ?lang=en 或 ?lang=zh</li>
+            <li>翻译覆盖界面、玩法说明、19 个地点的介绍与看点、全部 103 种图鉴生物、点击生物的信息卡、探险任务、导览字幕、下潜里程碑、物理实验和明信片，共 1,100 多条</li>
+            <li>展览模式有英文语音讲解：同样由 GitHub Actions 调用 MiniMax 生成，使用英文纪录片风格的男声，讲解词在 narration/tour.en.json</li>
+            <li>中文仍是原文：英文译文放在 i18n/en.json，只在英文模式下加载；每次提交会检查是否有新加的中文还没有翻译</li>
+            <li>更正：探险任务“到达最深处”的说法改为“至今只有二十多人到过挑战者深渊”</li>
           </ul>
         </div>
         <div>
@@ -797,7 +807,7 @@
       <li><b>玩点别的</b>：做探险任务；在夜里或深海用手指划水，看浮游生物发光。</li>
       <li><b>了解项目</b>：研究思路、遗留问题和全部资料来源见<a href="https://bluesky-rgb.github.io/seafloor-world-new/overview.html" target="_blank" rel="noopener">项目总览</a>。</li>
     </ul>
-    <div class="row"><button id="welTour" type="button" class="pri">看 8 分钟展览导览</button><button id="welGo" type="button">自己探索</button><button id="welHelp" type="button">看完整玩法说明</button></div>
+    <div class="row"><button id="welTour" type="button" class="pri">看 8 分钟展览导览</button><button id="welGo" type="button">自己探索</button><button id="welHelp" type="button">看完整玩法说明</button><button id="welLang" type="button" lang="en">English</button></div>
   </div>
 </div>
 <div id="vrUI" hidden>
@@ -816,6 +826,10 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/seafloor.js?v=413d9899"></script>
+<script>/* language: ?lang=en|zh, saved choice, or the browser language; English text is loaded only when needed */
+(function(){var l=null;try{var q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
+if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';window.SEAFLOOR_LANG=l;
+if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=c153d686"><\/script>');}})();</script>
+<script src="js/seafloor.js?v=32b32ead"></script>
 </body>
 </html>

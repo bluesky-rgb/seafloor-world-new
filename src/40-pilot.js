@@ -13,7 +13,7 @@ function enterPilot(){
   PILOT.pos.copy(camera.position);PILOT.v.set(0,0,0);PILOT.home.set(controls.target.x,0,controls.target.z);
   $('pilotBar').hidden=false;$('pilotBtn').hidden=true;$('diveCta').hidden=true;$('cardBtn').style.bottom=window.innerWidth<760?'200px':'140px';$('joyWrap').hidden=!matchMedia('(pointer: coarse)').matches;
   if(window.innerWidth<760)setPanel(false);
-  showCaption('自由驾驶','推进器加速度约 0.9 m/s²，最高速度约 1 m/s；海流和波浪会推着你漂。缆绳长 60 m。',6);
+  showCaption($t('自由驾驶'),$t('推进器加速度约 0.9 m/s²，最高速度约 1 m/s；海流和波浪会推着你漂。缆绳长 60 m。'),6);
 }
 function exitPilot(){
   if(!PILOT.on)return;PILOT.on=false;controls.enabled=true;
@@ -43,9 +43,9 @@ function stepPilot(rdt,t){
   if(brineOn&&brineQ(p.x,p.z)<1.02&&p.y<BR.base+BR.L+0.3){p.y=BR.base+BR.L+0.3;if(PILOT.v.y<0)PILOT.v.y=0;}
   camera.position.copy(p);_pa.copy(p).add(pilotDir(_pd));camera.lookAt(_pa);controls.target.copy(p).addScaledVector(_pd,4);
   PILOT.hudT+=rdt;if(PILOT.hudT>0.2){PILOT.hudT=0;
-    let hd=((-PILOT.yaw*180/Math.PI)%360+360)%360;const nm=['北','东北','东','东南','南','西南','西','西北'][Math.round(hd/45)%8];
+    let hd=((-PILOT.yaw*180/Math.PI)%360+360)%360;const nm=[$t('北'),$t('东北'),$t('东'),$t('东南'),$t('南'),$t('西南'),$t('西'),$t('西北')][Math.round(hd/45)%8];
     PILOT.warn=Math.max(0,PILOT.warn-0.2);
-    $('pilotInfo').textContent='速度 '+PILOT.v.length().toFixed(2)+' m/s · 航向 '+Math.round(hd)+'° '+nm+' · 离底 '+(p.y-floorY(p.x,p.z)).toFixed(1)+' m · 缆绳 '+Math.round(Math.min(dh,PILOT.tether))+' / '+PILOT.tether+' m'+(PILOT.warn>0?' · 缆绳已放到头':'')+(_pw.length()>0.05?' · 水流 '+_pw.length().toFixed(2)+' m/s':'');}
+    $('pilotInfo').textContent=$t('速度 ')+PILOT.v.length().toFixed(2)+$t(' m/s · 航向 ')+Math.round(hd)+'° '+nm+$t(' · 离底 ')+(p.y-floorY(p.x,p.z)).toFixed(1)+$t(' m · 缆绳 ')+Math.round(Math.min(dh,PILOT.tether))+' / '+PILOT.tether+' m'+(PILOT.warn>0?$t(' · 缆绳已放到头'):'')+(_pw.length()>0.05?$t(' · 水流 ')+_pw.length().toFixed(2)+' m/s':'');}
 }
 window.addEventListener('keydown',e=>{if(!PILOT.on)return;const tg=e.target;if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))return;const k=e.key.toLowerCase();
   if(k==='escape'){exitPilot();return;}if(['w','a','s','d','q','e','c',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){KEYS[k]=true;e.preventDefault();}});

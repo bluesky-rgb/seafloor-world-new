@@ -140,9 +140,9 @@ let coralForm='';
 function buildCoral(on,lf){
   let n={branch:0,massive:0,plate:0,soft:0};coralForm='';
   if(on){
-    if(lf>=0.15){n={branch:100,massive:60,plate:18,soft:26};coralForm='枝状、块状珊瑚为主，夹杂软珊瑚';}
-    else if(lf>=0.03){n={branch:24,massive:50,plate:56,soft:48};coralForm='块状、盘状珊瑚混生，软珊瑚增多';}
-    else{n={branch:0,massive:16,plate:70,soft:50};coralForm='以盘状珊瑚和软珊瑚为主';}
+    if(lf>=0.15){n={branch:100,massive:60,plate:18,soft:26};coralForm=$t('枝状、块状珊瑚为主，夹杂软珊瑚');}
+    else if(lf>=0.03){n={branch:24,massive:50,plate:56,soft:48};coralForm=$t('块状、盘状珊瑚混生，软珊瑚增多');}
+    else{n={branch:0,massive:16,plate:70,soft:50};coralForm=$t('以盘状珊瑚和软珊瑚为主');}
   }
   for(const k in CORAL){
     const c=CORAL[k];c.mesh.count=n[k];

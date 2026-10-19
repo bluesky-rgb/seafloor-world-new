@@ -21,7 +21,7 @@ canvas.addEventListener('pointermove',e=>{
   if(!STIR.on||!STIR.prev)return;const now=performance.now(),dt=Math.max(0.008,(now-STIR.lastT)/1000);STIR.lastT=now;
   const p=pointerWorld(e,1.6,_sp1),U=p.distanceTo(STIR.prev)/dt;
   if(isDark()){stirFlash(STIR.prev,p,Math.min(U,3),0.1);}
-  else if(U>0.3&&STIR.hint<=0){STIR.hint=60;showCaption('这里太亮了','生物发光很微弱，白天在浅水里看不到。切到“夜潜”，或者到 200 m 以下，再用手指或鼠标在水里划一划。',5);}
+  else if(U>0.3&&STIR.hint<=0){STIR.hint=60;showCaption($t('这里太亮了'),$t('生物发光很微弱，白天在浅水里看不到。切到“夜潜”，或者到 200 m 以下，再用手指或鼠标在水里划一划。'),5);}
   STIR.prev.copy(p);
 });
 function stepStir(rdt){

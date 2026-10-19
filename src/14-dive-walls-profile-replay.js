@@ -92,11 +92,11 @@ const PROF={top:14,h:372};
 function buildProfile(){
   const D=S.D,y=z=>PROF.top+z/D*PROF.h,svg=$('prof');
   const ev=8849,base=y(D),peak=y(D-ev);
-  const marks=[[332,'潜水纪录'],[1000,'阳光消失'],[3750,'平均深度 · 泰坦尼克'],[6000,'海沟'],[8200,'鱼类极限']];
+  const marks=[[332,$t('潜水纪录')],[1000,$t('阳光消失')],[3750,$t('平均深度 · 泰坦尼克')],[6000,$t('海沟')],[8200,$t('鱼类极限')]];
   let h='<defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a8fb0"/><stop offset="0.12" stop-color="#0d3c52"/><stop offset="0.35" stop-color="#06161f"/><stop offset="1" stop-color="#020608"/></linearGradient></defs>';
   h+='<rect x="18" y="'+PROF.top+'" width="12" height="'+PROF.h+'" rx="2" fill="url(#pg)" stroke="rgba(120,190,205,.3)"/>';
   h+='<polygon points="10,'+base+' 19,'+(peak+40)+' 22,'+(peak+18)+' 24,'+peak+' 27,'+(peak+22)+' 31,'+(peak+46)+' 38,'+base+'" fill="rgba(210,200,185,.28)" stroke="rgba(230,220,200,.65)" stroke-width="0.7"/>';
-  h+='<text x="34" y="'+(peak+3)+'" class="pl">珠峰 8,849 m</text>';
+  h+='<text x="34" y="'+(peak+3)+$t('" class="pl">珠峰 8,849 m</text>');
   for(let k=0;k<=D;k+=2000)h+='<line x1="14" x2="18" y1="'+y(k)+'" y2="'+y(k)+'" stroke="rgba(120,190,205,.5)"/><text x="12" y="'+(y(k)+3)+'" class="pt" text-anchor="end">'+(k/1000)+'</text>';
   marks.forEach(([z,t])=>{if(z<D)h+='<line x1="30" x2="33" y1="'+y(z)+'" y2="'+y(z)+'" stroke="rgba(217,236,239,.55)"/><text x="35" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
   h+='<text x="12" y="'+(PROF.top-4)+'" class="pt" text-anchor="end">km</text>';
@@ -112,14 +112,14 @@ function updProfile(){if(!DIVE.on)return;const g=$('profMe');if(g)g.setAttribute
 const RP={depth:10898,bottom:11100,ascentV:10898/4200,start:5*3600+15*60};
 function clockStr(sec){const t=Math.round(RP.start+sec),h=Math.floor(t/3600)%24,m=Math.floor(t%3600/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
 const RP_EVENTS=[
-  {ph:'descent',t:5,title:'2012 年 3 月 26 日 05:15',sub:'关岛西南约 330 km。詹姆斯·卡梅隆独自驾驶 12 吨重的“深海挑战者号”离开水面。潜水器竖着下潜，驾驶舱是一个只容一人蜷坐的钢球。'},
-  {ph:'descent',t:900,title:'舱内像桑拿',sub:'下潜初期舱内温度一度超过 38 °C；越往下，舱外海水越冷，最后只有 2 °C 左右。'},
-  {ph:'bottom',t:3,title:'07:51 抵达海底',sub:'下潜用了 2 小时 36 分。公布的深度在 10,843 至 10,908 m 之间。巨大的压强让整艘潜水器缩短了约 7.6 cm。'},
-  {ph:'bottom',t:900,title:'“荒凉、孤寂，像月球一样的平原”',sub:'卡梅隆说他就坐在那里看着窗外。海底是柔软得近乎胶状的平地，几乎没有任何起伏。'},
-  {ph:'bottom',t:3600,title:'没有鱼',sub:'除了不到 2.5 cm 长、像小虾一样的端足类，他没有看到任何更大的动物。'},
-  {ph:'bottom',t:9000,title:'液压油泄漏',sub:'正要采集第一份样本时，液压油泄漏糊住了舷窗，机械臂无法使用，几个推进器也失灵了。'},
-  {ph:'bottom',t:11000,title:'提前上浮',sub:'在海底停留了三个多小时（原计划 6 小时）。1960 年，沃尔什和皮卡德在这里只停留了 20 分钟。'},
-  {ph:'done',t:0,title:'约 12:00 回到水面',sub:'上浮只用了 70 分钟。卡梅隆是第一个独自到达挑战者深渊的人，也是 1960 年之后第一个到达这里的人。'}
+  {ph:'descent',t:5,title:$t('2012 年 3 月 26 日 05:15'),sub:$t('关岛西南约 330 km。詹姆斯·卡梅隆独自驾驶 12 吨重的“深海挑战者号”离开水面。潜水器竖着下潜，驾驶舱是一个只容一人蜷坐的钢球。')},
+  {ph:'descent',t:900,title:$t('舱内像桑拿'),sub:$t('下潜初期舱内温度一度超过 38 °C；越往下，舱外海水越冷，最后只有 2 °C 左右。')},
+  {ph:'bottom',t:3,title:$t('07:51 抵达海底'),sub:$t('下潜用了 2 小时 36 分。公布的深度在 10,843 至 10,908 m 之间。巨大的压强让整艘潜水器缩短了约 7.6 cm。')},
+  {ph:'bottom',t:900,title:$t('“荒凉、孤寂，像月球一样的平原”'),sub:$t('卡梅隆说他就坐在那里看着窗外。海底是柔软得近乎胶状的平地，几乎没有任何起伏。')},
+  {ph:'bottom',t:3600,title:$t('没有鱼'),sub:$t('除了不到 2.5 cm 长、像小虾一样的端足类，他没有看到任何更大的动物。')},
+  {ph:'bottom',t:9000,title:$t('液压油泄漏'),sub:$t('正要采集第一份样本时，液压油泄漏糊住了舷窗，机械臂无法使用，几个推进器也失灵了。')},
+  {ph:'bottom',t:11000,title:$t('提前上浮'),sub:$t('在海底停留了三个多小时（原计划 6 小时）。1960 年，沃尔什和皮卡德在这里只停留了 20 分钟。')},
+  {ph:'done',t:0,title:$t('约 12:00 回到水面'),sub:$t('上浮只用了 70 分钟。卡梅隆是第一个独自到达挑战者深渊的人，也是 1960 年之后第一个到达这里的人。')}
 ];
 function rpEvents(){for(const e of RP_EVENTS){const key=e.ph+e.t;if(DIVE.rev.has(key))continue;
   const now=e.ph==='descent'?(DIVE.rphase==='descent'&&DIVE.clock>=e.t):e.ph==='bottom'?((DIVE.rphase==='bottom'&&DIVE.bt>=e.t)||DIVE.rphase==='ascent'||DIVE.rphase==='done'):DIVE.rphase==='done';

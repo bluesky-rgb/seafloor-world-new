@@ -18,15 +18,15 @@ function pressDraw(){
   const cupPath=(cx,s)=>{const h=110*s,tw=80*s,bw=52*s;return 'M'+(cx-tw/2)+','+(base-h)+' L'+(cx+tw/2)+','+(base-h)+' L'+(cx+bw/2)+','+base+' L'+(cx-bw/2)+','+base+' Z';};
   let h='<rect x="0" y="0" width="600" height="230" fill="#05141c"/>';
   h+='<path d="'+cupPath(100,1)+'" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
-  h+='<path d="'+cupPath(100,cupS)+'" fill="#e9e4d8" stroke="#bfb8a8"/><text x="100" y="222" text-anchor="middle" class="pt">泡沫杯</text>';
+  h+='<path d="'+cupPath(100,cupS)+$t('" fill="#e9e4d8" stroke="#bfb8a8"/><text x="100" y="222" text-anchor="middle" class="pt">泡沫杯</text>');
   const br=48;h+='<circle cx="300" cy="'+(base-br)+'" r="'+br+'" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
-  h+='<circle cx="300" cy="'+(base-br*balS)+'" r="'+Math.max(1.5,br*balS)+'" fill="#ff7a63" opacity=".85"/><text x="300" y="222" text-anchor="middle" class="pt">装空气的气球</text>';
+  h+='<circle cx="300" cy="'+(base-br*balS)+'" r="'+Math.max(1.5,br*balS)+$t('" fill="#ff7a63" opacity=".85"/><text x="300" y="222" text-anchor="middle" class="pt">装空气的气球</text>');
   const bw=56,bh=100;h+='<rect x="'+(500-bw/2)+'" y="'+(base-bh)+'" width="'+bw+'" height="'+bh+'" rx="8" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
-  h+='<rect x="'+(500-bw*watS/2)+'" y="'+(base-bh*watS)+'" width="'+(bw*watS)+'" height="'+(bh*watS)+'" rx="8" fill="#5ea8ff" opacity=".8"/><text x="500" y="222" text-anchor="middle" class="pt">装满水的瓶子</text>';
+  h+='<rect x="'+(500-bw*watS/2)+'" y="'+(base-bh*watS)+'" width="'+(bw*watS)+'" height="'+(bh*watS)+$t('" rx="8" fill="#5ea8ff" opacity=".8"/><text x="500" y="222" text-anchor="middle" class="pt">装满水的瓶子</text>');
   svg.innerHTML=h;
   $('pxZ').textContent=z.toLocaleString('en-US')+' m';
   const kg=pressure(z)*1e-4/9.81;
-  $('pxNum').innerHTML='<b>'+P.toFixed(1)+' 个大气压</b>，相当于每平方厘米上压着 <b>'+(kg<1000?kg.toFixed(kg<10?2:0)+' kg':(kg/1000).toFixed(2)+' 吨')+'</b>。<br>气球体积：原来的 <b>'+(bal*100).toFixed(bal<0.01?2:1)+'%</b>（回到水面会恢复）；泡沫杯：原来的 <b>'+(cup*100).toFixed(1)+'%</b>，高度约原来的 <b>'+(cupS*100).toFixed(0)+'%</b>（回到水面也不会恢复）；水：原来的 <b>'+(wat*100).toFixed(2)+'%</b>。';
+  $('pxNum').innerHTML='<b>'+P.toFixed(1)+$t(' 个大气压</b>，相当于每平方厘米上压着 <b>')+(kg<1000?kg.toFixed(kg<10?2:0)+' kg':(kg/1000).toFixed(2)+$t(' 吨'))+$t('</b>。<br>气球体积：原来的 <b>')+(bal*100).toFixed(bal<0.01?2:1)+$t('%</b>（回到水面会恢复）；泡沫杯：原来的 <b>')+(cup*100).toFixed(1)+$t('%</b>，高度约原来的 <b>')+(cupS*100).toFixed(0)+$t('%</b>（回到水面也不会恢复）；水：原来的 <b>')+(wat*100).toFixed(2)+$t('%</b>。');
 }
 function pressSet(z){PX.z=z;$('pxS').value=pressZ2slider(z);pressDraw();}
 $('pxOpen').addEventListener('click',()=>{$('press').hidden=false;PX.minV=1;pressSet(0);});

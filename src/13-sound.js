@@ -16,7 +16,7 @@ function audioStart(){
 }
 function setSound(on){
   if(on){if(!audioStart())on=false;}else if(AUD.ctx){AUD.ctx.suspend();AUD.on=false;}
-  AUD.on=on;$('cSound').checked=on;$('dSound').textContent='声音：'+(on?'开':'关');
+  AUD.on=on;$('cSound').checked=on;$('dSound').textContent=$t('声音：')+(on?$t('开'):$t('关'));
 }
 /* exhaled bubbles ring at their Minnaert frequency f=(1/2πr)√(3γP/ρ); the regulator hisses on the inhale */
 function playBreath(){

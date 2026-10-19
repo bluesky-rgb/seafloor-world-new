@@ -25,7 +25,10 @@ jobs:
           MINIMAX_VOICE_ID: ${{ vars.MINIMAX_VOICE_ID }}
           MINIMAX_MODEL: ${{ vars.MINIMAX_MODEL }}
           MINIMAX_SPEED: ${{ vars.MINIMAX_SPEED }}
-        run: python3 tools/gen_tts.py
+          MINIMAX_VOICE_ID_EN: ${{ vars.MINIMAX_VOICE_ID_EN }}
+        run: |
+          python3 tools/gen_tts.py
+          python3 tools/gen_tts.py --lang en
       - name: 提交生成的音频
         run: |
           git add audio

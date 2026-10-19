@@ -11,13 +11,13 @@ function bhHaze(z){return Math.exp(-0.5*Math.pow((z-125)/20,2))+0.25*Math.exp(-0
 function bhO2(z){return z<70?1:1-sstep(70,100,z);}
 function bhH2S(z){return sstep(85,150,z);}
 const BH_MS=[
-  [13,'13 m · 温跃层','往下水温开始降低。洞口附近的珊瑚和二十多种鱼都生活在上面这几十米里。'],
-  [70,'70 m · 进入化学跃层','氧气开始迅速减少。洞里的水几乎不和外面的海水交换，下层的氧气一旦用完就得不到补充。'],
-  [77,'约 77 m · 洞道转折','龙洞的形状像一只芭蕾舞鞋：在 76–78 m 和约 158 m 处各有一次大的转折。'],
-  [100,'100 m · 氧气耗尽','从这里往下，海水里没有溶解氧，却富含硫化氢。鱼、藻类都无法生存，只剩下微生物。'],
-  [118,'约 100–150 m · 浑浊的细菌层','硫氧化细菌在 100–140 m 占到微生物的约九成，悬浮的有机颗粒在约 150 m 最多，海水在这里发浑。'],
-  [158,'约 158 m · 第二次转折','再往下是均匀、静止、无氧的老水，水温稳定在约 15 °C。'],
-  [298,'约 301 m · 龙洞底部','2016 年测得 300.89 m，是当时已知最深的蓝洞（现已知墨西哥的 Taam Ja\' 蓝洞至少 420 m）。洞底沉积的有机碳最老约 6,800 年。']
+  [13,$t('13 m · 温跃层'),$t('往下水温开始降低。洞口附近的珊瑚和二十多种鱼都生活在上面这几十米里。')],
+  [70,$t('70 m · 进入化学跃层'),$t('氧气开始迅速减少。洞里的水几乎不和外面的海水交换，下层的氧气一旦用完就得不到补充。')],
+  [77,$t('约 77 m · 洞道转折'),$t('龙洞的形状像一只芭蕾舞鞋：在 76–78 m 和约 158 m 处各有一次大的转折。')],
+  [100,$t('100 m · 氧气耗尽'),$t('从这里往下，海水里没有溶解氧，却富含硫化氢。鱼、藻类都无法生存，只剩下微生物。')],
+  [118,$t('约 100–150 m · 浑浊的细菌层'),$t('硫氧化细菌在 100–140 m 占到微生物的约九成，悬浮的有机颗粒在约 150 m 最多，海水在这里发浑。')],
+  [158,$t('约 158 m · 第二次转折'),$t('再往下是均匀、静止、无氧的老水，水温稳定在约 15 °C。')],
+  [298,$t('约 301 m · 龙洞底部'),$t('2016 年测得 300.89 m，是当时已知最深的蓝洞（现已知墨西哥的 Taam Ja\' 蓝洞至少 420 m）。洞底沉积的有机碳最老约 6,800 年。')]
 ];
 /* suspended particles of the turbid redox layer (bacteria, sulfur colloids, organic flakes), lit by the lamps */
 const NSU=2200,sulf=makePoints(NSU,`void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
@@ -59,7 +59,7 @@ function buildProfileBH(){
     '<stop offset="'+(125/D)+'" stop-color="#8a8466"/><stop offset="'+(160/D)+'" stop-color="#2a2236"/><stop offset="1" stop-color="#140f1c"/></linearGradient></defs>';
   h+='<polygon points="'+L+Rr+'" fill="url(#bhg)" stroke="rgba(217,236,239,.55)" stroke-width="0.7"/>';
   for(let k=0;k<=300;k+=50)h+='<line x1="6" x2="10" y1="'+y(k)+'" y2="'+y(k)+'" stroke="rgba(120,190,205,.5)"/><text x="5" y="'+(y(k)+3)+'" class="pt" text-anchor="end">'+k+'</text>';
-  [[35,'含氧'],[85,'化学跃层'],[125,'浑浊细菌层'],[220,'无氧 · 硫化氢'],[296,'约 301 m']].forEach(([z,t])=>{h+='<text x="'+(cx(z)+hw(z)+3)+'" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
+  [[35,$t('含氧')],[85,$t('化学跃层')],[125,$t('浑浊细菌层')],[220,$t('无氧 · 硫化氢')],[296,$t('约 301 m')]].forEach(([z,t])=>{h+='<text x="'+(cx(z)+hw(z)+3)+'" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
   h+='<text x="5" y="'+(PROF.top-4)+'" class="pt" text-anchor="end">m</text>';
   h+='<g id="profMe"><line x1="18" x2="66" y1="0" y2="0" stroke="#62d4e3" stroke-width="1.4"/><circle cx="48" cy="0" r="3.2" fill="#62d4e3"/></g>';
   svg.innerHTML=h;
@@ -73,6 +73,6 @@ function enterBH(){
   {const f=new THREE.Vector3(-2.5,0,-4.6).normalize(),r=new THREE.Vector3(-f.z,0,f.x),a=0.32;WALL.n.copy(r).multiplyScalar(Math.cos(a)).addScaledVector(f,-Math.sin(a)).normalize();}
   bubbles.forEach(b=>b.on=false);sparkAge.fill(99);
   rebuild();updDiveUI();buildProfileBH();updProfile();
-  showCaption('三沙永乐龙洞','西沙永乐环礁上的一口海底竖井，深约 301 m，洞口宽约 130 m。上面几十米是热闹的珊瑚礁，100 m 以下的海水里没有氧气。',9);
+  showCaption($t('三沙永乐龙洞'),$t('西沙永乐环礁上的一口海底竖井，深约 301 m，洞口宽约 130 m。上面几十米是热闹的珊瑚礁，100 m 以下的海水里没有氧气。'),9);
 }
 

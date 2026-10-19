@@ -10,7 +10,7 @@ function wfStages(t){
   const sulfo=t<1.2?0:t<6?(t-1.2)/4.8:t<50?1:Math.max(0.35,1-(t-50)/60);
   return{scav:Math.max(0,scav),enrich:Math.max(0,enrich),sulfo};
 }
-function fmtYears(t){if(t<1/12)return Math.max(1,Math.round(t*52))+' 周';if(t<1)return Math.round(t*12)+' 个月';if(t<10)return t.toFixed(1).replace(/\.0$/,'')+' 年';return Math.round(t)+' 年';}
+function fmtYears(t){if(t<1/12)return Math.max(1,Math.round(t*52))+$t(' 周');if(t<1)return Math.round(t*12)+$t(' 个月');if(t<10)return t.toFixed(1).replace(/\.0$/,'')+$t(' 年');return Math.round(t)+$t(' 年');}
 const wfGroup=new THREE.Group();wfGroup.visible=false;scene.add(wfGroup);
 const bonePts=[];
 const boneGeo=(()=>{
@@ -82,7 +82,7 @@ function applyWF(){
   wfMussels.count=Math.round(120*st.sulfo);crabs.count=Math.round(NCR*Math.max(0.25,Math.min(1,st.scav+st.enrich*0.5)));
   bones.scale.set(1,1-0.45*Math.max(0,(WF.t-20)/40),1);
   $('wfV').textContent=fmtYears(WF.t);
-  $('wfStage').textContent=st.scav>0.4?'食腐动物阶段：盲鳗和睡鲨在啃食鲸肉，每天能吃掉 40–60 kg。':st.enrich>0.5&&st.sulfo<0.5?'机会主义者阶段：骨头露出，红色的食骨蠕虫把“根”钻进骨头里。':'化能合成阶段：细菌分解骨头里的油脂，放出硫化氢，白色细菌席和贻贝靠它生活，可以持续几十年。';
+  $('wfStage').textContent=st.scav>0.4?$t('食腐动物阶段：盲鳗和睡鲨在啃食鲸肉，每天能吃掉 40–60 kg。'):st.enrich>0.5&&st.sulfo<0.5?$t('机会主义者阶段：骨头露出，红色的食骨蠕虫把“根”钻进骨头里。'):$t('化能合成阶段：细菌分解骨头里的油脂，放出硫化氢，白色细菌席和贻贝靠它生活，可以持续几十年。');
 }
 function stepWhaleFall(dt,t){
   if(!wfOn)return;const st=wfStages(WF.t);

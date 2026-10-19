@@ -32,7 +32,7 @@ function mapDraw(){
 }
 function profDraw(){
   const cv=$('profCv'),pr=Math.min(2,window.devicePixelRatio||1),w=cv.clientWidth,h=cv.clientHeight;cv.width=w*pr;cv.height=h*pr;const g=cv.getContext('2d');g.setTransform(pr,0,0,pr,0,0);
-  g.fillStyle='#04121a';g.fillRect(0,0,w,h);if(MAP.sel.length<2){g.fillStyle='#86a7ae';g.font='12px '+getComputedStyle(document.body).getPropertyValue('--f-body');g.textAlign='center';g.fillText('在地图上点两个点，就能画出这两点之间的海底剖面',w/2,h/2);return;}
+  g.fillStyle='#04121a';g.fillRect(0,0,w,h);if(MAP.sel.length<2){g.fillStyle='#86a7ae';g.font='12px '+getComputedStyle(document.body).getPropertyValue('--f-body');g.textAlign='center';g.fillText($t('在地图上点两个点，就能画出这两点之间的海底剖面'),w/2,h/2);return;}
   const[a,b]=MAP.sel,N=300,pts=[];let mn=1e9,mx=-1e9;
   const R=6371,toR=Math.PI/180,dist=R*Math.acos(Math.min(1,Math.sin(a[0]*toR)*Math.sin(b[0]*toR)+Math.cos(a[0]*toR)*Math.cos(b[0]*toR)*Math.cos((b[1]-a[1])*toR)));
   let dl=b[1]-a[1];if(dl>180)dl-=360;if(dl<-180)dl+=360;
@@ -45,7 +45,7 @@ function profDraw(){
   for(let z=Math.ceil(bot/2000)*2000;z<=top;z+=2000)g.fillText(z+' m',L-4,y(z)+3);
   g.textAlign='center';g.fillText('0 km',L+10,h-6);g.fillText(Math.round(dist)+' km',L+pw-20,h-6);
   const ve=Math.round((dist*1000/pw)/((top-bot)/ph));
-  $('profNote').textContent='剖面长约 '+Math.round(dist).toLocaleString('en-US')+' km，最深处水深约 '+Math.round(-mn).toLocaleString('en-US')+' m，'+(mx<0?'最浅处水深约 '+Math.round(-mx).toLocaleString('en-US')+' m':'最高处海拔约 '+Math.round(mx).toLocaleString('en-US')+' m')+'。图里的竖直方向被放大了约 '+ve+' 倍；按真实比例画，几千米的起伏放在几百上千公里宽的剖面上，几乎就是一条平线。';
+  $('profNote').textContent=$t('剖面长约 ')+Math.round(dist).toLocaleString('en-US')+$t(' km，最深处水深约 ')+Math.round(-mn).toLocaleString('en-US')+$t(' m，')+(mx<0?$t('最浅处水深约 ')+Math.round(-mx).toLocaleString('en-US')+' m':$t('最高处海拔约 ')+Math.round(mx).toLocaleString('en-US')+' m')+$t('。图里的竖直方向被放大了约 ')+ve+$t(' 倍；按真实比例画，几千米的起伏放在几百上千公里宽的剖面上，几乎就是一条平线。');
 }
 /* The 0.8 MB relief data is only fetched the first time the map is opened (the single-file build inlines it). */
 function loadEtopo(){
@@ -56,9 +56,9 @@ function loadEtopo(){
 }
 async function mapOpen(){
   $('mapOv').hidden=false;
-  if(!window.ETOPO_B64){$('mapRead').textContent='正在加载全球地形数据（约 0.8 MB）…';
-    try{await loadEtopo();}catch(e){$('mapRead').textContent='地形数据加载失败，请检查网络后关闭再打开。';return;}
-    $('mapRead').textContent='把鼠标移到地图上，可以看到那里的经纬度和水深。';}
+  if(!window.ETOPO_B64){$('mapRead').textContent=$t('正在加载全球地形数据（约 0.8 MB）…');
+    try{await loadEtopo();}catch(e){$('mapRead').textContent=$t('地形数据加载失败，请检查网络后关闭再打开。');return;}
+    $('mapRead').textContent=$t('把鼠标移到地图上，可以看到那里的经纬度和水深。');}
   mapRender();if(!MAP.sel.length)MAP.sel=[[15,141],[8,143.5]];requestAnimationFrame(()=>{mapDraw();profDraw();});}
 $('mapOpen').addEventListener('click',mapOpen);$('mapX').addEventListener('click',()=>{$('mapOv').hidden=true;});
 $('mapOv').addEventListener('click',e=>{if(e.target.id==='mapOv')$('mapOv').hidden=true;});
@@ -66,8 +66,8 @@ $('mapCv').addEventListener('click',e=>{const cv=$('mapCv'),b=cv.getBoundingClie
   for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){$('mapOv').hidden=true;applyLocation(k);return;}}
   const lat=90-y/h*180,lon=x/w*360-180;if(MAP.sel.length>=2)MAP.sel=[];MAP.sel.push([lat,lon]);mapDraw();profDraw();});
 $('mapCv').addEventListener('mousemove',e=>{const cv=$('mapCv'),b=cv.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top,w=b.width,h=b.height,lat=90-y/h*180,lon=x/w*360-180;
-  let near='';for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){near=LOC[k].name+'（点击前往）';break;}}
-  const z=mapH(lat,lon);$('mapRead').textContent=(near?near+' · ':'')+Math.abs(lat).toFixed(1)+'°'+(lat>=0?'N':'S')+' '+Math.abs(lon).toFixed(1)+'°'+(lon>=0?'E':'W')+' · '+(z<0?'水深约 '+Math.round(-z).toLocaleString('en-US')+' m':'海拔约 '+Math.round(z).toLocaleString('en-US')+' m');});
+  let near='';for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){near=LOC[k].name+$t('（点击前往）');break;}}
+  const z=mapH(lat,lon);$('mapRead').textContent=(near?near+' · ':'')+Math.abs(lat).toFixed(1)+'°'+(lat>=0?'N':'S')+' '+Math.abs(lon).toFixed(1)+'°'+(lon>=0?'E':'W')+' · '+(z<0?$t('水深约 ')+Math.round(-z).toLocaleString('en-US')+' m':$t('海拔约 ')+Math.round(z).toLocaleString('en-US')+' m');});
 $('mapPreset').addEventListener('click',e=>{const p=e.target.dataset.p;if(!p)return;MAP.sel={mariana:[[15,141],[8,143.5]],atl:[[30,-80],[20,-15]],sio:[[-30,45],[-45,55]],scs:[[22,110],[12,120]]}[p];mapDraw();profDraw();});
 window.addEventListener('resize',()=>{if(!$('mapOv').hidden){mapDraw();profDraw();}});
 

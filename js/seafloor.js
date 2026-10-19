@@ -5,6 +5,32 @@ const $=id=>document.getElementById(id);
 if(!window.THREE||!THREE.OrbitControls){$('err').hidden=false;return;}
 
 /* =========================================================
+   0b. Language (00-i18n.js, after 00-bootstrap). Chinese is the source text; English comes from i18n/en.js (window.SEAFLOOR_EN, generated from
+   i18n/en.json: Chinese text → English). Choice order: ?lang=en|zh, saved preference, browser language.
+   $t('中文') returns the English text in English mode (or the Chinese if a string has no translation yet).
+   Static page text is translated once here, by walking the text nodes; switching language reloads the page.
+   ========================================================= */
+const LANG=window.SEAFLOOR_LANG||(()=>{let l=null;try{const q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
+  if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';return l;})();
+const EN=window.SEAFLOOR_EN||{};
+const i18nKey=s=>s.replace(/\s+/g,' ').trim();
+const $t=s=>{if(LANG!=='en')return s;const v=EN[s];return v!=null?v:(EN[i18nKey(s)]!=null?EN[i18nKey(s)]:s);};
+function setLang(l){try{localStorage.setItem('seafloor-lang',l);}catch(e){}const u=new URL(location.href);u.searchParams.delete('lang');location.replace(u.toString());}
+if(LANG==='en'){
+  document.documentElement.lang='en';
+  const tr=s=>{const k=i18nKey(s);if(!/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u201c\u201d]/.test(k))return s;const v=EN[k];if(v==null)return s;const m=s.match(/^(\s*)[\s\S]*?(\s*)$/);return m[1]+v+m[2];};
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentNode&&n.parentNode.closest('#logDet .log,script,style')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  const nodes=[];while(w.nextNode())nodes.push(w.currentNode);
+  /* Chinese needs no spaces around inline elements (<b>, <a>, <code>…); English does */
+  nodes.forEach(n=>{const o=n.nodeValue,v=tr(o);if(v===o)return;let r=v;const pv=n.previousSibling,nx=n.nextSibling;
+    if(nx&&nx.nodeType===1&&!/^(SUB|SUP)$/.test(nx.nodeName)&&/[A-Za-z0-9,;)’”]$/.test(r))r+=' ';
+    if(pv&&pv.nodeType===1&&!/^(SUB|SUP)$/.test(pv.nodeName)&&/^[A-Za-z0-9(“‘]/.test(r))r=' '+r;n.nodeValue=r;});
+  document.querySelectorAll('[title],[placeholder],[aria-label],[alt]').forEach(e=>['title','placeholder','aria-label','alt'].forEach(a=>{if(e.hasAttribute(a))e.setAttribute(a,tr(e.getAttribute(a)));}));
+  document.title=tr(document.title);
+}
+/* language switch buttons: the label names the other language, in that language */
+for(const id of['langBtn','welLang']){const b=$(id);if(!b)continue;b.textContent=LANG==='en'?'中文':'English';b.lang=LANG==='en'?'zh-CN':'en';b.addEventListener('click',()=>setLang(LANG==='en'?'zh':'en'));}
+/* =========================================================
    1. Physical constants, sites, state
    ========================================================= */
 const RHO=1025, G=9.81, PATM=101325, N_WATER=1.34;
@@ -18,27 +44,27 @@ const WATER={
   lagoon:   {a:[0.450,0.120,0.300], b:[0.35,0.40,0.45]}   /* turbid, plankton- and CDOM-rich: blue absorbed strongly, so the water looks green */
 };
 const LOC={
-  xisha:   {name:'南海西沙群岛珊瑚礁',D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
-  nanji:   {name:'浙江南麂列岛 · 岩礁潮间带',D:5,water:'shelf',temp:22,H:0.6,T:7,cur:0.1,dir:200,sun:60,torch:'off'},
-  monterey:{name:'加州蒙特雷湾巨藻林',D:12,water:'temperate',temp:12,H:1.6,T:12,cur:0.08,dir:30,sun:55,torch:'off'},
-  eilat:   {name:'红海埃拉特中光层礁',D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
-  slope:   {name:'南海北部陆坡',D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
-  deep:    {name:'南海海马冷泉',D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
-  mangrove:{name:'海南陵水新村潟湖 · 海草床与红树林',D:1.6,water:'lagoon',temp:28,H:0.3,T:5,cur:0.05,dir:30,sun:70,torch:'off'},
-  abyss:   {name:'太平洋克拉里昂-克利珀顿区 · 深海平原',D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
-  vent:    {name:'西南印度洋龙旂热液区',D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
-  whalefall:{name:'蒙特雷峡谷鲸落',D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
-  bluehole:{name:'三沙永乐龙洞',D:300.9,water:'clear',temp:30,H:0.6,T:6,cur:0.01,dir:60,sun:70,torch:'off'},
-  truk:    {name:'密克罗尼西亚特鲁克泻湖 · 富士川丸沉船',D:34,water:'clear',temp:28,H:0.5,T:6,cur:0.02,dir:90,sun:70,torch:'off'},
-  rost:    {name:'挪威罗弗敦外海 · 勒斯特冷水珊瑚礁',D:320,water:'clear',temp:7,H:2,T:10,cur:0.15,dir:30,sun:40,torch:'white'},
-  arctic:  {name:'加拿大北极庞德因莱特 · 浮冰边缘',D:300,water:'arctic',temp:-1.6,H:0.2,T:5,cur:0.04,dir:90,sun:35,torch:'off'},
-  seamount:{name:'加州戴维森海山 · 章鱼花园',D:3200,water:'clear',temp:1.6,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
-  ice:     {name:'南极麦克默多湾 · 海冰之下',D:24,water:'clear',temp:-1.9,H:0,T:8,cur:0.02,dir:60,sun:25,torch:'off'},
-  spawn:   {name:'海南三亚鹿回头珊瑚礁 · 产卵之夜',D:6,water:'ocean',temp:27,H:0.5,T:6,cur:0.05,dir:120,sun:70,torch:'white'},
-  brine:   {name:'墨西哥湾 NR1 海底盐池',D:650,water:'clear',temp:6.5,H:1.5,T:8,cur:0.02,dir:60,sun:60,torch:'white'},
-  dvm:     {name:'北太平洋副热带开阔大洋',D:4800,water:'clear',temp:26,H:1.2,T:8,cur:0.05,dir:90,sun:60,torch:'off'},
-  replay:  {name:'重走 2012 · 深海挑战者号',D:10898,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'},
-  dive:    {name:'关岛礁壁 → 马里亚纳海沟',D:10935,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'}
+  xisha:   {name:$t('南海西沙群岛珊瑚礁'),D:10,water:'clear',temp:28,H:0.8,T:6,cur:0.15,dir:120,sun:75,torch:'off'},
+  nanji:   {name:$t('浙江南麂列岛 · 岩礁潮间带'),D:5,water:'shelf',temp:22,H:0.6,T:7,cur:0.1,dir:200,sun:60,torch:'off'},
+  monterey:{name:$t('加州蒙特雷湾巨藻林'),D:12,water:'temperate',temp:12,H:1.6,T:12,cur:0.08,dir:30,sun:55,torch:'off'},
+  eilat:   {name:$t('红海埃拉特中光层礁'),D:55,water:'clear',temp:23,H:0.5,T:5,cur:0.12,dir:200,sun:65,torch:'off'},
+  slope:   {name:$t('南海北部陆坡'),D:600,water:'clear',temp:7,H:1.5,T:8,cur:0.10,dir:60,sun:60,torch:'white'},
+  deep:    {name:$t('南海海马冷泉'),D:1390,water:'clear',temp:3,H:1.5,T:8,cur:0.05,dir:90,sun:60,torch:'white',seep:true},
+  mangrove:{name:$t('海南陵水新村潟湖 · 海草床与红树林'),D:1.6,water:'lagoon',temp:28,H:0.3,T:5,cur:0.05,dir:30,sun:70,torch:'off'},
+  abyss:   {name:$t('太平洋克拉里昂-克利珀顿区 · 深海平原'),D:4100,water:'clear',temp:1.5,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
+  vent:    {name:$t('西南印度洋龙旂热液区'),D:2800,water:'clear',temp:1.8,H:1.5,T:10,cur:0.05,dir:60,sun:60,torch:'white'},
+  whalefall:{name:$t('蒙特雷峡谷鲸落'),D:1800,water:'clear',temp:2.2,H:1.5,T:10,cur:0.04,dir:40,sun:60,torch:'white'},
+  bluehole:{name:$t('三沙永乐龙洞'),D:300.9,water:'clear',temp:30,H:0.6,T:6,cur:0.01,dir:60,sun:70,torch:'off'},
+  truk:    {name:$t('密克罗尼西亚特鲁克泻湖 · 富士川丸沉船'),D:34,water:'clear',temp:28,H:0.5,T:6,cur:0.02,dir:90,sun:70,torch:'off'},
+  rost:    {name:$t('挪威罗弗敦外海 · 勒斯特冷水珊瑚礁'),D:320,water:'clear',temp:7,H:2,T:10,cur:0.15,dir:30,sun:40,torch:'white'},
+  arctic:  {name:$t('加拿大北极庞德因莱特 · 浮冰边缘'),D:300,water:'arctic',temp:-1.6,H:0.2,T:5,cur:0.04,dir:90,sun:35,torch:'off'},
+  seamount:{name:$t('加州戴维森海山 · 章鱼花园'),D:3200,water:'clear',temp:1.6,H:1.5,T:10,cur:0.04,dir:60,sun:60,torch:'white'},
+  ice:     {name:$t('南极麦克默多湾 · 海冰之下'),D:24,water:'clear',temp:-1.9,H:0,T:8,cur:0.02,dir:60,sun:25,torch:'off'},
+  spawn:   {name:$t('海南三亚鹿回头珊瑚礁 · 产卵之夜'),D:6,water:'ocean',temp:27,H:0.5,T:6,cur:0.05,dir:120,sun:70,torch:'white'},
+  brine:   {name:$t('墨西哥湾 NR1 海底盐池'),D:650,water:'clear',temp:6.5,H:1.5,T:8,cur:0.02,dir:60,sun:60,torch:'white'},
+  dvm:     {name:$t('北太平洋副热带开阔大洋'),D:4800,water:'clear',temp:26,H:1.2,T:8,cur:0.05,dir:90,sun:60,torch:'off'},
+  replay:  {name:$t('重走 2012 · 深海挑战者号'),D:10898,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'},
+  dive:    {name:$t('关岛礁壁 → 马里亚纳海沟'),D:10935,water:'clear',temp:28.5,H:1.2,T:8,cur:0.02,dir:90,sun:70,torch:'off'}
 };
 const S={D:10,H:0.8,T:6,sun:75,water:'clear',adapt:true,temp:28,cur:0.15,dir:120,loc:null,seep:false,night:false,torch:'off',tour:true};
 const W={k:0,w:0,L:0};
@@ -492,9 +518,9 @@ let coralForm='';
 function buildCoral(on,lf){
   let n={branch:0,massive:0,plate:0,soft:0};coralForm='';
   if(on){
-    if(lf>=0.15){n={branch:100,massive:60,plate:18,soft:26};coralForm='枝状、块状珊瑚为主，夹杂软珊瑚';}
-    else if(lf>=0.03){n={branch:24,massive:50,plate:56,soft:48};coralForm='块状、盘状珊瑚混生，软珊瑚增多';}
-    else{n={branch:0,massive:16,plate:70,soft:50};coralForm='以盘状珊瑚和软珊瑚为主';}
+    if(lf>=0.15){n={branch:100,massive:60,plate:18,soft:26};coralForm=$t('枝状、块状珊瑚为主，夹杂软珊瑚');}
+    else if(lf>=0.03){n={branch:24,massive:50,plate:56,soft:48};coralForm=$t('块状、盘状珊瑚混生，软珊瑚增多');}
+    else{n={branch:0,massive:16,plate:70,soft:50};coralForm=$t('以盘状珊瑚和软珊瑚为主');}
   }
   for(const k in CORAL){
     const c=CORAL[k];c.mesh.count=n[k];
@@ -701,62 +727,62 @@ function buildFishGeo(p){
 }
 const cs=(belly,back,yh)=>(x,y,z,f)=>mixc(belly,back,sstep(-0.25,0.55,y/yh));
 const FISH={
-  sardine:{name:'太平洋沙丁鱼',n:220,len:[0.17,0.22],spd:[0.7,1.3],h:0.11,w:0.065,tailH:0.11,dorsal:0.05,anal:0.02,
+  sardine:{name:$t('太平洋沙丁鱼'),n:220,len:[0.17,0.22],spd:[0.7,1.3],h:0.11,w:0.065,tailH:0.11,dorsal:0.05,anal:0.02,
     col:(x,y,z,f)=>f?[0.5,0.58,0.64]:mixc([0.9,0.92,0.95],[0.1,0.28,0.42],sstep(-0.01,0.07,y)),sheen:1.2,
     nb:1.0,sep:0.22,ali:1.4,coh:0.6,sepW:0.05,mill:1.1,rheo:0},
-  chromis:{name:'蓝绿光鳃鱼',n:70,len:[0.06,0.09],spd:[0.2,0.55],h:0.2,w:0.07,tailH:0.14,dorsal:0.07,anal:0.06,
+  chromis:{name:$t('蓝绿光鳃鱼'),n:70,len:[0.06,0.09],spd:[0.2,0.55],h:0.2,w:0.07,tailH:0.14,dorsal:0.07,anal:0.06,
     col:(x,y,z,f)=>f?[0.45,0.85,0.9]:mixc([0.55,0.95,0.85],[0.2,0.65,0.9],sstep(-0.1,0.18,y)),sheen:0.5,
     nb:0.7,sep:0.12,ali:0.7,coh:0.7,sepW:0.02,mill:0,rheo:1},
-  anthias:{name:'丝鳍拟花鲈',n:140,len:[0.07,0.11],spd:[0.2,0.6],h:0.17,w:0.06,tailH:0.15,dorsal:0.06,anal:0.05,
+  anthias:{name:$t('丝鳍拟花鲈'),n:140,len:[0.07,0.11],spd:[0.2,0.6],h:0.17,w:0.06,tailH:0.15,dorsal:0.06,anal:0.05,
     col:cs([1,0.92,0.85],[0.95,0.8,0.75],0.17),tint:[[1,0.5,0.25],[1,0.55,0.3],[0.85,0.3,0.75]],sheen:0.2,
     nb:0.9,sep:0.15,ali:0.5,coh:0.45,sepW:0.025,mill:0,rheo:1},
-  butterfly:{name:'月斑蝴蝶鱼',n:14,len:[0.13,0.18],spd:[0.15,0.35],h:0.38,w:0.06,tailH:0.14,dorsal:0.12,anal:0.1,
+  butterfly:{name:$t('月斑蝴蝶鱼'),n:14,len:[0.13,0.18],spd:[0.15,0.35],h:0.38,w:0.06,tailH:0.14,dorsal:0.12,anal:0.1,
     col:(x,y,z,f)=>{if(f)return[1,0.72,0.15];if(z>0.24&&z<0.33&&y>-0.15)return[0.04,0.04,0.05];if(z>0.17&&z<=0.24)return[0.97,0.97,0.94];
       if(z<-0.22&&z>-0.34&&y>0.0)return[0.05,0.05,0.06];return mixc([1,0.85,0.25],[0.95,0.7,0.15],sstep(-0.2,0.3,y));},
     nb:1.6,sep:0.25,ali:0.3,coh:0.15,sepW:0.02,mill:0,rheo:0},
-  clown:{name:'眼斑双锯鱼（小丑鱼）',n:10,len:[0.07,0.1],spd:[0.08,0.3],h:0.3,w:0.12,tailH:0.13,dorsal:0.07,anal:0.06,
+  clown:{name:$t('眼斑双锯鱼（小丑鱼）'),n:10,len:[0.07,0.1],spd:[0.08,0.3],h:0.3,w:0.12,tailH:0.13,dorsal:0.07,anal:0.06,
     col:(x,y,z,f)=>{const bands=[0.24,0.0,-0.3],wd=[0.04,0.05,0.03];
       for(let k=0;k<3;k++){const d=Math.abs(z-bands[k]);if(d<wd[k])return[0.98,0.98,0.96];if(d<wd[k]+0.015)return[0.04,0.04,0.04];}
       return f?[1,0.45,0.08]:[1,0.42,0.06];},
     nb:0.5,sep:0.08,ali:0.1,coh:0.1,sepW:0.01,mill:0,rheo:0,wander:1.2},
-  snapper:{name:'四线笛鲷',n:45,len:[0.2,0.28],spd:[0.25,0.55],h:0.24,w:0.09,tailH:0.13,dorsal:0.07,anal:0.05,
+  snapper:{name:$t('四线笛鲷'),n:45,len:[0.2,0.28],spd:[0.25,0.55],h:0.24,w:0.09,tailH:0.13,dorsal:0.07,anal:0.05,
     col:(x,y,z,f)=>{if(f)return[1,0.85,0.2];const yn=y/0.24;for(const b of[0.42,0.18,-0.06,-0.3]){if(Math.abs(yn-b+z*0.15)<0.045)return[0.25,0.6,1.0];}
       return yn<-0.45?[0.98,0.95,0.85]:[1,0.82,0.12];},sheen:0.3,
     nb:1.2,sep:0.3,ali:0.6,coh:0.5,sepW:0.04,mill:0,rheo:1},
-  parrot:{name:'蓝点鹦嘴鱼',n:7,len:[0.4,0.6],spd:[0.2,0.45],h:0.3,w:0.13,tailH:0.15,dorsal:0.05,anal:0.04,
+  parrot:{name:$t('蓝点鹦嘴鱼'),n:7,len:[0.4,0.6],spd:[0.2,0.45],h:0.3,w:0.13,tailH:0.15,dorsal:0.05,anal:0.04,
     col:(x,y,z,f)=>{if(f)return[0.95,0.45,0.6];if(z>0.38)return[0.2,0.75,0.85];const sc=Math.sin(z*40)*Math.sin(y*45)>0.45;
       return sc?[0.95,0.5,0.6]:mixc([0.35,0.85,0.75],[0.15,0.55,0.75],sstep(-0.2,0.3,y/0.3));},
     nb:2.5,sep:0.6,ali:0.2,coh:0.05,sepW:0.05,mill:0,rheo:0,wander:0.4},
-  rockfish:{name:'蓝平鲉',n:26,len:[0.25,0.38],spd:[0.2,0.5],h:0.26,w:0.11,tailH:0.13,dorsal:0.09,anal:0.06,
+  rockfish:{name:$t('蓝平鲉'),n:26,len:[0.25,0.38],spd:[0.2,0.5],h:0.26,w:0.11,tailH:0.13,dorsal:0.09,anal:0.06,
     col:(x,y,z,f)=>{const mt=0.5+0.5*Math.sin(z*30+y*14)*Math.sin(z*11-y*20);return f?[0.25,0.3,0.4]:mixc(mixc([0.55,0.6,0.68],[0.2,0.25,0.36],sstep(-0.2,0.3,y/0.26)),[0.15,0.18,0.26],mt*0.4);},
     nb:1.5,sep:0.45,ali:0.4,coh:0.15,sepW:0.05,mill:0,rheo:1},
-  hammer:{name:'路氏双髻鲨',eye:0.004,n:16,len:[2.4,3.2],spd:[0.6,1.1],h:0.1,w:0.1,tailH:0.2,dorsal:0.17,anal:0.04,
+  hammer:{name:$t('路氏双髻鲨'),eye:0.004,n:16,len:[2.4,3.2],spd:[0.6,1.1],h:0.1,w:0.1,tailH:0.2,dorsal:0.17,anal:0.04,
     col:(x,y,z,f)=>f?[0.4,0.43,0.46]:mixc([0.92,0.92,0.9],[0.42,0.45,0.48],sstep(-0.04,0.03,y)),
     extra:(acc,ex0)=>{addGeo(acc,new THREE.SphereGeometry(1,18,8),M4(0,0.006,0.46,0,0,0,0.17,0.016,0.045),(x,y)=>y<0?[0.85,0.85,0.84]:[0.42,0.45,0.48],ex0);
       for(const sg of[1,-1]){addGeo(acc,new THREE.SphereGeometry(0.011,6,4),M4(sg*0.168,0.006,0.462),()=>[0.02,0.02,0.02],ex0);
         addGeo(acc,triGeo([sg*0.08,-0.05,0.18, sg*0.24,-0.09,0.02, sg*0.08,-0.05,0.06]),null,()=>[0.42,0.45,0.48],ex0);}},
     nb:7,sep:2.2,ali:0.6,coh:0.2,sepW:0.6,mill:0.35,rheo:0},
-  hatchet:{name:'银斧鱼',n:60,len:[0.04,0.07],spd:[0.1,0.3],h:0.42,w:0.035,tailH:0.1,dorsal:0.05,anal:0.05,
+  hatchet:{name:$t('银斧鱼'),n:60,len:[0.04,0.07],spd:[0.1,0.3],h:0.42,w:0.035,tailH:0.1,dorsal:0.05,anal:0.05,
     col:(x,y,z,f)=>f?[0.6,0.65,0.7]:mixc([0.92,0.94,0.97],[0.25,0.28,0.35],sstep(0.1,0.3,y/0.42)),sheen:1.0,
     glow:(x,y,z)=>(y<-0.42*0.62&&(((z+0.5)*16)%1)<0.45&&z<0.3&&z>-0.3)?1:0,
     nb:0.8,sep:0.15,ali:0.5,coh:0.3,sepW:0.02,mill:0,rheo:0},
-  snail:{name:'马里亚纳狮子鱼',n:14,len:[0.2,0.28],spd:[0.04,0.16],h:0.22,w:0.13,tailH:0.05,dorsal:0.03,anal:0.03,
+  snail:{name:$t('马里亚纳狮子鱼'),n:14,len:[0.2,0.28],spd:[0.04,0.16],h:0.22,w:0.13,tailH:0.05,dorsal:0.03,anal:0.03,
     col:(x,y,z,f)=>f?[0.95,0.85,0.85]:mixc([0.98,0.78,0.8],[0.93,0.86,0.86],sstep(-0.1,0.2,y/0.22)),
     nb:1.5,sep:0.4,ali:0.1,coh:0.05,sepW:0.03,mill:0,rheo:0,wander:0.15},
-  baitfish:{name:'小型饵鱼',n:200,len:[0.06,0.09],spd:[0.5,1.0],h:0.16,w:0.05,tailH:0.1,dorsal:0.03,anal:0.02,
+  baitfish:{name:$t('小型饵鱼'),n:200,len:[0.06,0.09],spd:[0.5,1.0],h:0.16,w:0.05,tailH:0.1,dorsal:0.03,anal:0.02,
     col:(x,y,z,f)=>f?[0.75,0.8,0.85]:mixc([0.95,0.96,0.98],[0.45,0.6,0.7],sstep(0.0,0.1,y)),sheen:1.4,
     nb:0.6,sep:0.1,ali:1.5,coh:0.7,sepW:0.02,mill:0.9,rheo:0},
-  jack:{name:'鲹',n:9,len:[0.6,0.9],spd:[0.6,1.2],h:0.3,w:0.1,tailH:0.2,dorsal:0.08,anal:0.06,
+  jack:{name:$t('鲹'),n:9,len:[0.6,0.9],spd:[0.6,1.2],h:0.3,w:0.1,tailH:0.2,dorsal:0.08,anal:0.06,
     col:(x,y,z,f)=>f?[0.4,0.5,0.6]:mixc([0.9,0.92,0.94],[0.35,0.45,0.55],sstep(-0.02,0.12,y/0.3)),sheen:1.0,
     nb:3,sep:1.0,ali:0.7,coh:0.3,sepW:0.2,mill:0.4,rheo:0},
-  lionfish:{name:'魔鬼蓑鲉',n:4,len:[0.25,0.32],spd:[0.02,0.08],h:0.3,w:0.1,tailH:0.13,dorsal:0.25,anal:0.12,
+  lionfish:{name:$t('魔鬼蓑鲉'),n:4,len:[0.25,0.32],spd:[0.02,0.08],h:0.3,w:0.1,tailH:0.13,dorsal:0.25,anal:0.12,
     col:(x,y,z,f)=>{const st=Math.sin(z*48+y*9)>0.1;return f?(st?[0.85,0.25,0.18]:[0.97,0.92,0.88]):(st?[0.75,0.22,0.15]:[0.97,0.9,0.85]);},
     extra:(acc,ex0)=>{for(const sg of[1,-1])for(let k=0;k<6;k++)addGeo(acc,new THREE.CylinderGeometry(0.004,0.002,0.32,3),M4(sg*(0.08+k*0.01),-0.02,0.18-k*0.05,0.6,0,sg*(1.0+k*0.08)),()=>k%2?[0.95,0.9,0.85]:[0.8,0.25,0.18],ex0);},
     nb:1.5,sep:0.5,ali:0.05,coh:0.02,sepW:0.03,mill:0,rheo:0,wander:0.08},
-  redfish:{name:'挪威平鲉',eye:0.05,n:22,len:[0.35,0.5],spd:[0.05,0.2],h:0.27,w:0.12,tailH:0.13,dorsal:0.11,anal:0.06,
+  redfish:{name:$t('挪威平鲉'),eye:0.05,n:22,len:[0.35,0.5],spd:[0.05,0.2],h:0.27,w:0.12,tailH:0.13,dorsal:0.11,anal:0.06,
     col:(x,y,z,f)=>f?[0.95,0.3,0.15]:mixc([0.98,0.55,0.35],[0.9,0.22,0.12],sstep(-0.2,0.3,y/0.27)),sheen:0.2,
     nb:2,sep:0.7,ali:0.08,coh:0.04,sepW:0.05,mill:0,rheo:1,wander:0.12},
-  lantern:{name:'灯笼鱼',n:70,len:[0.06,0.1],spd:[0.15,0.4],h:0.18,w:0.08,tailH:0.12,dorsal:0.05,anal:0.04,
+  lantern:{name:$t('灯笼鱼'),n:70,len:[0.06,0.1],spd:[0.15,0.4],h:0.18,w:0.08,tailH:0.12,dorsal:0.05,anal:0.04,
     col:(x,y,z,f)=>f?[0.15,0.15,0.18]:mixc([0.45,0.47,0.5],[0.08,0.08,0.1],sstep(-0.2,0.3,y/0.18)),
     glow:(x,y,z)=>{if(y<-0.18*0.45&&Math.abs(x)>0.02&&(((z+0.5)*13)%1)<0.38&&z<0.3&&z>-0.38)return 1;if(z>0.38&&y<0&&Math.abs(x)>0.04)return 0.8;return 0;},
     nb:1.2,sep:0.2,ali:0.4,coh:0.25,sepW:0.02,mill:0,rheo:0}
@@ -1096,12 +1122,12 @@ void main(){
 const bellGeo=new THREE.SphereGeometry(1,28,14,0,Math.PI*2,0,Math.PI*0.5);
 const combGeo=(()=>{const g=new THREE.SphereGeometry(1,28,18);g.scale(0.62,1,0.62);return g;})();
 const JELLY={
-  moon:{name:'海月水母',type:0,n:12,r:[0.12,0.22],freq:0.8,pulse:1,col:[0.72,0.82,0.95],col2:[0.95,0.45,0.78],geo:bellGeo},
-  nettle:{name:'太平洋金黄水母',type:1,n:7,r:[0.17,0.27],freq:0.55,pulse:1,col:[0.98,0.62,0.22],col2:[0.55,0.15,0.06],geo:bellGeo,
+  moon:{name:$t('海月水母'),type:0,n:12,r:[0.12,0.22],freq:0.8,pulse:1,col:[0.72,0.82,0.95],col2:[0.95,0.45,0.78],geo:bellGeo},
+  nettle:{name:$t('太平洋金黄水母'),type:1,n:7,r:[0.17,0.27],freq:0.55,pulse:1,col:[0.98,0.62,0.22],col2:[0.55,0.15,0.06],geo:bellGeo,
     tent:[{k:8,len:2.4,seg:14,col:[0.9,0.55,0.25],w:0.95},{k:4,len:1.2,seg:10,col:[0.98,0.85,0.7],w:0.35}]},
-  atolla:{name:'冠水母',type:2,n:7,r:[0.06,0.1],freq:0.45,pulse:1,col:[0.55,0.03,0.04],col2:[0,0,0],geo:bellGeo,tent:[{k:1,len:0.9,seg:14,col:[0.5,0.05,0.05],w:0.9}]},
-  cucumber:{name:'游泳海参',type:4,n:6,r:[0.12,0.2],freq:0.2,pulse:0,col:[0.98,0.4,0.48],col2:[0.45,0.06,0.1],geo:(()=>{const g=new THREE.SphereGeometry(1,24,14);g.scale(0.5,0.42,1);return g;})()},
-  comb:{name:'栉水母',type:3,n:10,r:[0.04,0.08],freq:0.2,pulse:0,col:[0.06,0.07,0.09],col2:[0,0,0],geo:combGeo}
+  atolla:{name:$t('冠水母'),type:2,n:7,r:[0.06,0.1],freq:0.45,pulse:1,col:[0.55,0.03,0.04],col2:[0,0,0],geo:bellGeo,tent:[{k:1,len:0.9,seg:14,col:[0.5,0.05,0.05],w:0.9}]},
+  cucumber:{name:$t('游泳海参'),type:4,n:6,r:[0.12,0.2],freq:0.2,pulse:0,col:[0.98,0.4,0.48],col2:[0.45,0.06,0.1],geo:(()=>{const g=new THREE.SphereGeometry(1,24,14);g.scale(0.5,0.42,1);return g;})()},
+  comb:{name:$t('栉水母'),type:3,n:10,r:[0.04,0.08],freq:0.2,pulse:0,col:[0.06,0.07,0.09],col2:[0,0,0],geo:combGeo}
 };
 for(const key in JELLY){
   const J=JELLY[key];const ph=new Float32Array(J.n);for(let i=0;i<J.n;i++)ph[i]=rnd()*6.28;
@@ -1600,24 +1626,24 @@ function stepGiants(dt,t){
 const TPROF=[[0,28.5],[60,28],[120,26],[200,20],[300,13],[400,10],[600,7],[1000,4.5],[2000,2.3],[4000,1.5],[6000,1.6],[8000,1.9],[10935,2.5]];
 function tempAt(z){for(let i=1;i<TPROF.length;i++){if(z<=TPROF[i][0]){const[a,ta]=TPROF[i-1],[b,tb]=TPROF[i];return ta+(tb-ta)*(z-a)/(b-a);}}return 2.5;}
 const MILESTONES=[
-  [30,'30 m','红光几乎被水吸收殆尽，身边的一切都变成了蓝绿色。'],
-  [200,'200 m · 进入暮光层','阳光只剩不到 1%，植物无法再进行光合作用。这里的很多动物夜里会上浮到浅层觅食，这是地球上规模最大的动物迁徙。'],
-  [332,'332 m','水肺潜水的世界纪录（2014 年）。再往下，人类只能坐在耐压舱里。'],
-  [1000,'1,000 m · 进入午夜层','这里再也没有一丝阳光。此后看到的光，除了潜水器的灯，全部来自生物自己。'],
-  [2992,'2,992 m','柯氏喙鲸到过这里，这是哺乳动物的下潜纪录。'],
-  [3700,'约 3,700 m','全球海洋的平均深度。地球表面七成被海水覆盖，大部分海底都在这样的黑暗里。'],
-  [3800,'3,800 m','泰坦尼克号的残骸就躺在这个深度的大西洋海底。'],
-  [4000,'4,000 m · 进入深渊层','水温约 1.5 °C，压强约 400 个大气压。几乎所有食物，都来自上方缓慢飘落的海洋雪。'],
-  [6000,'6,000 m · 进入超深渊层','只存在于海沟之中。全世界的海沟加起来，还不到海底面积的 0.25%。'],
-  [8200,'约 8,200 m','狮子鱼的极限。再深，鱼类体内对抗压强的分子就不够用了，这以下再也没有鱼。'],
-  [8849,'8,849 m','珠穆朗玛峰的高度。把它整个放进这条海沟，峰顶离海面还有两千多米。'],
-  [10930,'10,935 m · 挑战者深渊','地球海洋的最深处。头顶的海水压强约 1,100 个大气压，相当于每平方厘米压着一吨多。']
+  [30,'30 m',$t('红光几乎被水吸收殆尽，身边的一切都变成了蓝绿色。')],
+  [200,$t('200 m · 进入暮光层'),$t('阳光只剩不到 1%，植物无法再进行光合作用。这里的很多动物夜里会上浮到浅层觅食，这是地球上规模最大的动物迁徙。')],
+  [332,'332 m',$t('水肺潜水的世界纪录（2014 年）。再往下，人类只能坐在耐压舱里。')],
+  [1000,$t('1,000 m · 进入午夜层'),$t('这里再也没有一丝阳光。此后看到的光，除了潜水器的灯，全部来自生物自己。')],
+  [2992,'2,992 m',$t('柯氏喙鲸到过这里，这是哺乳动物的下潜纪录。')],
+  [3700,$t('约 3,700 m'),$t('全球海洋的平均深度。地球表面七成被海水覆盖，大部分海底都在这样的黑暗里。')],
+  [3800,'3,800 m',$t('泰坦尼克号的残骸就躺在这个深度的大西洋海底。')],
+  [4000,$t('4,000 m · 进入深渊层'),$t('水温约 1.5 °C，压强约 400 个大气压。几乎所有食物，都来自上方缓慢飘落的海洋雪。')],
+  [6000,$t('6,000 m · 进入超深渊层'),$t('只存在于海沟之中。全世界的海沟加起来，还不到海底面积的 0.25%。')],
+  [8200,$t('约 8,200 m'),$t('狮子鱼的极限。再深，鱼类体内对抗压强的分子就不够用了，这以下再也没有鱼。')],
+  [8849,'8,849 m',$t('珠穆朗玛峰的高度。把它整个放进这条海沟，峰顶离海面还有两千多米。')],
+  [10930,$t('10,935 m · 挑战者深渊'),$t('地球海洋的最深处。头顶的海水压强约 1,100 个大气压，相当于每平方厘米压着一吨多。')]
 ];
 let capTimer=0;
 function showCaption(title,sub,dur){$('capT').textContent=title;$('capS').textContent=sub||'';$('cap').classList.add('on');capTimer=dur||7;}
 const autoSpeed=z=>z<200?5:z<1000?20:z<6000?60:z<10500?120:25;
 function diveSpeed(){return DIVE.speed==='auto'?(DIVE.bh?(DIVE.z<60?2:DIVE.z<165?1:4):autoSpeed(DIVE.z)):+DIVE.speed;}
-function hms(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+' 小时 ':'')+(h||m?m+' 分 ':'')+(h?'':x+' 秒');}
+function hms(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+$t(' 小时 '):'')+(h||m?m+$t(' 分 '):'')+(h?'':x+$t(' 秒'));}
 function setDiveZ(z){
   z=Math.max(2,Math.min(S.D-2.2,z));const dz=z-DIVE.z;if(!dz)return;
   camera.position.y-=dz;controls.target.y-=dz;DIVE.z=z;
@@ -1627,16 +1653,16 @@ function setDiveZ(z){
 }
 function updDiveUI(){
   $('diveBar').hidden=!DIVE.on||!!DIVE.dvm;$('diveCta').hidden=DIVE.on||PILOT.on;$('pilotBtn').hidden=DIVE.on||PILOT.on;$('envDet').hidden=DIVE.on;$('prof').toggleAttribute('hidden',!DIVE.on||!!DIVE.dvm);$('dProg').disabled=DIVE.replay;
-  $('dPlay').textContent=DIVE.replay?(DIVE.rphase==='done'?'已回到水面':DIVE.play?'暂停':'继续'):(DIVE.play?'暂停':(DIVE.z>=S.D-2.3?'已到底':'继续下潜'));
+  $('dPlay').textContent=DIVE.replay?(DIVE.rphase==='done'?$t('已回到水面'):DIVE.play?$t('暂停'):$t('继续')):(DIVE.play?$t('暂停'):(DIVE.z>=S.D-2.3?$t('已到底'):$t('继续下潜')));
   [...$('dSpeed').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===String(DIVE.speed)));
 }
 function diveInfo(){
-  if(DIVE.replay){const k=DIVE.speed==='auto'?60:+DIVE.speed,ph={descent:'下潜中',bottom:'在海底',ascent:'上浮中',done:'已回到水面'}[DIVE.rphase];
-    $('dInfo').textContent='2012 年 3 月 26 日 · 当地时间 '+clockStr(DIVE.clock)+' · '+ph+' · 倍速 ×'+k+(DIVE.speed==='auto'?'（真实时间的 60 倍）':'');
+  if(DIVE.replay){const k=DIVE.speed==='auto'?60:+DIVE.speed,ph={descent:$t('下潜中'),bottom:$t('在海底'),ascent:$t('上浮中'),done:$t('已回到水面')}[DIVE.rphase];
+    $('dInfo').textContent=$t('2012 年 3 月 26 日 · 当地时间 ')+clockStr(DIVE.clock)+' · '+ph+$t(' · 倍速 ×')+k+(DIVE.speed==='auto'?$t('（真实时间的 60 倍）'):'');
     $('dProg').value=Math.round(DIVE.z);return;}
-  if(DIVE.bh){const z=DIVE.z;$('dInfo').textContent='倍速 ×'+diveSpeed()+(DIVE.speed==='auto'?'（在化学跃层放慢）':'')+' · 现在：'+(z<70?'含氧层':z<100?'化学跃层，氧气迅速减少':'无氧层，海水里溶有硫化氢')+' · 到洞底还有 '+Math.round(S.D-z)+' m';if(document.activeElement!==$('dProg'))$('dProg').value=Math.round(z);return;}
+  if(DIVE.bh){const z=DIVE.z;$('dInfo').textContent=$t('倍速 ×')+diveSpeed()+(DIVE.speed==='auto'?$t('（在化学跃层放慢）'):'')+$t(' · 现在：')+(z<70?$t('含氧层'):z<100?$t('化学跃层，氧气迅速减少'):$t('无氧层，海水里溶有硫化氢'))+$t(' · 到洞底还有 ')+Math.round(S.D-z)+' m';if(document.activeElement!==$('dProg'))$('dProg').value=Math.round(z);return;}
   const left=(S.D-DIVE.z)/1.0;const cupH=Math.cbrt(foamV(pressAtm(DIVE.z)));
-  $('dInfo').textContent='挂在外面的泡沫杯：高度约原来的 '+Math.round(cupH*100)+'% · 倍速 ×'+diveSpeed()+(DIVE.speed==='auto'?'（浅处慢、空旷处快）':'')+' · 按真实速度约 1 m/s，已下潜 '+hms(DIVE.elapsed)+'，到底还要 '+hms(left);
+  $('dInfo').textContent=$t('挂在外面的泡沫杯：高度约原来的 ')+Math.round(cupH*100)+$t('% · 倍速 ×')+diveSpeed()+(DIVE.speed==='auto'?$t('（浅处慢、空旷处快）'):'')+$t(' · 按真实速度约 1 m/s，已下潜 ')+hms(DIVE.elapsed)+$t('，到底还要 ')+hms(left);
   if(document.activeElement!==$('dProg'))$('dProg').value=Math.round(DIVE.z);
 }
 function enterDive(replay){
@@ -1651,7 +1677,7 @@ function enterDive(replay){
   bubbles.forEach(b=>b.on=false);sparkAge.fill(99);
   rebuild();updDiveUI();buildProfile();updProfile();
   if(replay){rpEvents();return;}
-  showCaption('从关岛的礁壁出发','目标：马里亚纳海沟挑战者深渊，10,935 m。真实下潜要 3 个小时左右，可在下方调整倍速或拖动深度。',9);
+  showCaption($t('从关岛的礁壁出发'),$t('目标：马里亚纳海沟挑战者深渊，10,935 m。真实下潜要 3 个小时左右，可在下方调整倍速或拖动深度。'),9);
 }
 function exitDive(){
   if(DIVE.bh){DIVE.bh=false;sulf.pts.visible=false;capTimer=0;$('cap').classList.remove('on');}
@@ -1666,24 +1692,24 @@ function exitDive(){
    14d. Field guide: species stay hidden until met
    ========================================================= */
 const CAT=[
-  ['coral','造礁珊瑚','Scleractinia','0–150 m'],['kelp','巨藻','Macrocystis pyrifera','0–35 m'],['anem','公主海葵','Heteractis magnifica','0–40 m'],['clown','眼斑双锯鱼','Amphiprion ocellaris','0–40 m'],
-  ['clam','长砗磲','Tridacna maxima','0–20 m'],['fanS','柳珊瑚','Gorgonacea','3–200 m'],['fanD','竹珊瑚','Isididae','200 m 以深'],['turtle','绿海龟','Chelonia mydas','0–60 m'],
-  ['manta','阿氏前口蝠鲼','Mobula alfredi','0–120 m'],['whaleshark','鲸鲨','Rhincodon typus','0–150 m'],['hammer','路氏双髻鲨','Sphyrna lewini','10–300 m'],
-  ['chromis','蓝绿光鳃鱼','Chromis viridis','0–30 m'],['anthias','丝鳍拟花鲈','Pseudanthias squamipinnis','0–60 m'],['butterfly','月斑蝴蝶鱼','Chaetodon lunula','0–60 m'],
-  ['snapper','四线笛鲷','Lutjanus kasmira','0–80 m'],['parrot','蓝点鹦嘴鱼','Scarus ghobban','0–30 m'],['sardine','太平洋沙丁鱼','Sardinops sagax','0–200 m'],['rockfish','蓝平鲉','Sebastes mystinus','0–150 m'],
-  ['urchinT','紫球海胆','Strongylocentrotus purpuratus','0–200 m'],['urchinD','冠海胆','Diadema setosum','0–70 m'],['starT','蓝指海星','Linckia laevigata','0–200 m'],['starC','蝙蝠海星','Patiria miniata','0–200 m'],
-  ['moon','海月水母','Aurelia aurita','0–150 m'],['nettle','太平洋金黄水母','Chrysaora fuscescens','0–100 m'],['comb','栉水母','Ctenophora','各种深度'],
-  ['sperm','抹香鲸','Physeter macrocephalus','0–2,000 m'],['lantern','灯笼鱼','Myctophidae','白天 200–1,200 m · 夜里上浮到表层'],['hatchet','银斧鱼','Argyropelecus','200–1,000 m'],
-  ['siph','巨型管水母','Apolemia','300–1,000 m'],['squid','大王乌贼','Architeuthis dux','300–1,000 m'],['vampire','幽灵蛸','Vampyroteuthis infernalis','600–1,300 m'],
-  ['atolla','冠水母','Atolla wyvillei','400–4,000 m'],['gulper','宽咽鱼','Eurypharynx pelecanoides','500–3,000 m'],['cucumber','游泳海参','Enypniastes eximia','500–5,000 m'],
-  ['angler','黑鮟鱇','Melanocetus johnsonii','700–4,000 m'],['dumbo','烟灰蛸','Grimpoteuthis','1,000–7,000 m'],['sponge','偕老同穴','Euplectella','400–7,000 m'],
-  ['seep','冷泉贻贝与管栖蠕虫','Bathymodiolus · Lamellibrachia','冷泉'],['snail','马里亚纳狮子鱼','Pseudoliparis swirei','6,000–8,200 m'],
-  ['hagfish','太平洋盲鳗','Eptatretus deani','鲸落 · 深海'],['sleeper','太平洋睡鲨','Somniosus pacificus','0–2,000 m'],
-  ['osedax','食骨蠕虫','Osedax','鲸落'],['crab','深海石蟹','Lithodidae','鲸落 · 深海'],
-  ['rimicaris','盲虾','Rimicaris kairei','印度洋热液区'],['kiwa','雪人蟹','Kiwa sp.','热液区'],['scalyfoot','鳞角腹足蜗牛（铁甲蜗牛）','Chrysomallon squamiferum','印度洋热液区'],
-  ['giga','盾巨螺','Gigantopelta aegis','西南印度洋热液区'],['ventmussel','印度洋深海偏顶蛤','Bathymodiolus marisindicus','印度洋热液区'],
-  ['barnacle','柄藤壶','Neolepas','热液区外圈'],['ventanem','深海海葵','Actinostolidae','热液区外圈'],
-  ['acropora','鹿角珊瑚（产卵中）','Acropora','0–30 m · 每年集体产卵'],['dendro','软珊瑚','Dendronephthya 等','0–50 m · 沉船与礁石'],['baitfish','小型饵鱼群','Atherinidae 等','热带浅海'],['jack','鲹','Caranx','热带浅海'],['lionfish','魔鬼蓑鲉','Pterois volitans','0–50 m · 印度—太平洋'],['lophelia','深水石珊瑚（佩尔图萨珊瑚）','Desmophyllum pertusum','80–3,000 m · 4–12 °C'],['paragorgia','泡泡糖珊瑚','Paragorgia arborea','冷水 · 200–1,300 m'],['redfish','挪威平鲉','Sebastes norvegicus','北大西洋 · 100–1,000 m'],['geodia','球海绵','Geodia','北大西洋深海'],['acesta','大锉蛤','Acesta excavata','冷水珊瑚礁'],['seal','威德尔海豹','Leptonychotes weddellii','南极海冰下'],['icefish','冰鱼（白血鱼）','Channichthyidae','南大洋 · −1.8–2 °C'],['borch','秃南极鱼','Pagothenia borchgrevinki','南极海冰底下'],['icealgae','冰藻','海冰底部的硅藻群落','南北极海冰底部'],['odontaster','南极红海星','Odontaster validus','南大洋'],['sterechinus','南极海胆','Sterechinus neumayeri','南大洋'],['pycno','巨型海蜘蛛','Pycnogonida','南大洋海底'],['rossella','南极玻璃海绵','Rossellidae','南大洋'],['childressi','墨西哥湾甲烷贻贝','Bathymodiolus childressi','墨西哥湾冷泉 · 盐池岸边'],['krill','磷虾','Euphausiidae','0–500 m · 每天上下迁移'],['salp','樽海鞘','Salpa aspera','0–800 m · 每天上下迁移'],['amphi','巨型钩虾','Hirondellea gigas','海沟底部'],['holo','超深渊海参','Elpidiidae','海沟底部'],['xeno','巨型单细胞生物','Xenophyophorea','海沟底部']
+  ['coral',$t('造礁珊瑚'),'Scleractinia','0–150 m'],['kelp',$t('巨藻'),'Macrocystis pyrifera','0–35 m'],['anem',$t('公主海葵'),'Heteractis magnifica','0–40 m'],['clown',$t('眼斑双锯鱼'),'Amphiprion ocellaris','0–40 m'],
+  ['clam',$t('长砗磲'),'Tridacna maxima','0–20 m'],['fanS',$t('柳珊瑚'),'Gorgonacea','3–200 m'],['fanD',$t('竹珊瑚'),'Isididae',$t('200 m 以深')],['turtle',$t('绿海龟'),'Chelonia mydas','0–60 m'],
+  ['manta',$t('阿氏前口蝠鲼'),'Mobula alfredi','0–120 m'],['whaleshark',$t('鲸鲨'),'Rhincodon typus','0–150 m'],['hammer',$t('路氏双髻鲨'),'Sphyrna lewini','10–300 m'],
+  ['chromis',$t('蓝绿光鳃鱼'),'Chromis viridis','0–30 m'],['anthias',$t('丝鳍拟花鲈'),'Pseudanthias squamipinnis','0–60 m'],['butterfly',$t('月斑蝴蝶鱼'),'Chaetodon lunula','0–60 m'],
+  ['snapper',$t('四线笛鲷'),'Lutjanus kasmira','0–80 m'],['parrot',$t('蓝点鹦嘴鱼'),'Scarus ghobban','0–30 m'],['sardine',$t('太平洋沙丁鱼'),'Sardinops sagax','0–200 m'],['rockfish',$t('蓝平鲉'),'Sebastes mystinus','0–150 m'],
+  ['urchinT',$t('紫球海胆'),'Strongylocentrotus purpuratus','0–200 m'],['urchinD',$t('冠海胆'),'Diadema setosum','0–70 m'],['starT',$t('蓝指海星'),'Linckia laevigata','0–200 m'],['starC',$t('蝙蝠海星'),'Patiria miniata','0–200 m'],
+  ['moon',$t('海月水母'),'Aurelia aurita','0–150 m'],['nettle',$t('太平洋金黄水母'),'Chrysaora fuscescens','0–100 m'],['comb',$t('栉水母'),'Ctenophora',$t('各种深度')],
+  ['sperm',$t('抹香鲸'),'Physeter macrocephalus','0–2,000 m'],['lantern',$t('灯笼鱼'),'Myctophidae',$t('白天 200–1,200 m · 夜里上浮到表层')],['hatchet',$t('银斧鱼'),'Argyropelecus','200–1,000 m'],
+  ['siph',$t('巨型管水母'),'Apolemia','300–1,000 m'],['squid',$t('大王乌贼'),'Architeuthis dux','300–1,000 m'],['vampire',$t('幽灵蛸'),'Vampyroteuthis infernalis','600–1,300 m'],
+  ['atolla',$t('冠水母'),'Atolla wyvillei','400–4,000 m'],['gulper',$t('宽咽鱼'),'Eurypharynx pelecanoides','500–3,000 m'],['cucumber',$t('游泳海参'),'Enypniastes eximia','500–5,000 m'],
+  ['angler',$t('黑鮟鱇'),'Melanocetus johnsonii','700–4,000 m'],['dumbo',$t('烟灰蛸'),'Grimpoteuthis','1,000–7,000 m'],['sponge',$t('偕老同穴'),'Euplectella','400–7,000 m'],
+  ['seep',$t('冷泉贻贝与管栖蠕虫'),'Bathymodiolus · Lamellibrachia',$t('冷泉')],['snail',$t('马里亚纳狮子鱼'),'Pseudoliparis swirei','6,000–8,200 m'],
+  ['hagfish',$t('太平洋盲鳗'),'Eptatretus deani',$t('鲸落 · 深海')],['sleeper',$t('太平洋睡鲨'),'Somniosus pacificus','0–2,000 m'],
+  ['osedax',$t('食骨蠕虫'),'Osedax',$t('鲸落')],['crab',$t('深海石蟹'),'Lithodidae',$t('鲸落 · 深海')],
+  ['rimicaris',$t('盲虾'),'Rimicaris kairei',$t('印度洋热液区')],['kiwa',$t('雪人蟹'),'Kiwa sp.',$t('热液区')],['scalyfoot',$t('鳞角腹足蜗牛（铁甲蜗牛）'),'Chrysomallon squamiferum',$t('印度洋热液区')],
+  ['giga',$t('盾巨螺'),'Gigantopelta aegis',$t('西南印度洋热液区')],['ventmussel',$t('印度洋深海偏顶蛤'),'Bathymodiolus marisindicus',$t('印度洋热液区')],
+  ['barnacle',$t('柄藤壶'),'Neolepas',$t('热液区外圈')],['ventanem',$t('深海海葵'),'Actinostolidae',$t('热液区外圈')],
+  ['acropora',$t('鹿角珊瑚（产卵中）'),'Acropora',$t('0–30 m · 每年集体产卵')],['dendro',$t('软珊瑚'),$t('Dendronephthya 等'),$t('0–50 m · 沉船与礁石')],['baitfish',$t('小型饵鱼群'),$t('Atherinidae 等'),$t('热带浅海')],['jack',$t('鲹'),'Caranx',$t('热带浅海')],['lionfish',$t('魔鬼蓑鲉'),'Pterois volitans',$t('0–50 m · 印度—太平洋')],['lophelia',$t('深水石珊瑚（佩尔图萨珊瑚）'),'Desmophyllum pertusum','80–3,000 m · 4–12 °C'],['paragorgia',$t('泡泡糖珊瑚'),'Paragorgia arborea',$t('冷水 · 200–1,300 m')],['redfish',$t('挪威平鲉'),'Sebastes norvegicus',$t('北大西洋 · 100–1,000 m')],['geodia',$t('球海绵'),'Geodia',$t('北大西洋深海')],['acesta',$t('大锉蛤'),'Acesta excavata',$t('冷水珊瑚礁')],['seal',$t('威德尔海豹'),'Leptonychotes weddellii',$t('南极海冰下')],['icefish',$t('冰鱼（白血鱼）'),'Channichthyidae',$t('南大洋 · −1.8–2 °C')],['borch',$t('秃南极鱼'),'Pagothenia borchgrevinki',$t('南极海冰底下')],['icealgae',$t('冰藻'),$t('海冰底部的硅藻群落'),$t('南北极海冰底部')],['odontaster',$t('南极红海星'),'Odontaster validus',$t('南大洋')],['sterechinus',$t('南极海胆'),'Sterechinus neumayeri',$t('南大洋')],['pycno',$t('巨型海蜘蛛'),'Pycnogonida',$t('南大洋海底')],['rossella',$t('南极玻璃海绵'),'Rossellidae',$t('南大洋')],['childressi',$t('墨西哥湾甲烷贻贝'),'Bathymodiolus childressi',$t('墨西哥湾冷泉 · 盐池岸边')],['krill',$t('磷虾'),'Euphausiidae',$t('0–500 m · 每天上下迁移')],['salp',$t('樽海鞘'),'Salpa aspera',$t('0–800 m · 每天上下迁移')],['amphi',$t('巨型钩虾'),'Hirondellea gigas',$t('海沟底部')],['holo',$t('超深渊海参'),'Elpidiidae',$t('海沟底部')],['xeno',$t('巨型单细胞生物'),'Xenophyophorea',$t('海沟底部')]
 ];
 const CATMAP={};CAT.forEach(c=>CATMAP[c[0]]=c);
 const SHARE={live:false,cnt:{},n:0,db:null,uid:null,canWrite:null,sent:'',busy:false,state:''};
@@ -1734,14 +1760,14 @@ function checkDiscover(){
   if(changed){try{localStorage.setItem('seafloor-found',JSON.stringify([...FOUND]));}catch(e){}renderCatalog();}
 }
 function renderCatalog(){
-  $('catN').textContent='已遇见 '+FOUND.size+' / '+CAT.length;$('catBar').style.width=(FOUND.size/CAT.length*100)+'%';
-  const sc=k=>SHARE.live&&SHARE.cnt[k]?'<b class="shc" title="'+SHARE.cnt[k]+' 位探险者遇见过">'+SHARE.cnt[k]+'人</b>':'';
-  $('cat').innerHTML=CAT.map(c=>FOUND.has(c[0])?'<span class="sp" title="'+c[2]+'">'+c[1]+sc(c[0])+'</span>':'<span class="sp unk">？？？<i>'+c[3]+'</i>'+sc(c[0])+'</span>').join('');
+  $('catN').textContent=$t('已遇见 ')+FOUND.size+' / '+CAT.length;$('catBar').style.width=(FOUND.size/CAT.length*100)+'%';
+  const sc=k=>SHARE.live&&SHARE.cnt[k]?'<b class="shc" title="'+SHARE.cnt[k]+$t(' 位探险者遇见过">')+SHARE.cnt[k]+$t('人</b>'):'';
+  $('cat').innerHTML=CAT.map(c=>FOUND.has(c[0])?'<span class="sp" title="'+c[2]+'">'+c[1]+sc(c[0])+'</span>':$t('<span class="sp unk">？？？<i>')+c[3]+'</i>'+sc(c[0])+'</span>').join('');
   if(typeof shareRender==='function')shareRender();
 }
 function stepToast(dt){
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').classList.remove('on');return;}
-  if(toastQ.length){const c=toastQ.shift();$('toast').innerHTML=c.mission?'任务完成：'+c.mission.t:'新遇见：'+c[1]+'<i>'+c[2]+'</i>';$('toast').classList.add('on');toastT=3.2;}
+  if(toastQ.length){const c=toastQ.shift();$('toast').innerHTML=c.mission?$t('任务完成：')+c.mission.t:$t('新遇见：')+c[1]+'<i>'+c[2]+'</i>';$('toast').classList.add('on');toastT=3.2;}
 }
 
 /* =========================================================
@@ -1762,7 +1788,7 @@ function audioStart(){
 }
 function setSound(on){
   if(on){if(!audioStart())on=false;}else if(AUD.ctx){AUD.ctx.suspend();AUD.on=false;}
-  AUD.on=on;$('cSound').checked=on;$('dSound').textContent='声音：'+(on?'开':'关');
+  AUD.on=on;$('cSound').checked=on;$('dSound').textContent=$t('声音：')+(on?$t('开'):$t('关'));
 }
 /* exhaled bubbles ring at their Minnaert frequency f=(1/2πr)√(3γP/ρ); the regulator hisses on the inhale */
 function playBreath(){
@@ -1884,11 +1910,11 @@ const PROF={top:14,h:372};
 function buildProfile(){
   const D=S.D,y=z=>PROF.top+z/D*PROF.h,svg=$('prof');
   const ev=8849,base=y(D),peak=y(D-ev);
-  const marks=[[332,'潜水纪录'],[1000,'阳光消失'],[3750,'平均深度 · 泰坦尼克'],[6000,'海沟'],[8200,'鱼类极限']];
+  const marks=[[332,$t('潜水纪录')],[1000,$t('阳光消失')],[3750,$t('平均深度 · 泰坦尼克')],[6000,$t('海沟')],[8200,$t('鱼类极限')]];
   let h='<defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a8fb0"/><stop offset="0.12" stop-color="#0d3c52"/><stop offset="0.35" stop-color="#06161f"/><stop offset="1" stop-color="#020608"/></linearGradient></defs>';
   h+='<rect x="18" y="'+PROF.top+'" width="12" height="'+PROF.h+'" rx="2" fill="url(#pg)" stroke="rgba(120,190,205,.3)"/>';
   h+='<polygon points="10,'+base+' 19,'+(peak+40)+' 22,'+(peak+18)+' 24,'+peak+' 27,'+(peak+22)+' 31,'+(peak+46)+' 38,'+base+'" fill="rgba(210,200,185,.28)" stroke="rgba(230,220,200,.65)" stroke-width="0.7"/>';
-  h+='<text x="34" y="'+(peak+3)+'" class="pl">珠峰 8,849 m</text>';
+  h+='<text x="34" y="'+(peak+3)+$t('" class="pl">珠峰 8,849 m</text>');
   for(let k=0;k<=D;k+=2000)h+='<line x1="14" x2="18" y1="'+y(k)+'" y2="'+y(k)+'" stroke="rgba(120,190,205,.5)"/><text x="12" y="'+(y(k)+3)+'" class="pt" text-anchor="end">'+(k/1000)+'</text>';
   marks.forEach(([z,t])=>{if(z<D)h+='<line x1="30" x2="33" y1="'+y(z)+'" y2="'+y(z)+'" stroke="rgba(217,236,239,.55)"/><text x="35" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
   h+='<text x="12" y="'+(PROF.top-4)+'" class="pt" text-anchor="end">km</text>';
@@ -1904,14 +1930,14 @@ function updProfile(){if(!DIVE.on)return;const g=$('profMe');if(g)g.setAttribute
 const RP={depth:10898,bottom:11100,ascentV:10898/4200,start:5*3600+15*60};
 function clockStr(sec){const t=Math.round(RP.start+sec),h=Math.floor(t/3600)%24,m=Math.floor(t%3600/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
 const RP_EVENTS=[
-  {ph:'descent',t:5,title:'2012 年 3 月 26 日 05:15',sub:'关岛西南约 330 km。詹姆斯·卡梅隆独自驾驶 12 吨重的“深海挑战者号”离开水面。潜水器竖着下潜，驾驶舱是一个只容一人蜷坐的钢球。'},
-  {ph:'descent',t:900,title:'舱内像桑拿',sub:'下潜初期舱内温度一度超过 38 °C；越往下，舱外海水越冷，最后只有 2 °C 左右。'},
-  {ph:'bottom',t:3,title:'07:51 抵达海底',sub:'下潜用了 2 小时 36 分。公布的深度在 10,843 至 10,908 m 之间。巨大的压强让整艘潜水器缩短了约 7.6 cm。'},
-  {ph:'bottom',t:900,title:'“荒凉、孤寂，像月球一样的平原”',sub:'卡梅隆说他就坐在那里看着窗外。海底是柔软得近乎胶状的平地，几乎没有任何起伏。'},
-  {ph:'bottom',t:3600,title:'没有鱼',sub:'除了不到 2.5 cm 长、像小虾一样的端足类，他没有看到任何更大的动物。'},
-  {ph:'bottom',t:9000,title:'液压油泄漏',sub:'正要采集第一份样本时，液压油泄漏糊住了舷窗，机械臂无法使用，几个推进器也失灵了。'},
-  {ph:'bottom',t:11000,title:'提前上浮',sub:'在海底停留了三个多小时（原计划 6 小时）。1960 年，沃尔什和皮卡德在这里只停留了 20 分钟。'},
-  {ph:'done',t:0,title:'约 12:00 回到水面',sub:'上浮只用了 70 分钟。卡梅隆是第一个独自到达挑战者深渊的人，也是 1960 年之后第一个到达这里的人。'}
+  {ph:'descent',t:5,title:$t('2012 年 3 月 26 日 05:15'),sub:$t('关岛西南约 330 km。詹姆斯·卡梅隆独自驾驶 12 吨重的“深海挑战者号”离开水面。潜水器竖着下潜，驾驶舱是一个只容一人蜷坐的钢球。')},
+  {ph:'descent',t:900,title:$t('舱内像桑拿'),sub:$t('下潜初期舱内温度一度超过 38 °C；越往下，舱外海水越冷，最后只有 2 °C 左右。')},
+  {ph:'bottom',t:3,title:$t('07:51 抵达海底'),sub:$t('下潜用了 2 小时 36 分。公布的深度在 10,843 至 10,908 m 之间。巨大的压强让整艘潜水器缩短了约 7.6 cm。')},
+  {ph:'bottom',t:900,title:$t('“荒凉、孤寂，像月球一样的平原”'),sub:$t('卡梅隆说他就坐在那里看着窗外。海底是柔软得近乎胶状的平地，几乎没有任何起伏。')},
+  {ph:'bottom',t:3600,title:$t('没有鱼'),sub:$t('除了不到 2.5 cm 长、像小虾一样的端足类，他没有看到任何更大的动物。')},
+  {ph:'bottom',t:9000,title:$t('液压油泄漏'),sub:$t('正要采集第一份样本时，液压油泄漏糊住了舷窗，机械臂无法使用，几个推进器也失灵了。')},
+  {ph:'bottom',t:11000,title:$t('提前上浮'),sub:$t('在海底停留了三个多小时（原计划 6 小时）。1960 年，沃尔什和皮卡德在这里只停留了 20 分钟。')},
+  {ph:'done',t:0,title:$t('约 12:00 回到水面'),sub:$t('上浮只用了 70 分钟。卡梅隆是第一个独自到达挑战者深渊的人，也是 1960 年之后第一个到达这里的人。')}
 ];
 function rpEvents(){for(const e of RP_EVENTS){const key=e.ph+e.t;if(DIVE.rev.has(key))continue;
   const now=e.ph==='descent'?(DIVE.rphase==='descent'&&DIVE.clock>=e.t):e.ph==='bottom'?((DIVE.rphase==='bottom'&&DIVE.bt>=e.t)||DIVE.rphase==='ascent'||DIVE.rphase==='done'):DIVE.rphase==='done';
@@ -1937,7 +1963,7 @@ function wfStages(t){
   const sulfo=t<1.2?0:t<6?(t-1.2)/4.8:t<50?1:Math.max(0.35,1-(t-50)/60);
   return{scav:Math.max(0,scav),enrich:Math.max(0,enrich),sulfo};
 }
-function fmtYears(t){if(t<1/12)return Math.max(1,Math.round(t*52))+' 周';if(t<1)return Math.round(t*12)+' 个月';if(t<10)return t.toFixed(1).replace(/\.0$/,'')+' 年';return Math.round(t)+' 年';}
+function fmtYears(t){if(t<1/12)return Math.max(1,Math.round(t*52))+$t(' 周');if(t<1)return Math.round(t*12)+$t(' 个月');if(t<10)return t.toFixed(1).replace(/\.0$/,'')+$t(' 年');return Math.round(t)+$t(' 年');}
 const wfGroup=new THREE.Group();wfGroup.visible=false;scene.add(wfGroup);
 const bonePts=[];
 const boneGeo=(()=>{
@@ -2009,7 +2035,7 @@ function applyWF(){
   wfMussels.count=Math.round(120*st.sulfo);crabs.count=Math.round(NCR*Math.max(0.25,Math.min(1,st.scav+st.enrich*0.5)));
   bones.scale.set(1,1-0.45*Math.max(0,(WF.t-20)/40),1);
   $('wfV').textContent=fmtYears(WF.t);
-  $('wfStage').textContent=st.scav>0.4?'食腐动物阶段：盲鳗和睡鲨在啃食鲸肉，每天能吃掉 40–60 kg。':st.enrich>0.5&&st.sulfo<0.5?'机会主义者阶段：骨头露出，红色的食骨蠕虫把“根”钻进骨头里。':'化能合成阶段：细菌分解骨头里的油脂，放出硫化氢，白色细菌席和贻贝靠它生活，可以持续几十年。';
+  $('wfStage').textContent=st.scav>0.4?$t('食腐动物阶段：盲鳗和睡鲨在啃食鲸肉，每天能吃掉 40–60 kg。'):st.enrich>0.5&&st.sulfo<0.5?$t('机会主义者阶段：骨头露出，红色的食骨蠕虫把“根”钻进骨头里。'):$t('化能合成阶段：细菌分解骨头里的油脂，放出硫化氢，白色细菌席和贻贝靠它生活，可以持续几十年。');
 }
 function stepWhaleFall(dt,t){
   if(!wfOn)return;const st=wfStages(WF.t);
@@ -2128,15 +2154,15 @@ function stepVent(dt,t){
   m.instanceMatrix.needsUpdate=true;
 }
 const CHIM_INFO={
-  chim_main:['黑烟囱','热液喷口 · 约 6 m 高','海水从海底裂缝渗下去，被岩浆加热到 300 多摄氏度，溶进铁、铜、锌等金属后从这里喷出；一碰到 2 °C 的海水，金属硫化物瞬间析出，就成了“黑烟”。这里压强约 280 个大气压，海水要到约 400 °C 才会沸腾，所以热液不会沸腾。'],
-  chim_tall:['如意金箍棒','硫化物柱 · 20 m 以上','龙旂热液区里一根 20 多米高的硫化物柱，科考队给它起了这个名字。烟囱由析出的硫化物一层层堆起来，这么高说明这里的喷发已经持续了很久。'],
-  chim_hydra:['九头蛇（Hydra）','一圈六根小烟囱 · 约 2 m 高','六根小烟囱围成一圈。年轻的黑烟囱上以盲虾和铁甲蜗牛为主，老一些、只剩弥散流的烟囱则被巨螺、贻贝和藤壶占据。'],
-  chim_mound:['弥散流烟囱','温度较低的热液慢慢渗出','这里没有黑烟，较凉的热液从岩体缝隙里渗出，外围长满了巨螺和贻贝。'],
-  ice_under:['海冰底面与冰藻','海冰厚约 2 m · 水温 −1.9 °C','阳光穿过约 2 m 厚的海冰和积雪后只剩百分之几，冰底那些褐色的斑块是冰藻：硅藻等微藻生活在海冰底部和下方松散的“片状冰”里，靠这一点点光进行光合作用，是南极磷虾等动物的重要食物。','南极麦克默多湾'],
-  spawn_bundle:['卵精束','直径约 1–2 mm · 画面中放大约 15 倍','一个卵精束里裹着几十粒卵和成千上万个精子。卵富含脂质，比海水轻，所以卵精束会上浮；到水面后约一小时内散开，卵才和来自其他珊瑚的精子相遇。同一珊瑚自己的卵和精子大多不能互相受精。','珊瑚产卵之夜'],
-  brine_surf:['盐池的“湖面”','卤水与海水的分界面 · 水深约 650 m','这里的卤水含盐量约为海水的 4 倍，密度约 1.09 g/cm³，比海水重，所以沉在海底聚成一个“湖”，有清晰的湖面和湖岸，不和上面的海水混合。两层水密度只差约 6%，湖面波浪的回复力只有普通水面的约 3%，1 米长的波要 4–5 秒才起伏一次。你刚才碰到的地方会慢慢荡开一圈波纹。潜水器可以像船一样“停”在这个湖面上。','墨西哥湾 NR1 盐池'],
-  brine_dead:['误入卤水的动物','盐池底部','卤水几乎不含氧气，盐度又极高，游进或掉进去的动物很快就会死去，被卤水“腌”着保存下来。墨西哥湾另一个水深约 1,000 m 的盐池因此被叫作“绝望按摩池”（Jacuzzi of Despair），池边散落着这样的螃蟹和鱼。','墨西哥湾 NR1 盐池'],
-  chim_dead:['不再活动的硫化物烟囱','只剩矿物','热液已经停止，烟囱外层被氧化成铁锈色，柄藤壶和海葵在上面安家。龙旂热液区至少有 13 座这样不再活动的大型硫化物堆积体。']
+  chim_main:[$t('黑烟囱'),$t('热液喷口 · 约 6 m 高'),$t('海水从海底裂缝渗下去，被岩浆加热到 300 多摄氏度，溶进铁、铜、锌等金属后从这里喷出；一碰到 2 °C 的海水，金属硫化物瞬间析出，就成了“黑烟”。这里压强约 280 个大气压，海水要到约 400 °C 才会沸腾，所以热液不会沸腾。')],
+  chim_tall:[$t('如意金箍棒'),$t('硫化物柱 · 20 m 以上'),$t('龙旂热液区里一根 20 多米高的硫化物柱，科考队给它起了这个名字。烟囱由析出的硫化物一层层堆起来，这么高说明这里的喷发已经持续了很久。')],
+  chim_hydra:[$t('九头蛇（Hydra）'),$t('一圈六根小烟囱 · 约 2 m 高'),$t('六根小烟囱围成一圈。年轻的黑烟囱上以盲虾和铁甲蜗牛为主，老一些、只剩弥散流的烟囱则被巨螺、贻贝和藤壶占据。')],
+  chim_mound:[$t('弥散流烟囱'),$t('温度较低的热液慢慢渗出'),$t('这里没有黑烟，较凉的热液从岩体缝隙里渗出，外围长满了巨螺和贻贝。')],
+  ice_under:[$t('海冰底面与冰藻'),$t('海冰厚约 2 m · 水温 −1.9 °C'),$t('阳光穿过约 2 m 厚的海冰和积雪后只剩百分之几，冰底那些褐色的斑块是冰藻：硅藻等微藻生活在海冰底部和下方松散的“片状冰”里，靠这一点点光进行光合作用，是南极磷虾等动物的重要食物。'),$t('南极麦克默多湾')],
+  spawn_bundle:[$t('卵精束'),$t('直径约 1–2 mm · 画面中放大约 15 倍'),$t('一个卵精束里裹着几十粒卵和成千上万个精子。卵富含脂质，比海水轻，所以卵精束会上浮；到水面后约一小时内散开，卵才和来自其他珊瑚的精子相遇。同一珊瑚自己的卵和精子大多不能互相受精。'),$t('珊瑚产卵之夜')],
+  brine_surf:[$t('盐池的“湖面”'),$t('卤水与海水的分界面 · 水深约 650 m'),$t('这里的卤水含盐量约为海水的 4 倍，密度约 1.09 g/cm³，比海水重，所以沉在海底聚成一个“湖”，有清晰的湖面和湖岸，不和上面的海水混合。两层水密度只差约 6%，湖面波浪的回复力只有普通水面的约 3%，1 米长的波要 4–5 秒才起伏一次。你刚才碰到的地方会慢慢荡开一圈波纹。潜水器可以像船一样“停”在这个湖面上。'),$t('墨西哥湾 NR1 盐池')],
+  brine_dead:[$t('误入卤水的动物'),$t('盐池底部'),$t('卤水几乎不含氧气，盐度又极高，游进或掉进去的动物很快就会死去，被卤水“腌”着保存下来。墨西哥湾另一个水深约 1,000 m 的盐池因此被叫作“绝望按摩池”（Jacuzzi of Despair），池边散落着这样的螃蟹和鱼。'),$t('墨西哥湾 NR1 盐池')],
+  chim_dead:[$t('不再活动的硫化物烟囱'),$t('只剩矿物'),$t('热液已经停止，烟囱外层被氧化成铁锈色，柄藤壶和海葵在上面安家。龙旂热液区至少有 13 座这样不再活动的大型硫化物堆积体。')]
 };
 
 /* =========================================================
@@ -2258,9 +2284,9 @@ function drawEcho(){
 }
 function dvmNote(){
   const h=DVM.t,el=sunElev(h),zl=migZ('lantern',h),vl=(migZ('lantern',h+1/60)-zl);
-  const phase=el>20?'白天':el>0?(h<12?'清晨':'傍晚'):el>-12?(h<12?'黎明':'黄昏'):'夜里';
-  const mv=Math.abs(vl)<0.3?'停在那里':(vl<0?'正以约 '+Math.abs(vl).toFixed(1)+' m/min 上升':'正以约 '+vl.toFixed(1)+' m/min 下沉');
-  $('dvmNote').innerHTML='<b>'+phase+'</b> · 水面光照约为正午的 '+pct(surfE(h))+'。灯笼鱼层在约 <b>'+Math.round(zl)+' m</b>，'+mv+'；磷虾层约 '+Math.round(migZ('krill',h))+' m，樽海鞘约 '+Math.round(migZ('salp',h))+' m。银斧鱼不迁移，一直留在 300–500 m。';
+  const phase=el>20?$t('白天'):el>0?(h<12?$t('清晨'):$t('傍晚')):el>-12?(h<12?$t('黎明'):$t('黄昏')):$t('夜里');
+  const mv=Math.abs(vl)<0.3?$t('停在那里'):(vl<0?$t('正以约 ')+Math.abs(vl).toFixed(1)+$t(' m/min 上升'):$t('正以约 ')+vl.toFixed(1)+$t(' m/min 下沉'));
+  $('dvmNote').innerHTML='<b>'+phase+$t('</b> · 水面光照约为正午的 ')+pct(surfE(h))+$t('。灯笼鱼层在约 <b>')+Math.round(zl)+$t(' m</b>，')+mv+$t('；磷虾层约 ')+Math.round(migZ('krill',h))+$t(' m，樽海鞘约 ')+Math.round(migZ('salp',h))+$t(' m。银斧鱼不迁移，一直留在 300–500 m。');
   $('dvmTV').textContent=hhmm(h);$('dvmZV').textContent=Math.round(DIVE.z)+' m';
   if(document.activeElement!==$('sDvmT'))$('sDvmT').value=Math.round(((h%24)+24)%24*60)%1440;
   if(document.activeElement!==$('sDvmZ'))$('sDvmZ').value=Math.round(DIVE.z);
@@ -2274,7 +2300,7 @@ function enterDVM(){
   S.D=L.D;DIVE.z=DVM.z;DIVE.lastZ=DVM.z;controls.target.set(0,-DVM.z,0);camera.position.set(3.2,-DVM.z+0.9,5.6);
   bubbles.forEach(b=>b.on=false);sparkAge.fill(99);DVM.lastSun=-99;S.night=sunElev(DVM.t)<-6;
   rebuild();dvmLight();updDiveUI();$('dvmSec').hidden=false;drawEchoBase();drawEcho();dvmNote();
-  showCaption('地球上规模最大的迁移','每天黄昏，暮光层里数以十亿计的灯笼鱼、磷虾和樽海鞘从几百米深处升到表层觅食，天亮前再沉回去。你现在悬停在 '+Math.round(DVM.z)+' m，看着它们到来。',10);
+  showCaption($t('地球上规模最大的迁移'),$t('每天黄昏，暮光层里数以十亿计的灯笼鱼、磷虾和樽海鞘从几百米深处升到表层觅食，天亮前再沉回去。你现在悬停在 ')+Math.round(DVM.z)+$t(' m，看着它们到来。'),10);
 }
 function stepDVM(rdt){
   if(!DIVE.dvm)return;
@@ -2407,13 +2433,13 @@ function bhHaze(z){return Math.exp(-0.5*Math.pow((z-125)/20,2))+0.25*Math.exp(-0
 function bhO2(z){return z<70?1:1-sstep(70,100,z);}
 function bhH2S(z){return sstep(85,150,z);}
 const BH_MS=[
-  [13,'13 m · 温跃层','往下水温开始降低。洞口附近的珊瑚和二十多种鱼都生活在上面这几十米里。'],
-  [70,'70 m · 进入化学跃层','氧气开始迅速减少。洞里的水几乎不和外面的海水交换，下层的氧气一旦用完就得不到补充。'],
-  [77,'约 77 m · 洞道转折','龙洞的形状像一只芭蕾舞鞋：在 76–78 m 和约 158 m 处各有一次大的转折。'],
-  [100,'100 m · 氧气耗尽','从这里往下，海水里没有溶解氧，却富含硫化氢。鱼、藻类都无法生存，只剩下微生物。'],
-  [118,'约 100–150 m · 浑浊的细菌层','硫氧化细菌在 100–140 m 占到微生物的约九成，悬浮的有机颗粒在约 150 m 最多，海水在这里发浑。'],
-  [158,'约 158 m · 第二次转折','再往下是均匀、静止、无氧的老水，水温稳定在约 15 °C。'],
-  [298,'约 301 m · 龙洞底部','2016 年测得 300.89 m，是当时已知最深的蓝洞（现已知墨西哥的 Taam Ja\' 蓝洞至少 420 m）。洞底沉积的有机碳最老约 6,800 年。']
+  [13,$t('13 m · 温跃层'),$t('往下水温开始降低。洞口附近的珊瑚和二十多种鱼都生活在上面这几十米里。')],
+  [70,$t('70 m · 进入化学跃层'),$t('氧气开始迅速减少。洞里的水几乎不和外面的海水交换，下层的氧气一旦用完就得不到补充。')],
+  [77,$t('约 77 m · 洞道转折'),$t('龙洞的形状像一只芭蕾舞鞋：在 76–78 m 和约 158 m 处各有一次大的转折。')],
+  [100,$t('100 m · 氧气耗尽'),$t('从这里往下，海水里没有溶解氧，却富含硫化氢。鱼、藻类都无法生存，只剩下微生物。')],
+  [118,$t('约 100–150 m · 浑浊的细菌层'),$t('硫氧化细菌在 100–140 m 占到微生物的约九成，悬浮的有机颗粒在约 150 m 最多，海水在这里发浑。')],
+  [158,$t('约 158 m · 第二次转折'),$t('再往下是均匀、静止、无氧的老水，水温稳定在约 15 °C。')],
+  [298,$t('约 301 m · 龙洞底部'),$t('2016 年测得 300.89 m，是当时已知最深的蓝洞（现已知墨西哥的 Taam Ja\' 蓝洞至少 420 m）。洞底沉积的有机碳最老约 6,800 年。')]
 ];
 /* suspended particles of the turbid redox layer (bacteria, sulfur colloids, organic flakes), lit by the lamps */
 const NSU=2200,sulf=makePoints(NSU,`void main(){ float r=length(gl_PointCoord-0.5)*2.0; if(r>1.0) discard;
@@ -2455,7 +2481,7 @@ function buildProfileBH(){
     '<stop offset="'+(125/D)+'" stop-color="#8a8466"/><stop offset="'+(160/D)+'" stop-color="#2a2236"/><stop offset="1" stop-color="#140f1c"/></linearGradient></defs>';
   h+='<polygon points="'+L+Rr+'" fill="url(#bhg)" stroke="rgba(217,236,239,.55)" stroke-width="0.7"/>';
   for(let k=0;k<=300;k+=50)h+='<line x1="6" x2="10" y1="'+y(k)+'" y2="'+y(k)+'" stroke="rgba(120,190,205,.5)"/><text x="5" y="'+(y(k)+3)+'" class="pt" text-anchor="end">'+k+'</text>';
-  [[35,'含氧'],[85,'化学跃层'],[125,'浑浊细菌层'],[220,'无氧 · 硫化氢'],[296,'约 301 m']].forEach(([z,t])=>{h+='<text x="'+(cx(z)+hw(z)+3)+'" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
+  [[35,$t('含氧')],[85,$t('化学跃层')],[125,$t('浑浊细菌层')],[220,$t('无氧 · 硫化氢')],[296,$t('约 301 m')]].forEach(([z,t])=>{h+='<text x="'+(cx(z)+hw(z)+3)+'" y="'+(y(z)+3)+'" class="pl">'+t+'</text>';});
   h+='<text x="5" y="'+(PROF.top-4)+'" class="pt" text-anchor="end">m</text>';
   h+='<g id="profMe"><line x1="18" x2="66" y1="0" y2="0" stroke="#62d4e3" stroke-width="1.4"/><circle cx="48" cy="0" r="3.2" fill="#62d4e3"/></g>';
   svg.innerHTML=h;
@@ -2469,7 +2495,7 @@ function enterBH(){
   {const f=new THREE.Vector3(-2.5,0,-4.6).normalize(),r=new THREE.Vector3(-f.z,0,f.x),a=0.32;WALL.n.copy(r).multiplyScalar(Math.cos(a)).addScaledVector(f,-Math.sin(a)).normalize();}
   bubbles.forEach(b=>b.on=false);sparkAge.fill(99);
   rebuild();updDiveUI();buildProfileBH();updProfile();
-  showCaption('三沙永乐龙洞','西沙永乐环礁上的一口海底竖井，深约 301 m，洞口宽约 130 m。上面几十米是热闹的珊瑚礁，100 m 以下的海水里没有氧气。',9);
+  showCaption($t('三沙永乐龙洞'),$t('西沙永乐环礁上的一口海底竖井，深约 301 m，洞口宽约 130 m。上面几十米是热闹的珊瑚礁，100 m 以下的海水里没有氧气。'),9);
 }
 
 /* =========================================================
@@ -2521,11 +2547,11 @@ function stepSpawn(rdt,t){
 function spawnPhase(){const T=SPN.t;return T<21?'setting':T<22?'release':T<23?'rise':'slick';}
 function spawnNote(){
   const T=SPN.t,ph=spawnPhase(),hm=hhmm(T);
-  const txt={setting:'<b>“含卵”</b>：珊瑚虫把卵精束顶到口部，整块珊瑚表面布满粉红色的小点，随时准备释放。',
-    release:'<b>释放</b>：鹿角珊瑚一丛接一丛地放出卵精束。每个卵精束直径约 1–2 mm，里面裹着几十粒卵和成千上万个精子，因为卵富含脂质，比海水轻，便慢慢往上飘。',
-    rise:'<b>上浮</b>：卵精束以约每秒 1 cm 的速度上升，几分钟就能到达水面，在那里散开，卵和其他珊瑚的精子相遇受精。受精窗口只有约 2 小时。',
-    slick:'<b>浮层</b>：水面聚起一层粉红色的卵层。接下来几天，受精卵发育成幼虫，随海流漂走，再找一块礁石定居。'}[ph];
-  $('spNote').innerHTML=txt+' 已释放约 '+SPN.rel.toLocaleString('en-US')+' 个卵精束（画面中放大约 15 倍显示）。';
+  const txt={setting:$t('<b>“含卵”</b>：珊瑚虫把卵精束顶到口部，整块珊瑚表面布满粉红色的小点，随时准备释放。'),
+    release:$t('<b>释放</b>：鹿角珊瑚一丛接一丛地放出卵精束。每个卵精束直径约 1–2 mm，里面裹着几十粒卵和成千上万个精子，因为卵富含脂质，比海水轻，便慢慢往上飘。'),
+    rise:$t('<b>上浮</b>：卵精束以约每秒 1 cm 的速度上升，几分钟就能到达水面，在那里散开，卵和其他珊瑚的精子相遇受精。受精窗口只有约 2 小时。'),
+    slick:$t('<b>浮层</b>：水面聚起一层粉红色的卵层。接下来几天，受精卵发育成幼虫，随海流漂走，再找一块礁石定居。')}[ph];
+  $('spNote').innerHTML=txt+$t(' 已释放约 ')+SPN.rel.toLocaleString('en-US')+$t(' 个卵精束（画面中放大约 15 倍显示）。');
   $('spTV').textContent=hm;if(document.activeElement!==$('sSp'))$('sSp').value=Math.round((T-20)*60);
   [...$('spRate').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.r==='pause'?!SPN.play:(SPN.play&&+b.dataset.r===SPN.rate)));
 }
@@ -2743,8 +2769,8 @@ function buildTruk(on){
   rocks.children.forEach(m=>{const lx=m.position.x*Math.cos(TRUK.yaw)-m.position.z*Math.sin(TRUK.yaw);if(Math.abs(lx)<75)m.visible=false;});
 }
 const TRUK_INFO={
-  wreck:['富士川丸','日本海军飞机运输舰 · 长 133 m · 1944 年沉没','1938 年建成的货船，后被日本海军征用来运输飞机。1944 年 2 月 17–18 日，美军航母舰载机对特鲁克泻湖发动“冰雹行动”，击沉 45 艘以上的舰船、摧毁近 300 架飞机，富士川丸被鱼雷击中后沉没。它直立着坐在约 34 m 深的沙底上，八十多年后成了一座人工鱼礁。','特鲁克泻湖'],
-  zero:['货舱里的战斗机','2 号货舱 · 拆解状态','前部货舱里至今躺着至少 9 架拆解的日本战斗机，其中 8 架是零式，另有 1 架是现存唯一的九六式舰载战斗机。','特鲁克泻湖']
+  wreck:[$t('富士川丸'),$t('日本海军飞机运输舰 · 长 133 m · 1944 年沉没'),$t('1938 年建成的货船，后被日本海军征用来运输飞机。1944 年 2 月 17–18 日，美军航母舰载机对特鲁克泻湖发动“冰雹行动”，击沉 45 艘以上的舰船、摧毁近 300 架飞机，富士川丸被鱼雷击中后沉没。它直立着坐在约 34 m 深的沙底上，八十多年后成了一座人工鱼礁。'),$t('特鲁克泻湖')],
+  zero:[$t('货舱里的战斗机'),$t('2 号货舱 · 拆解状态'),$t('前部货舱里至今躺着至少 9 架拆解的日本战斗机，其中 8 架是零式，另有 1 架是现存唯一的九六式舰载战斗机。'),$t('特鲁克泻湖')]
 };
 Object.assign(CHIM_INFO,TRUK_INFO);
 function trukW(x,y,z){const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return{x:x*c+z*s,y:TRUK.base+y,z:-x*s+z*c};}
@@ -2753,80 +2779,80 @@ function trukW(x,y,z){const c=Math.cos(TRUK.yaw),s=Math.sin(TRUK.yaw);return{x:x
    14j. Tap to identify
    ========================================================= */
 const FACTS={
-  coral:'珊瑚虫体内住着虫黄藻，靠光合作用为珊瑚提供大部分能量，所以造礁珊瑚只能活在有光的浅海。',
-  kelp:'每天最快能长约 60 cm，是地球上长得最快的生物之一；叶片基部的气囊让它漂向水面。',
-  anem:'触手上的刺细胞能蜇伤小鱼，但小丑鱼体表的黏液让它们不会被蜇。',
-  clown:'一群小丑鱼里最大的那条是雌鱼；雌鱼不在了，最大的雄鱼会变成雌鱼。',
-  clam:'外套膜里养着共生藻，像珊瑚一样靠阳光获得营养；那片蓝色来自会反光的虹彩细胞。',
-  fanS:'扇面垂直于海流生长，好拦截更多随水流来的浮游食物。',
-  fanD:'骨骼一节白一节深，像竹子；可以活几百年，被触碰时会发出蓝色光波。',
-  turtle:'名字里的“绿”来自体内脂肪的颜色，因为成年后主要吃海草和藻类。',
-  manta:'翼展可达 5 m，脑与体型之比在鱼类中名列前茅。',
-  whaleshark:'世界上最大的鱼，可长到 18 m 以上，却只吃浮游生物和小鱼。',
-  hammer:'锤状的头部布满电感受器，像金属探测器一样扫描海底找猎物；白天常成百上千地聚群。',
-  chromis:'遇到危险时会一起钻进枝状珊瑚的缝隙里。',
-  anthias:'群体里大多是雌鱼；雄鱼不在了，雌鱼会变性成雄鱼。',
-  butterfly:'眼睛藏在黑色条纹里，尾部的黑斑像假眼睛，用来迷惑捕食者。',
-  snapper:'白天成群停在珊瑚礁旁，夜里散开去觅食。',
-  parrot:'啃食珊瑚上的藻类时连骨骼一起咬碎，排出的就是细白沙；热带海滩的白沙很多来自鹦嘴鱼。',
-  sardine:'遇到捕食者时会挤成旋转的“鱼饵球”，让捕食者难以锁定某一条。',
-  rockfish:'可以活 40 多年，常在巨藻林中层成群悬停。',
-  urchinT:'数量失控时会把巨藻林啃成光秃秃的“海胆荒漠”，海獭是它们的主要天敌。',
-  urchinD:'细长的刺带有微毒，白天躲着，夜里出来啃食藻类。',
-  starT:'断掉的一条腕能长成一只完整的新海星。',
-  starC:'几乎什么都吃，会把胃翻出体外消化食物。',
-  moon:'伞中央四个马蹄形的是生殖腺；生命中有一段固着在岩石上的水螅体阶段。',
-  nettle:'触手可长到 4 m 以上，布满刺细胞，用来捕捉浮游动物。',
-  comb:'靠八列纤毛栉板划水，是用纤毛游泳的最大动物；彩虹色是纤毛衍射光线，不是发光。',
-  sperm:'有地球上最大的大脑（约 8 kg），能潜到 2,000 m 以下捕食大型乌贼，靠咔嗒声回声定位。',
-  lantern:'可能是数量最多的脊椎动物之一；夜里上浮到表层觅食，白天回到几百米深处。',
-  hatchet:'腹部的发光器发出和上方透下来一样亮的光，把自己的影子“抹掉”，这叫反照明。',
-  siph:'看起来像一只动物，其实是许多分工不同的个体连成的群体，有的长达数十米。',
-  squid:'眼睛直径约 27 cm，是动物界最大的眼睛之一；2012 年才第一次在自然环境中被拍到活体。',
-  vampire:'名字吓人，其实吃的是“海洋雪”；受威胁时会把披风般的腕翻过来罩住身体。',
-  atolla:'被攻击时让光沿伞缘一圈圈旋转闪烁，像防盗警报，可能招来更大的捕食者对付攻击者。你刚才点它，就相当于“碰”了它一下。',
-  gulper:'嘴能张得比身体还大，尾端有发光器，可能用来引诱猎物。',
-  cucumber:'能离开海底游泳的海参，身体半透明，能看见里面的消化道。',
-  angler:'头上“钓竿”末端住着发光细菌；在一些鮟鱇物种里，雄鱼会咬住雌鱼并和它长在一起。',
-  dumbo:'像大象耳朵的鳍是主要推进器；曾在近 7,000 m 深处被拍到，是已知最深的章鱼之一。',
-  sponge:'玻璃般的骨骼由二氧化硅构成；常有一对小虾幼年钻进去，长大后出不来，在里面过完一生。',
-  seep:'不靠阳光，靠体内共生细菌把甲烷或硫化物转化成能量。',
-  snail:'身体柔软半透明，骨骼没有完全钙化，能承受 800 多个大气压。',
-  amphi:'体内有能分解纤维素的酶，可能靠从陆地漂来、沉入海沟的植物残骸生活。',
-  holo:'海沟底部数量最多的大型动物之一，不停吞食沉积物，吸收里面的有机物。',
-  xeno:'单个细胞可以长到 10 cm 以上，是已知最大的单细胞生物之一。',
-  hagfish:'受惊时几秒钟内就能分泌出大量黏液，连鲨鱼的鳃都能堵住；会钻进腐肉里从内部吃起。',
-  sleeper:'游得很慢的冷水鲨鱼，能长到 4 m 以上，常在鲸落上撕咬鲸肉。',
-  osedax:'没有嘴也没有肠子，靠“根”分泌酸钻进鲸骨，再借共生细菌消化骨头里的营养；2002 年在蒙特雷峡谷 2,893 m 的灰鲸骨头上首次被发现。',
-  crab:'被腐肉的气味吸引而来的甲壳动物之一，会在骨头之间翻找残渣。',
-  rimicaris:'没有普通的眼睛，背上却有一块感光器官，科学家认为它可能用来感知热液口发出的极微弱的光；靠体内和鳃腔里的共生细菌获取养分。',
-  kiwa:'俗称“雪人蟹”，螯足上长满刚毛，上面养着细菌；龙旂的这一种是在这里首次发现的新种。',
-  scalyfoot:'脚上覆盖着数百片含硫化铁的鳞片，壳的外层也含硫化铁，是已知唯一把铁硫化物用进骨骼的动物；靠体内的共生细菌生活。2019 年被列为濒危，是第一种因深海采矿威胁而被列为濒危的物种。',
-  giga:'和铁甲蜗牛是近亲的大型热液螺，同样靠体内的共生细菌生活，在龙旂成片分布，2015 年才被命名。',
-  ventmussel:'鳃里住着共生细菌，把热液里的化学能转化成养分，在喷口外围成片生长。',
-  barnacle:'长在热液影响的最外圈，伸出羽状的蔓足从水里滤食。',
-  dendro:'没有坚硬骨骼的珊瑚，靠水压撑起身体，喜欢长在水流经过的高处，所以沉船的桅杆、吊杆和栏杆上挂满了它们，颜色从粉红、淡紫到橙红都有。',
-  baitfish:'成千上万的小鱼在甲板上方结成密集的鱼群，一起转向来迷惑捕食者。',
-  jack:'在沉船边缘巡游的掠食者，时不时冲进饵鱼群里捕食。',
-  lionfish:'鳍条上长着毒刺，动作缓慢，常在沉船船尾的阴影里伏击小鱼。它们原产印度—太平洋，在大西洋已成为严重的入侵物种。',
-  lophelia:'深水里最重要的造礁珊瑚。它没有共生藻，靠伸出触手捕食浮游生物，所以能活在没有阳光的冷水里；有白色和橙色两种颜色型。每年只长 1–2.5 mm 左右，礁体底部是层层堆积的死珊瑚骨架，只有顶端是活的。底拖网曾毁掉挪威大陆架约三到五成的珊瑚区。',
-  paragorgia:'一种长成小树的大型柳珊瑚，枝端圆鼓鼓的，像嚼过的泡泡糖，因此得名。颜色从白色到鲜红都有，能长到几米高。',
-  redfish:'北大西洋深水里的大眼红鱼，常静静悬停在冷水珊瑚礁上方。它们长得很慢、寿命很长，有的能活几十年以上。',
-  geodia:'大块的球形海绵，内部有硅质骨针，是北大西洋深海“海绵场”的主角，为许多小动物提供栖身之所。',
-  acesta:'贝壳可长到十几厘米的大型锉蛤，常附着在冷水珊瑚的骨架上，张开的壳缘伸出一圈橙色的触手。',
-  seal:'世界上最南端的哺乳动物之一，整个冬天都待在海冰下。它们用牙齿啃磨冰面来维持呼吸孔，成年个体约 400 kg，在冰下捕食南极鱼。',
-  icefish:'已知唯一成年后血液里没有血红蛋白的脊椎动物，血液几乎无色。氧气直接溶解在血浆里运输，靠的是冰冷海水溶氧多、心脏和血量都比别的鱼大好几倍。',
-  borch:'躲在海冰底下的片状冰层里生活，血液里有抗冻糖蛋白，能在 −1.9 °C 的海水里不被冻住。',
-  icealgae:'生活在海冰底部的微藻，春季冰下光照回升时大量繁殖，把冰底染成褐色，是南北两极食物网的起点之一。',
-  odontaster:'南极海底最常见的海星之一，颜色鲜红，什么都吃，包括海豹的粪便。',
-  sterechinus:'南极浅海最常见的海胆，常成堆聚集；冬天会被海底的“锚冰”冻住带离海底。',
-  pycno:'海蜘蛛不是蜘蛛，而是一类海洋节肢动物。南极的海蜘蛛长得特别大，腿展可达几十厘米，这种“极地巨型化”可能与冷水含氧多有关。',
-  rossella:'南极浅海的玻璃海绵，骨骼由二氧化硅骨针构成。它们长得极慢，有的个体可能已有上千岁。',
-  acropora:'造礁珊瑚里种类最多的一属。大多数鹿角珊瑚雌雄同体，每年只在少数几个夜里把卵和精子一起包成卵精束放出，在水里与其他珊瑚的配子相遇受精。',
-  childressi:'鳃里住着以甲烷为食的共生细菌，细菌再把养分供给贻贝。它们沿盐池的“湖岸”长成一圈：往里是没有氧气的卤水，往外甲烷又不够，只有岸边两样都有。',
-  krill:'身上有一排排会发蓝光的发光器。白天躲在几百米深的暗处，黄昏上浮到表层吃浮游植物，天亮前再沉回去。',
-  salp:'一个个透明的“小桶”连成长链，靠喷水前进，边游边滤食。它们每天要上下迁移几百米，粪粒沉得很快，把碳带进深海。',
-  ventanem:'住在热液区最外缘，那里水温已接近周围海水，食物却比普通深海海底丰富得多。'
+  coral:$t('珊瑚虫体内住着虫黄藻，靠光合作用为珊瑚提供大部分能量，所以造礁珊瑚只能活在有光的浅海。'),
+  kelp:$t('每天最快能长约 60 cm，是地球上长得最快的生物之一；叶片基部的气囊让它漂向水面。'),
+  anem:$t('触手上的刺细胞能蜇伤小鱼，但小丑鱼体表的黏液让它们不会被蜇。'),
+  clown:$t('一群小丑鱼里最大的那条是雌鱼；雌鱼不在了，最大的雄鱼会变成雌鱼。'),
+  clam:$t('外套膜里养着共生藻，像珊瑚一样靠阳光获得营养；那片蓝色来自会反光的虹彩细胞。'),
+  fanS:$t('扇面垂直于海流生长，好拦截更多随水流来的浮游食物。'),
+  fanD:$t('骨骼一节白一节深，像竹子；可以活几百年，被触碰时会发出蓝色光波。'),
+  turtle:$t('名字里的“绿”来自体内脂肪的颜色，因为成年后主要吃海草和藻类。'),
+  manta:$t('翼展可达 5 m，脑与体型之比在鱼类中名列前茅。'),
+  whaleshark:$t('世界上最大的鱼，可长到 18 m 以上，却只吃浮游生物和小鱼。'),
+  hammer:$t('锤状的头部布满电感受器，像金属探测器一样扫描海底找猎物；白天常成百上千地聚群。'),
+  chromis:$t('遇到危险时会一起钻进枝状珊瑚的缝隙里。'),
+  anthias:$t('群体里大多是雌鱼；雄鱼不在了，雌鱼会变性成雄鱼。'),
+  butterfly:$t('眼睛藏在黑色条纹里，尾部的黑斑像假眼睛，用来迷惑捕食者。'),
+  snapper:$t('白天成群停在珊瑚礁旁，夜里散开去觅食。'),
+  parrot:$t('啃食珊瑚上的藻类时连骨骼一起咬碎，排出的就是细白沙；热带海滩的白沙很多来自鹦嘴鱼。'),
+  sardine:$t('遇到捕食者时会挤成旋转的“鱼饵球”，让捕食者难以锁定某一条。'),
+  rockfish:$t('可以活 40 多年，常在巨藻林中层成群悬停。'),
+  urchinT:$t('数量失控时会把巨藻林啃成光秃秃的“海胆荒漠”，海獭是它们的主要天敌。'),
+  urchinD:$t('细长的刺带有微毒，白天躲着，夜里出来啃食藻类。'),
+  starT:$t('断掉的一条腕能长成一只完整的新海星。'),
+  starC:$t('几乎什么都吃，会把胃翻出体外消化食物。'),
+  moon:$t('伞中央四个马蹄形的是生殖腺；生命中有一段固着在岩石上的水螅体阶段。'),
+  nettle:$t('触手可长到 4 m 以上，布满刺细胞，用来捕捉浮游动物。'),
+  comb:$t('靠八列纤毛栉板划水，是用纤毛游泳的最大动物；彩虹色是纤毛衍射光线，不是发光。'),
+  sperm:$t('有地球上最大的大脑（约 8 kg），能潜到 2,000 m 以下捕食大型乌贼，靠咔嗒声回声定位。'),
+  lantern:$t('可能是数量最多的脊椎动物之一；夜里上浮到表层觅食，白天回到几百米深处。'),
+  hatchet:$t('腹部的发光器发出和上方透下来一样亮的光，把自己的影子“抹掉”，这叫反照明。'),
+  siph:$t('看起来像一只动物，其实是许多分工不同的个体连成的群体，有的长达数十米。'),
+  squid:$t('眼睛直径约 27 cm，是动物界最大的眼睛之一；2012 年才第一次在自然环境中被拍到活体。'),
+  vampire:$t('名字吓人，其实吃的是“海洋雪”；受威胁时会把披风般的腕翻过来罩住身体。'),
+  atolla:$t('被攻击时让光沿伞缘一圈圈旋转闪烁，像防盗警报，可能招来更大的捕食者对付攻击者。你刚才点它，就相当于“碰”了它一下。'),
+  gulper:$t('嘴能张得比身体还大，尾端有发光器，可能用来引诱猎物。'),
+  cucumber:$t('能离开海底游泳的海参，身体半透明，能看见里面的消化道。'),
+  angler:$t('头上“钓竿”末端住着发光细菌；在一些鮟鱇物种里，雄鱼会咬住雌鱼并和它长在一起。'),
+  dumbo:$t('像大象耳朵的鳍是主要推进器；曾在近 7,000 m 深处被拍到，是已知最深的章鱼之一。'),
+  sponge:$t('玻璃般的骨骼由二氧化硅构成；常有一对小虾幼年钻进去，长大后出不来，在里面过完一生。'),
+  seep:$t('不靠阳光，靠体内共生细菌把甲烷或硫化物转化成能量。'),
+  snail:$t('身体柔软半透明，骨骼没有完全钙化，能承受 800 多个大气压。'),
+  amphi:$t('体内有能分解纤维素的酶，可能靠从陆地漂来、沉入海沟的植物残骸生活。'),
+  holo:$t('海沟底部数量最多的大型动物之一，不停吞食沉积物，吸收里面的有机物。'),
+  xeno:$t('单个细胞可以长到 10 cm 以上，是已知最大的单细胞生物之一。'),
+  hagfish:$t('受惊时几秒钟内就能分泌出大量黏液，连鲨鱼的鳃都能堵住；会钻进腐肉里从内部吃起。'),
+  sleeper:$t('游得很慢的冷水鲨鱼，能长到 4 m 以上，常在鲸落上撕咬鲸肉。'),
+  osedax:$t('没有嘴也没有肠子，靠“根”分泌酸钻进鲸骨，再借共生细菌消化骨头里的营养；2002 年在蒙特雷峡谷 2,893 m 的灰鲸骨头上首次被发现。'),
+  crab:$t('被腐肉的气味吸引而来的甲壳动物之一，会在骨头之间翻找残渣。'),
+  rimicaris:$t('没有普通的眼睛，背上却有一块感光器官，科学家认为它可能用来感知热液口发出的极微弱的光；靠体内和鳃腔里的共生细菌获取养分。'),
+  kiwa:$t('俗称“雪人蟹”，螯足上长满刚毛，上面养着细菌；龙旂的这一种是在这里首次发现的新种。'),
+  scalyfoot:$t('脚上覆盖着数百片含硫化铁的鳞片，壳的外层也含硫化铁，是已知唯一把铁硫化物用进骨骼的动物；靠体内的共生细菌生活。2019 年被列为濒危，是第一种因深海采矿威胁而被列为濒危的物种。'),
+  giga:$t('和铁甲蜗牛是近亲的大型热液螺，同样靠体内的共生细菌生活，在龙旂成片分布，2015 年才被命名。'),
+  ventmussel:$t('鳃里住着共生细菌，把热液里的化学能转化成养分，在喷口外围成片生长。'),
+  barnacle:$t('长在热液影响的最外圈，伸出羽状的蔓足从水里滤食。'),
+  dendro:$t('没有坚硬骨骼的珊瑚，靠水压撑起身体，喜欢长在水流经过的高处，所以沉船的桅杆、吊杆和栏杆上挂满了它们，颜色从粉红、淡紫到橙红都有。'),
+  baitfish:$t('成千上万的小鱼在甲板上方结成密集的鱼群，一起转向来迷惑捕食者。'),
+  jack:$t('在沉船边缘巡游的掠食者，时不时冲进饵鱼群里捕食。'),
+  lionfish:$t('鳍条上长着毒刺，动作缓慢，常在沉船船尾的阴影里伏击小鱼。它们原产印度—太平洋，在大西洋已成为严重的入侵物种。'),
+  lophelia:$t('深水里最重要的造礁珊瑚。它没有共生藻，靠伸出触手捕食浮游生物，所以能活在没有阳光的冷水里；有白色和橙色两种颜色型。每年只长 1–2.5 mm 左右，礁体底部是层层堆积的死珊瑚骨架，只有顶端是活的。底拖网曾毁掉挪威大陆架约三到五成的珊瑚区。'),
+  paragorgia:$t('一种长成小树的大型柳珊瑚，枝端圆鼓鼓的，像嚼过的泡泡糖，因此得名。颜色从白色到鲜红都有，能长到几米高。'),
+  redfish:$t('北大西洋深水里的大眼红鱼，常静静悬停在冷水珊瑚礁上方。它们长得很慢、寿命很长，有的能活几十年以上。'),
+  geodia:$t('大块的球形海绵，内部有硅质骨针，是北大西洋深海“海绵场”的主角，为许多小动物提供栖身之所。'),
+  acesta:$t('贝壳可长到十几厘米的大型锉蛤，常附着在冷水珊瑚的骨架上，张开的壳缘伸出一圈橙色的触手。'),
+  seal:$t('世界上最南端的哺乳动物之一，整个冬天都待在海冰下。它们用牙齿啃磨冰面来维持呼吸孔，成年个体约 400 kg，在冰下捕食南极鱼。'),
+  icefish:$t('已知唯一成年后血液里没有血红蛋白的脊椎动物，血液几乎无色。氧气直接溶解在血浆里运输，靠的是冰冷海水溶氧多、心脏和血量都比别的鱼大好几倍。'),
+  borch:$t('躲在海冰底下的片状冰层里生活，血液里有抗冻糖蛋白，能在 −1.9 °C 的海水里不被冻住。'),
+  icealgae:$t('生活在海冰底部的微藻，春季冰下光照回升时大量繁殖，把冰底染成褐色，是南北两极食物网的起点之一。'),
+  odontaster:$t('南极海底最常见的海星之一，颜色鲜红，什么都吃，包括海豹的粪便。'),
+  sterechinus:$t('南极浅海最常见的海胆，常成堆聚集；冬天会被海底的“锚冰”冻住带离海底。'),
+  pycno:$t('海蜘蛛不是蜘蛛，而是一类海洋节肢动物。南极的海蜘蛛长得特别大，腿展可达几十厘米，这种“极地巨型化”可能与冷水含氧多有关。'),
+  rossella:$t('南极浅海的玻璃海绵，骨骼由二氧化硅骨针构成。它们长得极慢，有的个体可能已有上千岁。'),
+  acropora:$t('造礁珊瑚里种类最多的一属。大多数鹿角珊瑚雌雄同体，每年只在少数几个夜里把卵和精子一起包成卵精束放出，在水里与其他珊瑚的配子相遇受精。'),
+  childressi:$t('鳃里住着以甲烷为食的共生细菌，细菌再把养分供给贻贝。它们沿盐池的“湖岸”长成一圈：往里是没有氧气的卤水，往外甲烷又不够，只有岸边两样都有。'),
+  krill:$t('身上有一排排会发蓝光的发光器。白天躲在几百米深的暗处，黄昏上浮到表层吃浮游植物，天亮前再沉回去。'),
+  salp:$t('一个个透明的“小桶”连成长链，靠喷水前进，边游边滤食。它们每天要上下迁移几百米，粪粒沉得很快，把碳带进深海。'),
+  ventanem:$t('住在热液区最外缘，那里水温已接近周围海水，食物却比普通深海海底丰富得多。')
 };
 const PICK=[];
 function regPick(o,key){o.userData.ck=key;PICK.push(o);}
@@ -2835,11 +2861,11 @@ function chainVisible(o){for(let p=o;p;p=p.parent)if(!p.visible)return false;ret
 function resolveKey(k){if(k==='smt_rock'&&SMT.seeps.some(s=>Math.hypot(s[0]-lastPick.x,s[1]-lastPick.z)<0.7))return'smt_seep';if(k==='aby_floor')return inTrack(lastPick.x,lastPick.z)?'minetrack':'abysed';if((ICE.on&&(k==='star'||k==='urchinT'||k==='sponge'))||(ROST.on&&k==='fan'))return catKey(k);if(k==='fan')return S.D>200?'fanD':'fanS';if(k==='star')return S.temp>=18?'starT':'starC';return k;}
 let infoT=0;
 function showInfo(k,dist){
-  if(CHIM_INFO[k]){const c=CHIM_INFO[k];if(k==='brine_surf')brineRing(lastPick.x,lastPick.z,0.035);$('infoN').textContent=c[0];$('infoL').textContent=c[3]||'龙旂热液区';$('infoD').textContent=c[1]+(dist?' · 距离你约 '+dist.toFixed(1)+' m':'');$('infoF').textContent=c[2];$('info').hidden=false;infoT=14;return;}
-  if(k==='whalebone'){const st=wfStages(WF.t);$('infoN').textContent='灰鲸遗骸';$('infoL').textContent='沉到海底 '+fmtYears(WF.t);
-    $('infoD').textContent='约 13 m 长 · 骨头里储存着上千公斤油脂';$('infoF').textContent='一头鲸沉到深海后，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物，其中至少 30 种在别处从未见过。';}
-  else{const c=CATMAP[k];if(!c)return;$('infoN').textContent=c[1];$('infoL').textContent=c[2];$('infoD').textContent='分布深度 '+c[3]+(dist?' · 距离你约 '+dist.toFixed(1)+' m':'');$('infoF').textContent=FACTS[k]||'';
-    if(SHARE.live){const n=SHARE.cnt[k]||0;$('infoD').textContent+=' · '+(n?'已有 '+n+' 位探险者遇见过':'你可能是第一个遇见它的探险者');}
+  if(CHIM_INFO[k]){const c=CHIM_INFO[k];if(k==='brine_surf')brineRing(lastPick.x,lastPick.z,0.035);$('infoN').textContent=c[0];$('infoL').textContent=c[3]||$t('龙旂热液区');$('infoD').textContent=c[1]+(dist?$t(' · 距离你约 ')+dist.toFixed(1)+' m':'');$('infoF').textContent=c[2];$('info').hidden=false;infoT=14;return;}
+  if(k==='whalebone'){const st=wfStages(WF.t);$('infoN').textContent=$t('灰鲸遗骸');$('infoL').textContent=$t('沉到海底 ')+fmtYears(WF.t);
+    $('infoD').textContent=$t('约 13 m 长 · 骨头里储存着上千公斤油脂');$('infoF').textContent=$t('一头鲸沉到深海后，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物，其中至少 30 种在别处从未见过。');}
+  else{const c=CATMAP[k];if(!c)return;$('infoN').textContent=c[1];$('infoL').textContent=c[2];$('infoD').textContent=$t('分布深度 ')+c[3]+(dist?$t(' · 距离你约 ')+dist.toFixed(1)+' m':'');$('infoF').textContent=FACTS[k]||'';
+    if(SHARE.live){const n=SHARE.cnt[k]||0;$('infoD').textContent+=' · '+(n?$t('已有 ')+n+$t(' 位探险者遇见过'):$t('你可能是第一个遇见它的探险者'));}
     if(!FOUND.has(k)){FOUND.add(k);try{localStorage.setItem('seafloor-found',JSON.stringify([...FOUND]));}catch(e){}renderCatalog();}}
   $('info').hidden=false;infoT=12;
 }
@@ -3032,15 +3058,15 @@ const toSlider=d=>Math.round(1000*Math.log(d/DMIN)/Math.log(DMAX/DMIN)),fromSlid
 const fmtD=d=>d<20?d.toFixed(1):Math.round(d).toLocaleString('en-US');
 function pct(v){if(v>=0.1)return(v*100).toFixed(0)+'%';if(v>=0.001)return(v*100).toFixed(1)+'%';if(v<1e-12)return'≈0';const e=Math.floor(Math.log10(v*100));return(v*100/Math.pow(10,e)).toFixed(1)+'e'+e+'%';}
 const SPECIES=[
-  ['coral','造礁珊瑚'],['kelp','巨藻'],['anem','公主海葵'],['clown','小丑鱼'],['clam','长砗磲'],['fan',()=>ROST.on?'泡泡糖珊瑚':S.D>200?'竹珊瑚':'柳珊瑚'],
-  ['turtle','绿海龟'],['manta','阿氏前口蝠鲼'],['chromis','蓝绿光鳃鱼'],['anthias','丝鳍拟花鲈'],['butterfly','月斑蝴蝶鱼'],
-  ['snapper','四线笛鲷'],['parrot','蓝点鹦嘴鱼'],['sardine','太平洋沙丁鱼'],['rockfish','蓝平鲉'],['urchinT',()=>ICE.on?'南极海胆':'紫球海胆'],['urchinD','冠海胆'],['star',()=>ICE.on?'南极红海星':S.temp>=18?'蓝指海星':'蝙蝠海星'],
-  ['moon','海月水母'],['nettle','太平洋金黄水母'],['comb','栉水母'],['lantern','灯笼鱼'],['atolla','冠水母'],['angler','黑鮟鱇'],
-  ['sponge',()=>ICE.on?'南极玻璃海绵':'偕老同穴（玻璃海绵）'],['seep','深海贻贝、管栖蠕虫、细菌席'],
-  ['whaleshark','鲸鲨'],['hammer','路氏双髻鲨'],['sperm','抹香鲸'],['hatchet','银斧鱼'],['siph','巨型管水母'],['squid','大王乌贼'],['vampire','幽灵蛸'],
-  ['gulper','宽咽鱼'],['cucumber','游泳海参'],['dumbo','烟灰蛸'],['snail','马里亚纳狮子鱼'],['amphi','巨型钩虾'],['holo','超深渊海参'],['xeno','巨型单细胞生物'],
-  ['hagfish','太平洋盲鳗'],['sleeper','太平洋睡鲨'],['osedax','食骨蠕虫'],['crab','深海石蟹'],
-  ['rimicaris','盲虾'],['kiwa','雪人蟹'],['scalyfoot','铁甲蜗牛'],['giga','盾巨螺'],['ventmussel','深海偏顶蛤'],['barnacle','柄藤壶'],['ventanem','深海海葵'],['krill','磷虾'],['salp','樽海鞘'],['childressi','墨西哥湾甲烷贻贝'],['acropora','鹿角珊瑚（产卵中）'],['dendro','软珊瑚'],['baitfish','小型饵鱼群'],['jack','鲹'],['lionfish','魔鬼蓑鲉'],['lophelia','深水石珊瑚'],['redfish','挪威平鲉'],['geodia','球海绵'],['acesta','大锉蛤'],['seal','威德尔海豹'],['icefish','冰鱼'],['borch','秃南极鱼'],['icealgae','冰藻'],['pycno','巨型海蜘蛛']
+  ['coral',$t('造礁珊瑚')],['kelp',$t('巨藻')],['anem',$t('公主海葵')],['clown',$t('小丑鱼')],['clam',$t('长砗磲')],['fan',()=>ROST.on?$t('泡泡糖珊瑚'):S.D>200?$t('竹珊瑚'):$t('柳珊瑚')],
+  ['turtle',$t('绿海龟')],['manta',$t('阿氏前口蝠鲼')],['chromis',$t('蓝绿光鳃鱼')],['anthias',$t('丝鳍拟花鲈')],['butterfly',$t('月斑蝴蝶鱼')],
+  ['snapper',$t('四线笛鲷')],['parrot',$t('蓝点鹦嘴鱼')],['sardine',$t('太平洋沙丁鱼')],['rockfish',$t('蓝平鲉')],['urchinT',()=>ICE.on?$t('南极海胆'):$t('紫球海胆')],['urchinD',$t('冠海胆')],['star',()=>ICE.on?$t('南极红海星'):S.temp>=18?$t('蓝指海星'):$t('蝙蝠海星')],
+  ['moon',$t('海月水母')],['nettle',$t('太平洋金黄水母')],['comb',$t('栉水母')],['lantern',$t('灯笼鱼')],['atolla',$t('冠水母')],['angler',$t('黑鮟鱇')],
+  ['sponge',()=>ICE.on?$t('南极玻璃海绵'):$t('偕老同穴（玻璃海绵）')],['seep',$t('深海贻贝、管栖蠕虫、细菌席')],
+  ['whaleshark',$t('鲸鲨')],['hammer',$t('路氏双髻鲨')],['sperm',$t('抹香鲸')],['hatchet',$t('银斧鱼')],['siph',$t('巨型管水母')],['squid',$t('大王乌贼')],['vampire',$t('幽灵蛸')],
+  ['gulper',$t('宽咽鱼')],['cucumber',$t('游泳海参')],['dumbo',$t('烟灰蛸')],['snail',$t('马里亚纳狮子鱼')],['amphi',$t('巨型钩虾')],['holo',$t('超深渊海参')],['xeno',$t('巨型单细胞生物')],
+  ['hagfish',$t('太平洋盲鳗')],['sleeper',$t('太平洋睡鲨')],['osedax',$t('食骨蠕虫')],['crab',$t('深海石蟹')],
+  ['rimicaris',$t('盲虾')],['kiwa',$t('雪人蟹')],['scalyfoot',$t('铁甲蜗牛')],['giga',$t('盾巨螺')],['ventmussel',$t('深海偏顶蛤')],['barnacle',$t('柄藤壶')],['ventanem',$t('深海海葵')],['krill',$t('磷虾')],['salp',$t('樽海鞘')],['childressi',$t('墨西哥湾甲烷贻贝')],['acropora',$t('鹿角珊瑚（产卵中）')],['dendro',$t('软珊瑚')],['baitfish',$t('小型饵鱼群')],['jack',$t('鲹')],['lionfish',$t('魔鬼蓑鲉')],['lophelia',$t('深水石珊瑚')],['redfish',$t('挪威平鲉')],['geodia',$t('球海绵')],['acesta',$t('大锉蛤')],['seal',$t('威德尔海豹')],['icefish',$t('冰鱼')],['borch',$t('秃南极鱼')],['icealgae',$t('冰藻')],['pycno',$t('巨型海蜘蛛')]
 ];
 const catKey=k=>ROST.on&&k==='fan'?'paragorgia':ICE.on&&k==='star'?'odontaster':ICE.on&&k==='urchinT'?'sterechinus':ICE.on&&k==='sponge'?'rossella':k==='fan'?(S.D>200?'fanD':'fanS'):k==='star'?(S.temp>=18?'starT':'starC'):k;
 function readouts(){
@@ -3048,71 +3074,71 @@ function readouts(){
   $('rK').textContent=OPT.K.map(k=>k.toFixed(3)).join(' / ')+' m⁻¹';
   $('rEu').textContent=(4.605/OPT.K[1]).toFixed(0)+' m';
   $('rVis').textContent=(3.9/OPT.c[1]).toFixed(0)+' m';
-  $('rSun').textContent=(OPT.zenW*180/Math.PI).toFixed(1)+'°（空气中 '+(90-S.sun)+'°）';
-  $('rL').textContent=W.L.toFixed(0)+' m'+(W.k*S.D<Math.PI?'（受海底影响）':'');
-  const um=floorOrbitalMax();$('rU').textContent=um<1e-3?'≈0（波浪影响不到海底）':um.toFixed(2)+' m/s';
+  $('rSun').textContent=(OPT.zenW*180/Math.PI).toFixed(1)+$t('°（空气中 ')+(90-S.sun)+$t('°）');
+  $('rL').textContent=W.L.toFixed(0)+' m'+(W.k*S.D<Math.PI?$t('（受海底影响）'):'');
+  const um=floorOrbitalMax();$('rU').textContent=um<1e-3?$t('≈0（波浪影响不到海底）'):um.toFixed(2)+' m/s';
   $('rCur').textContent=(S.cur*curProfile(1)).toFixed(2)+' m/s';
-  $('rRip').textContent=S.ripKind==='wave'?'波成沙纹 '+(U.uRipL.value*100).toFixed(0)+' cm':S.ripKind==='current'?'流成沙纹 '+(U.uRipL.value*100).toFixed(0)+' cm':'无';
+  $('rRip').textContent=S.ripKind==='wave'?$t('波成沙纹 ')+(U.uRipL.value*100).toFixed(0)+' cm':S.ripKind==='current'?$t('流成沙纹 ')+(U.uRipL.value*100).toFixed(0)+' cm':$t('无');
   $('rMu').textContent=(viscosity(S.temp)*1000).toFixed(2)+' mPa·s';
   const Pf=pressure(S.D);$('rBub').textContent=(riseSpeed(1e-3)*100).toFixed(0)+' cm/s';
   $('rBub2').textContent='2 mm → '+(2*Math.cbrt(Pf/PATM)).toFixed(1)+' mm';
   $('vTemp').textContent=S.temp+' °C';$('vCur').textContent=S.cur.toFixed(2)+' m/s';$('vDir').textContent=S.dir+'°';
   $('vH').textContent=S.H.toFixed(1)+' m';$('vT').textContent=S.T+' s';$('vSun').textContent=S.sun+'°';
   updSite();
-  $('hLoc').textContent=(S.loc?LOC[S.loc].name:'自定义参数')+(SPN.on?' · 当地时间 '+hhmm(SPN.t):'')+(DIVE.dvm?' · 当地时间 '+hhmm(DVM.t):S.night?' · 夜':'');
+  $('hLoc').textContent=(S.loc?LOC[S.loc].name:$t('自定义参数'))+(SPN.on?$t(' · 当地时间 ')+hhmm(SPN.t):'')+(DIVE.dvm?$t(' · 当地时间 ')+hhmm(DVM.t):S.night?$t(' · 夜'):'');
   [...$('locSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===S.loc));
   [...$('waterSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.w===S.water));
   [...$('timeSeg').children].forEach(b=>b.setAttribute('aria-pressed',(b.dataset.t==='night')===S.night));
   [...$('torchSeg').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===S.torch));
   {const here=SPECIES.filter(s=>H[s[0]]);const known=here.filter(s=>FOUND.has(catKey(s[0])));const unk=here.length-known.length;
-   $('species').innerHTML=known.map(s=>'<span class="sp">'+(typeof s[1]==='function'?s[1]():s[1])+'</span>').join('')+(unk?'<span class="sp unk">还有 '+unk+' 种未遇见</span>':'');}
+   $('species').innerHTML=known.map(s=>'<span class="sp">'+(typeof s[1]==='function'?s[1]():s[1])+'</span>').join('')+(unk?$t('<span class="sp unk">还有 ')+unk+$t(' 种未遇见</span>'):'');}
   const lf=light(S.D,1);let h='';
   if(DIVE.on&&DIVE.bh){const z=DIVE.z;
-    h+=z<70?'<p><span class="tag">含氧层</span>洞口一带是珊瑚礁，科考人员在龙洞上部记录到二十多种鱼。洞里的水和外面的海水几乎不交换，越往下越“老”。</p>'
-      :z<100?'<p><span class="tag">化学跃层</span>氧气在这 30 m 里迅速耗尽，细菌开始改用硝酸盐、再用硫酸盐来“呼吸”。洞里约六成的氮在这一层被细菌转化成氮气流失。</p>'
-      :'<p><span class="tag">无氧层</span>这里没有氧气，硫酸盐还原菌把硫酸盐变成硫化氢，硫化氢一直累积到约 150 m 后保持稳定。没有鱼、没有藻类，只有微生物；科研人员从龙洞里分离出的厌氧细菌中，约两成可能是新物种。</p>';
-    if(z>95&&z<165)h+='<p><span class="tag">浑浊层</span>氧化和还原的交界处是硫氧化细菌的乐园，它们在 100–140 m 占了微生物的约九成；再加上悬浮的有机颗粒，这一层的海水明显发浑，手电光被散射成一片雾。</p>';
-    h+='<p><span class="tag">传说</span>当地渔民称它为“南海之眼”。</p>';
+    h+=z<70?$t('<p><span class="tag">含氧层</span>洞口一带是珊瑚礁，科考人员在龙洞上部记录到二十多种鱼。洞里的水和外面的海水几乎不交换，越往下越“老”。</p>')
+      :z<100?$t('<p><span class="tag">化学跃层</span>氧气在这 30 m 里迅速耗尽，细菌开始改用硝酸盐、再用硫酸盐来“呼吸”。洞里约六成的氮在这一层被细菌转化成氮气流失。</p>')
+      :$t('<p><span class="tag">无氧层</span>这里没有氧气，硫酸盐还原菌把硫酸盐变成硫化氢，硫化氢一直累积到约 150 m 后保持稳定。没有鱼、没有藻类，只有微生物；科研人员从龙洞里分离出的厌氧细菌中，约两成可能是新物种。</p>');
+    if(z>95&&z<165)h+=$t('<p><span class="tag">浑浊层</span>氧化和还原的交界处是硫氧化细菌的乐园，它们在 100–140 m 占了微生物的约九成；再加上悬浮的有机颗粒，这一层的海水明显发浑，手电光被散射成一片雾。</p>');
+    h+=$t('<p><span class="tag">传说</span>当地渔民称它为“南海之眼”。</p>');
     $('eco').innerHTML=h;return;}
   if(DIVE.on){const z=DIVE.z;
-    h+=z<200?'<p><span class="tag">透光层</span>阳光充足，大型动物在开阔的蓝水里巡游。往下看，海水一直蓝到看不见底。</p>'
-      :z<1000?'<p><span class="tag">暮光层</span>只剩微弱的蓝光。很多动物腹部长着发光器，把自己的影子“擦掉”，躲开下方的捕食者。</p>'
-      :z<4000?'<p><span class="tag">午夜层</span>没有一丝阳光。这一层大约四分之三的动物都会发光。</p>'
-      :z<6000?'<p><span class="tag">深渊层</span>水温约 1.5 °C，食物主要靠上方飘落的海洋雪。生物稀少而缓慢。</p>'
-      :'<p><span class="tag">超深渊</span>海沟里的世界。'+(z<8200?'狮子鱼在这里活动，它们是最深处的鱼。':'这里已经低于鱼类能生存的极限。')+'</p>';
-    if(DIVE.dvm)h+='<p><span class="tag">迁移</span>二战时海军声呐在几百米深处发现一层会反射声波的“假海底”，白天在深处、夜里升到表层，后来才知道是成群的灯笼鱼、磷虾等动物。一些旧海图上至今还标着当年被误认成浅滩的地方。</p>';
-    if(S.D-z<60)h+=DIVE.replay?'<p><span class="tag">海沟底部</span>卡梅隆描述这里是“完全没有起伏”的柔软平原，只看到小小的端足类。</p>':'<p><span class="tag">海沟底部</span>细软的沉积物上住着巨型钩虾、海参和巨型单细胞生物。1960 年的的里雅斯特号和 2012 年卡梅隆都到过这里。</p>';
+    h+=z<200?$t('<p><span class="tag">透光层</span>阳光充足，大型动物在开阔的蓝水里巡游。往下看，海水一直蓝到看不见底。</p>')
+      :z<1000?$t('<p><span class="tag">暮光层</span>只剩微弱的蓝光。很多动物腹部长着发光器，把自己的影子“擦掉”，躲开下方的捕食者。</p>')
+      :z<4000?$t('<p><span class="tag">午夜层</span>没有一丝阳光。这一层大约四分之三的动物都会发光。</p>')
+      :z<6000?$t('<p><span class="tag">深渊层</span>水温约 1.5 °C，食物主要靠上方飘落的海洋雪。生物稀少而缓慢。</p>')
+      :$t('<p><span class="tag">超深渊</span>海沟里的世界。')+(z<8200?$t('狮子鱼在这里活动，它们是最深处的鱼。'):$t('这里已经低于鱼类能生存的极限。'))+'</p>';
+    if(DIVE.dvm)h+=$t('<p><span class="tag">迁移</span>二战时海军声呐在几百米深处发现一层会反射声波的“假海底”，白天在深处、夜里升到表层，后来才知道是成群的灯笼鱼、磷虾等动物。一些旧海图上至今还标着当年被误认成浅滩的地方。</p>');
+    if(S.D-z<60)h+=DIVE.replay?$t('<p><span class="tag">海沟底部</span>卡梅隆描述这里是“完全没有起伏”的柔软平原，只看到小小的端足类。</p>'):$t('<p><span class="tag">海沟底部</span>细软的沉积物上住着巨型钩虾、海参和巨型单细胞生物。1960 年的的里雅斯特号和 2012 年卡梅隆都到过这里。</p>');
     $('eco').innerHTML=h;return;}
-  if(H.coral)h+='<p><span class="tag">珊瑚</span>'+coralForm+'。海底有 '+pct(lf)+' 的绿光供共生藻光合作用。</p>';
-  else if(S.D<=150)h+='<p><span class="tag">珊瑚</span>无造礁珊瑚：'+(S.temp<18?'水温 '+S.temp+' °C，低于约 18 °C':'光照只剩 '+pct(lf))+'。</p>';
-  if(!H.kelp&&S.D<=35)h+='<p><span class="tag">巨藻</span>无：'+(S.temp>20?'水温高于约 20 °C，巨藻是冷水种':'光照不足')+'。</p>';
-  if(H.fan)h+='<p><span class="tag">海扇</span>'+(S.D>200?'竹珊瑚被触碰时会沿枝条传出蓝色光波。':'扇面垂直于海流方向生长，最大化截留流过的浮游食物。')+'</p>';
-  if(H.comb)h+='<p><span class="tag">栉水母</span>彩虹是纤毛衍射'+(S.D>200&&S.torch==='off'?'，这里没有光，打开手电才能看到。':'入射光形成的，不是自己发光。')+'</p>';
-  if(S.night&&S.D<=150)h+='<p><span class="tag">夜光</span>夜光藻被扰动时会闪蓝光，鱼群、海龟游过会留下光迹。'+(S.torch==='blue'?'蓝光手电激发出珊瑚和海葵触手的绿色、橙红色荧光。':'试试蓝光手电看珊瑚荧光。')+'</p>';
-  if(S.D>200&&!ARC.on)h+='<p><span class="tag">深海</span>这里没有阳光。看到的光点都是生物发光：灯笼鱼的发光器、冠水母的报警光环、'+(H.angler?'鮟鱇的诱饵、':'')+'被扰动的浮游生物。</p>';
-  if(ventOn)h+='<p><span class="tag">热液</span>这里的生命不靠阳光：细菌把热液里硫化氢等物质的化学能转化成养分（化能合成），整个群落都建立在它们之上。龙旂已记录 21 类大型动物，其中 7 种是新种。</p>';
-  if(TRUK.on)h+='<p><span class="tag">沉船鱼礁</span>1944 年 2 月的“冰雹行动”在这片泻湖里击沉了 45 艘以上的舰船。八十多年后，钢铁船体成了珊瑚、海绵和海鞘附着的基底：软珊瑚挂满高处的桅杆和吊杆，因为那里水流最好；甲板上结着成群的小鱼，船尾住着蓑鲉。</p>';
-  if(MANG.on)h+='<p><span class="tag">蓝碳</span>海草床只占海底面积约 0.2%，却储存了海洋约 10% 的碳；它和红树林、盐沼一起被称为“蓝碳”生态系统。它们也是很多鱼虾的育幼场。</p><p><span class="tag">儒艮</span>中国南方沿海曾有以海草为食的儒艮。2022 年发表的一项调查访问了 788 位渔民，自 2000 年以来没有任何可核实的目击记录，儒艮在中国已功能性灭绝，是中国水域第一种功能性灭绝的大型脊椎动物。</p>';
-  if(ABY.on)h+='<p><span class="tag">深海平原</span>深海平原占地球表面一半以上，是地球上面积最大的生境。这里的食物几乎全靠上方几千米飘落的“海洋雪”，动物都长得慢、活得久。克拉里昂-克利珀顿区已记录到 5,578 种动物，约九成还没有被科学描述，而它也是全球最大的深海采矿勘探区。</p>';
-  if(ROST.on)h+='<p><span class="tag">冷水珊瑚</span>这里没有阳光，珊瑚也没有共生藻，全靠洋流送来的浮游生物为生，所以冷水珊瑚礁总长在水流强的陆坡和海脊上。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁，2002 年才被发现，同年周围约 300 km² 海域禁止底拖网。</p>';
-  if(TIDE.on)h+='<p><span class="tag">潮间带分带</span>同一块岩石上，越高的地方露出水面越久，要忍受日晒、干燥和温度剧变；越低的地方被淹得越久，但捕食者和竞争者更多。于是生物按高度排成一条条带子：滨螺、藤壶、龟足、贻贝、海藻依次往下。这种分带在世界各地的岩岸都能看到。</p><p><span class="tag">潮汐</span>潮汐主要由月球引力引起，这里每天两涨两落，每次比前一天晚约 50 分钟。</p>';
-  if(SMT.on)h+='<p><span class="tag">海山</span>海山是从海底拔起、山顶仍在水下的山，大多是死火山，全球估计有几万座以上。它们把深层海流抬升、加速，带来更多食物，所以常长满珊瑚和海绵，聚集鱼群。</p><p><span class="tag">温泉孵化</span>深海水温只有 1.6 °C，章鱼卵发育很慢；岩缝里的温泉最高 10.8 °C，章鱼妈妈平均约 1.8 年就能孵出小章鱼，大约相当于在 5 °C 的水里孵化。孵化越快，卵被吃掉、母亲饿死前失败的风险就越小。</p>';
-  if(ARC.on)h+='<p><span class="tag">冰缘</span>冰缘是北极春天最热闹的地方：冰底的冰藻先于浮游植物开始繁殖，端足类和桡足类啃食冰藻，北极鳕吃它们，一角鲸、白鲸、海豹和海鸟再吃北极鳕。北极鳕幼鱼体内 50–90% 的碳来自冰藻。</p><p><span class="tag">海冰在减少</span>北极夏末的海冰面积 2012 年创下最低纪录；2025 年 9 月的最低值约 460 万平方公里，与 2008 年并列有卫星记录以来第 10 低。冰期变短，正改变一角鲸、白鲸和依赖海冰的整个食物网。</p>';
-  if(ICE.on)h+='<p><span class="tag">冰下</span>头顶约 2 m 厚的海冰挡住了大部分阳光，只有冰洞里照下一道光柱。冬天之后的海水几乎没有浮游生物，清澈得能看到很远；水温 −1.9 °C，是海水的冰点。你呼出的气泡会贴在冰底聚成一片片“水银”。</p><p><span class="tag">抗冻</span>这里的鱼血液里有抗冻糖蛋白，冰鱼甚至连血红蛋白都没有，血几乎是透明的。</p>';
-  if(SPN.on)h+='<p><span class="tag">产卵</span>珊瑚不能移动，只好把繁殖押在“同时”上：整片礁在同一夜、同一小时释放配子，让卵和精子在水里相遇的机会最大，也让捕食者一时吃不完。1981 年科学家在大堡礁第一次记录到这种集体产卵，当时有 32 种珊瑚同时排放。</p>';
-  if(brineOn)h+='<p><span class="tag">盐池</span>海底下方埋着古老的盐层，盐溶进渗出的流体，形成比海水重得多的卤水，在海底积成一个湖。湖里几乎没有氧气，误入的动物会死去；岸边却挤满了靠甲烷生活的贻贝。这个盐池 1989 年由美国海军的核动力研究潜艇 NR-1 首次探访，因此得名。</p>';
-  if(wfOn)h+='<p><span class="tag">鲸落</span>据估计任何时候全球海底都躺着约 69 万具鲸骨，平均每隔约 12 km 就有一具；它们像深海里的绿洲，让生物得以在其间“跳岛”扩散。</p>';
-  if(H.seep)h+='<p><span class="tag">冷泉</span>海底渗出甲烷，细菌把它当能量来源，形成白色细菌席，养活贻贝床和管栖蠕虫。这里的气泡是甲烷，不是潜水员呼出的。</p>';
-  if(H.sardine)h+='<p><span class="tag">鱼群</span>沙丁鱼绕圈游成“鱼饵球”，翻身时银色鳞片会闪光。</p>';
+  if(H.coral)h+=$t('<p><span class="tag">珊瑚</span>')+coralForm+$t('。海底有 ')+pct(lf)+$t(' 的绿光供共生藻光合作用。</p>');
+  else if(S.D<=150)h+=$t('<p><span class="tag">珊瑚</span>无造礁珊瑚：')+(S.temp<18?$t('水温为 ')+S.temp+$t(' °C，低于约 18 °C'):$t('光照只剩 ')+pct(lf))+$t('。</p>');
+  if(!H.kelp&&S.D<=35)h+=$t('<p><span class="tag">巨藻</span>无：')+(S.temp>20?$t('水温高于约 20 °C，巨藻是冷水种'):$t('光照不足'))+$t('。</p>');
+  if(H.fan)h+=$t('<p><span class="tag">海扇</span>')+(S.D>200?$t('竹珊瑚被触碰时会沿枝条传出蓝色光波。'):$t('扇面垂直于海流方向生长，最大化截留流过的浮游食物。'))+'</p>';
+  if(H.comb)h+=$t('<p><span class="tag">栉水母</span>彩虹是纤毛衍射')+(S.D>200&&S.torch==='off'?$t('，这里没有光，打开手电才能看到。'):$t('入射光形成的，不是自己发光。'))+'</p>';
+  if(S.night&&S.D<=150)h+=$t('<p><span class="tag">夜光</span>夜光藻被扰动时会闪蓝光，鱼群、海龟游过会留下光迹。')+(S.torch==='blue'?$t('蓝光手电激发出珊瑚和海葵触手的绿色、橙红色荧光。'):$t('试试蓝光手电看珊瑚荧光。'))+'</p>';
+  if(S.D>200&&!ARC.on)h+=$t('<p><span class="tag">深海</span>这里没有阳光。看到的光点都是生物发光：灯笼鱼的发光器、冠水母的报警光环、')+(H.angler?$t('鮟鱇的诱饵、'):'')+$t('被扰动的浮游生物。</p>');
+  if(ventOn)h+=$t('<p><span class="tag">热液</span>这里的生命不靠阳光：细菌把热液里硫化氢等物质的化学能转化成养分（化能合成），整个群落都建立在它们之上。龙旂已记录 21 类大型动物，其中 7 种是新种。</p>');
+  if(TRUK.on)h+=$t('<p><span class="tag">沉船鱼礁</span>1944 年 2 月的“冰雹行动”在这片泻湖里击沉了 45 艘以上的舰船。八十多年后，钢铁船体成了珊瑚、海绵和海鞘附着的基底：软珊瑚挂满高处的桅杆和吊杆，因为那里水流最好；甲板上结着成群的小鱼，船尾住着蓑鲉。</p>');
+  if(MANG.on)h+=$t('<p><span class="tag">蓝碳</span>海草床只占海底面积约 0.2%，却储存了海洋约 10% 的碳；它和红树林、盐沼一起被称为“蓝碳”生态系统。它们也是很多鱼虾的育幼场。</p><p><span class="tag">儒艮</span>中国南方沿海曾有以海草为食的儒艮。2022 年发表的一项调查访问了 788 位渔民，自 2000 年以来没有任何可核实的目击记录，儒艮在中国已功能性灭绝，是中国水域第一种功能性灭绝的大型脊椎动物。</p>');
+  if(ABY.on)h+=$t('<p><span class="tag">深海平原</span>深海平原占地球表面一半以上，是地球上面积最大的生境。这里的食物几乎全靠上方几千米飘落的“海洋雪”，动物都长得慢、活得久。克拉里昂-克利珀顿区已记录到 5,578 种动物，约九成还没有被科学描述，而它也是全球最大的深海采矿勘探区。</p>');
+  if(ROST.on)h+=$t('<p><span class="tag">冷水珊瑚</span>这里没有阳光，珊瑚也没有共生藻，全靠洋流送来的浮游生物为生，所以冷水珊瑚礁总长在水流强的陆坡和海脊上。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁，2002 年才被发现，同年周围约 300 km² 海域禁止底拖网。</p>');
+  if(TIDE.on)h+=$t('<p><span class="tag">潮间带分带</span>同一块岩石上，越高的地方露出水面越久，要忍受日晒、干燥和温度剧变；越低的地方被淹得越久，但捕食者和竞争者更多。于是生物按高度排成一条条带子：滨螺、藤壶、龟足、贻贝、海藻依次往下。这种分带在世界各地的岩岸都能看到。</p><p><span class="tag">潮汐</span>潮汐主要由月球引力引起，这里每天两涨两落，每次比前一天晚约 50 分钟。</p>');
+  if(SMT.on)h+=$t('<p><span class="tag">海山</span>海山是从海底拔起、山顶仍在水下的山，大多是死火山，全球估计有几万座以上。它们把深层海流抬升、加速，带来更多食物，所以常长满珊瑚和海绵，聚集鱼群。</p><p><span class="tag">温泉孵化</span>深海水温只有 1.6 °C，章鱼卵发育很慢；岩缝里的温泉最高 10.8 °C，章鱼妈妈平均约 1.8 年就能孵出小章鱼，大约相当于在 5 °C 的水里孵化。孵化越快，卵被吃掉、母亲饿死前失败的风险就越小。</p>');
+  if(ARC.on)h+=$t('<p><span class="tag">冰缘</span>冰缘是北极春天最热闹的地方：冰底的冰藻先于浮游植物开始繁殖，端足类和桡足类啃食冰藻，北极鳕吃它们，一角鲸、白鲸、海豹和海鸟再吃北极鳕。北极鳕幼鱼体内 50–90% 的碳来自冰藻。</p><p><span class="tag">海冰在减少</span>北极夏末的海冰面积 2012 年创下最低纪录；2025 年 9 月的最低值约 460 万平方公里，与 2008 年并列有卫星记录以来第 10 低。冰期变短，正改变一角鲸、白鲸和依赖海冰的整个食物网。</p>');
+  if(ICE.on)h+=$t('<p><span class="tag">冰下</span>头顶约 2 m 厚的海冰挡住了大部分阳光，只有冰洞里照下一道光柱。冬天之后的海水几乎没有浮游生物，清澈得能看到很远；水温 −1.9 °C，是海水的冰点。你呼出的气泡会贴在冰底聚成一片片“水银”。</p><p><span class="tag">抗冻</span>这里的鱼血液里有抗冻糖蛋白，冰鱼甚至连血红蛋白都没有，血几乎是透明的。</p>');
+  if(SPN.on)h+=$t('<p><span class="tag">产卵</span>珊瑚不能移动，只好把繁殖押在“同时”上：整片礁在同一夜、同一小时释放配子，让卵和精子在水里相遇的机会最大，也让捕食者一时吃不完。1981 年科学家在大堡礁第一次记录到这种集体产卵，当时有 32 种珊瑚同时排放。</p>');
+  if(brineOn)h+=$t('<p><span class="tag">盐池</span>海底下方埋着古老的盐层，盐溶进渗出的流体，形成比海水重得多的卤水，在海底积成一个湖。湖里几乎没有氧气，误入的动物会死去；岸边却挤满了靠甲烷生活的贻贝。这个盐池 1989 年由美国海军的核动力研究潜艇 NR-1 首次探访，因此得名。</p>');
+  if(wfOn)h+=$t('<p><span class="tag">鲸落</span>据估计任何时候全球海底都躺着约 69 万具鲸骨，平均每隔约 12 km 就有一具；它们像深海里的绿洲，让生物得以在其间“跳岛”扩散。</p>');
+  if(H.seep)h+=$t('<p><span class="tag">冷泉</span>海底渗出甲烷，细菌把它当能量来源，形成白色细菌席，养活贻贝床和管栖蠕虫。这里的气泡是甲烷，不是潜水员呼出的。</p>');
+  if(H.sardine)h+=$t('<p><span class="tag">鱼群</span>沙丁鱼绕圈游成“鱼饵球”，翻身时银色鳞片会闪光。</p>');
   $('eco').innerHTML=h;
 }
 function hud(){
   const z=Math.max(-camera.position.y,0);
   $('hDepth').textContent='−'+fmtD(z);
-  $('hZone').textContent=z<200?'透光层 · 上层带':z<1000?'暮光层 · 中层带':z<4000?'午夜层 · 深层带':z<6000?'深渊层':'超深渊层 · 海沟';
-  $('hTemp').textContent='水温 '+(DIVE.on?(DIVE.bh?bhTemp(z):tempAt(z)):S.temp).toFixed(1)+' °C'+(DIVE.bh?(bhO2(z)>0.5?' · 有氧':bhO2(z)>0?' · 氧气稀薄':' · 无氧 · 含硫化氢'):'');
+  $('hZone').textContent=z<200?$t('透光层 · 上层带'):z<1000?$t('暮光层 · 中层带'):z<4000?$t('午夜层 · 深层带'):z<6000?$t('深渊层'):$t('超深渊层 · 海沟');
+  $('hTemp').textContent=$t('水温 ')+(DIVE.on?(DIVE.bh?bhTemp(z):tempAt(z)):S.temp).toFixed(1)+' °C'+(DIVE.bh?(bhO2(z)>0.5?$t(' · 有氧'):bhO2(z)>0?$t(' · 氧气稀薄'):$t(' · 无氧 · 含硫化氢')):'');
   const P=pressure(z);$('hPress').textContent=(P/PATM).toFixed(2)+' atm · '+Math.round(P/1000)+' kPa';
-  const sE=DIVE.dvm?surfE(DVM.t):(S.night?0:1);[['bR','tR'],['bG','tG'],['bB','tB']].forEach(([b,tx],i)=>{const v=light(z,i)*sE;$(b).style.width=Math.max(0,Math.min(100,(Math.log10(Math.max(v,1e-9))+6)/6*100))+'%';$(tx).textContent=S.night&&!DIVE.dvm?'夜间':pct(v);});
+  const sE=DIVE.dvm?surfE(DVM.t):(S.night?0:1);[['bR','tR'],['bG','tG'],['bB','tB']].forEach(([b,tx],i)=>{const v=light(z,i)*sE;$(b).style.width=Math.max(0,Math.min(100,(Math.log10(Math.max(v,1e-9))+6)/6*100))+'%';$(tx).textContent=S.night&&!DIVE.dvm?$t('夜间'):pct(v);});
 }
 function frameCamera(){
   const F=-S.D,deep=S.D>200,dist=deep?7:9.5;
@@ -3154,34 +3180,34 @@ function applyLocation(id){
   if(id==='spawn'){SPN.on=true;SPN.play=true;SPN.rate=10;spawnColonies();spawnReset(20.95);$('spSec').hidden=false;spawnNote();zoneUpdate();readouts();}
 }
 const SITE={
-  dive:['关岛礁壁 → 马里亚纳海沟','从关岛的礁壁出发，一路下潜到地球海洋最深处 10,935 m。沿途经过透光层、暮光层、午夜层、深渊层和海沟，各层的生物、水温、压强和光线都按实测资料变化。','左侧剖面里，珠穆朗玛峰按比例放进了海沟；可以在下方调倍速，或直接拖动深度条。'],
-  replay:['重走 2012 · 深海挑战者号','按詹姆斯·卡梅隆 2012 年 3 月 26 日的真实时间线：05:15 出发，下潜 2 小时 36 分，在海底停留三个多小时，再上浮回到水面。','留意右下角的当地时间和字幕，它们对应当天的真实记录。'],
-  dvm:['北太平洋开阔大洋 · 昼夜垂直迁移','在一天 24 小时里看暮光层的动物黄昏上浮、黎明下沉。这是地球上规模最大的动物迁移，二战时的声呐曾把它误认成海底。','点击下面的回声测深图跳到 19:00、50 m，看发光的迁移层从脚下升起。'],
-  bluehole:['三沙永乐龙洞 · 蓝洞','西沙永乐环礁上的一口海底竖井，深约 301 m。沿洞壁从珊瑚礁一直下到洞底，穿过含氧层、化学跃层和充满硫化氢的无氧层。','100–150 m 的浑浊细菌层里能见度骤降；左侧剖面画的是洞的真实形状。'],
-  xisha:['南海西沙群岛珊瑚礁 · 10 m','热带珊瑚礁：水清、光足，枝状和块状珊瑚长满礁石，海葵里住着小丑鱼，鹦嘴鱼和蝴蝶鱼在礁间觅食。','切到“夜潜”，关掉手电，用手指或鼠标在水里快速划一划，看夜光藻闪光；打开蓝光手电则能看到珊瑚荧光。'],
-  truk:['密克罗尼西亚特鲁克泻湖 · 富士川丸','一艘 133 m 长的二战日本飞机运输舰，1944 年在“冰雹行动”中被击沉，至今直立着坐在约 34 m 深的沙底上，后桅几乎伸出水面。','十几米深处红光已被海水吸收，软珊瑚看上去发暗；打开白光手电，它们才显出粉红、橙红的本色。从舱口往 2 号货舱里看，还能找到拆解的战斗机。'],
-  rost:['挪威罗弗敦外海 · 勒斯特冷水珊瑚礁 · 320 m','已知最大的冷水珊瑚礁，全长三四十公里。白色和橙色的深水石珊瑚长成一丛丛灌木，下面是层层堆积的死珊瑚骨架和碎屑；红色的泡泡糖珊瑚顺着海流张开，大眼的挪威平鲉悬停在礁上。','点击珊瑚看它每年只长几毫米；关掉手电，这片礁就完全沉入黑暗。'],
-  arctic:['加拿大北极 · 庞德因莱特浮冰边缘','北纬约 73°，巴芬岛北端的埃克利普斯海峡。冬天海面冻成约 1.8 m 厚、连着陆地不动的固定冰；春天它的外缘一点点碎裂后退，冰缘外是开阔水面。5 月底到 6 月，一角鲸和白鲸沿着冰缘向峡湾里迁移，冰底正是冰藻繁殖最旺的时候。','头顶是被冰藻染成褐色的冰底，挂着一缕缕北极直链藻；冰缘外明亮的开阔水里，一角鲸和白鲸的小群会沿着冰缘游过，不时上浮换气。点击冰底和冰缘看说明。'],
-  ice:['南极麦克默多湾 · 海冰之下','头顶是约 2 m 厚的海冰，阳光只透下百分之几，冰底被冰藻染成褐色，冰洞里照下一道光柱。水温 −1.9 °C，海底有红海星、南极海胆、玻璃海绵和巨型海蜘蛛，威德尔海豹不时从冰下游过。','抬头看冰底的片状冰和贴在冰下的气泡；在海底找一找趴着不动、几乎透明的冰鱼。'],
-  mangrove:['海南陵水新村潟湖 · 海草床与红树林 · 1.6 m','一个几乎被沙坝围住的潟湖。岸边是红树林，支柱根扎进软泥；往外是海菖蒲和泰来草组成的海草床。2007 年，新村港和相邻的黎安港一起设立了我国第一个以海草床为保护对象的特别保护区。','左边是红树林的支柱根，小鱼在根间躲避捕食者；右边的海草随波摆动，水面上漂着海菖蒲的白色雄花。找找缠在海草上的海马和倒躺在泥上的倒立水母。'],
-  nanji:['浙江南麂列岛 · 岩礁潮间带','温州平阳外海的南麂列岛，1990 年成为我国首批 5 个海洋自然保护区之一，1998 年加入联合国“人与生物圈”网络，以“贝藻王国”著称：已记录 422 种藻类、725 种贝类等软体动物。潮间带的岩石每天被海水淹没、露出各两次。','让潮汐播放起来，看海面怎样一点点淹过藤壶带和贻贝床；藤壶一被淹没就伸出蔓足捕食。也可以拖动“潮位”停在任一时刻。'],
-  seamount:['加州戴维森海山 · 章鱼花园 · 3,200 m','蒙特雷西南约 129 km 的一座死火山，长 42 km、从海底拔起约 2,280 m。山脚一座小丘上，岩缝里渗出地热加温的海水，几千只珍珠章鱼聚在这里产卵、孵卵——2018 年才被发现，是已知最大的深海章鱼聚集地。','看温泉上方水的“抖动”，那是温水折射光线；章鱼妈妈的外套膜在一张一缩地给卵泵水。点击岩石和温泉看说明。'],
-  abyss:['太平洋克拉里昂-克利珀顿区 · 深海平原 · 4,100 m','夏威夷与墨西哥之间一片约 600 万平方公里的深海平原，水深 4,000–6,000 m，水温约 1.5 °C。海底铺满土豆大小的锰结核，每一百万年只长 1–10 cm。这里已记录到 5,578 种动物，约九成从未被科学描述。','在手电光里找沿着自己的取食痕迹爬行的长尾蝶参、成群的海猪、用鳍条“站”在海底的三脚架鱼。右边那条没有结核的宽带是 1979 年采矿试验留下的车辙，点击它看 44 年后的样子。'],
-  spawn:['海南三亚鹿回头 · 珊瑚产卵之夜','春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。','把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。'],
-  monterey:['加州蒙特雷湾巨藻林 · 12 m','冷水上升流养出的海底森林。巨藻随涌浪整片摆动，水温约 12 °C，对造礁珊瑚来说太冷了。','在“环境参数”里调大有效波高或波周期，看巨藻和海底沙纹怎样变化。'],
-  eilat:['红海埃拉特中光层礁 · 55 m','红海的海水极清，55 m 深处仍有几个百分点的阳光。光越弱，珊瑚越长成扁平的盘状，好接住更多光。','看面板里的“此处剩余阳光”：红光几乎为零，所以这里的一切都是蓝绿色。'],
-  slope:['南海北部陆坡 · 600 m','暮光层的底部，阳光几乎耗尽，只有手电照亮的一小片海底。灯笼鱼、银斧鱼在这一带活动，竹珊瑚被触碰时会沿枝条传出蓝光。','关掉手电，剩下的光点全部来自生物发光。'],
-  deep:['南海海马冷泉 · 1,390 m','海底渗出甲烷，细菌把它当作能量来源，养活了贻贝床、管栖蠕虫和白色的细菌席。这里冒出的气泡是甲烷。','点击贻贝、管栖蠕虫和细菌席，看它们怎样靠化学能生活。'],
-  brine:['墨西哥湾 NR1 海底盐池 · 650 m','比海水重得多的卤水在海底积成一个湖，有清晰的湖面和湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。','点击湖面会荡开慢慢的波纹；贴近湖面斜看，湖面才会像镜子一样倒映出对岸。'],
-  whalefall:['蒙特雷峡谷鲸落 · 1,800 m','一头灰鲸沉到海底后，几十年里会依次养活食腐动物、食骨蠕虫和靠硫化物生活的细菌群落。','拖动面板里“经过的时间”滑块，从几周快进到几十年。'],
-  vent:['西南印度洋龙旂热液区 · 2,800 m','300 多摄氏度的热液从黑烟囱喷出。周围的盲虾、铁甲蜗牛、雪人蟹完全不靠阳光，而是靠细菌把热液里的化学能转化成养分。','点击烟囱和动物，看它们分别住在离热源多远的地方。']
+  dive:[$t('关岛礁壁 → 马里亚纳海沟'),$t('从关岛的礁壁出发，一路下潜到地球海洋最深处 10,935 m。沿途经过透光层、暮光层、午夜层、深渊层和海沟，各层的生物、水温、压强和光线都按实测资料变化。'),$t('左侧剖面里，珠穆朗玛峰按比例放进了海沟；可以在下方调倍速，或直接拖动深度条。')],
+  replay:[$t('重走 2012 · 深海挑战者号'),$t('按詹姆斯·卡梅隆 2012 年 3 月 26 日的真实时间线：05:15 出发，下潜 2 小时 36 分，在海底停留三个多小时，再上浮回到水面。'),$t('留意右下角的当地时间和字幕，它们对应当天的真实记录。')],
+  dvm:[$t('北太平洋开阔大洋 · 昼夜垂直迁移'),$t('在一天 24 小时里看暮光层的动物黄昏上浮、黎明下沉。这是地球上规模最大的动物迁移，二战时的声呐曾把它误认成海底。'),$t('点击下面的回声测深图跳到 19:00、50 m，看发光的迁移层从脚下升起。')],
+  bluehole:[$t('三沙永乐龙洞 · 蓝洞'),$t('西沙永乐环礁上的一口海底竖井，深约 301 m。沿洞壁从珊瑚礁一直下到洞底，穿过含氧层、化学跃层和充满硫化氢的无氧层。'),$t('100–150 m 的浑浊细菌层里能见度骤降；左侧剖面画的是洞的真实形状。')],
+  xisha:[$t('南海西沙群岛珊瑚礁 · 10 m'),$t('热带珊瑚礁：水清、光足，枝状和块状珊瑚长满礁石，海葵里住着小丑鱼，鹦嘴鱼和蝴蝶鱼在礁间觅食。'),$t('切到“夜潜”，关掉手电，用手指或鼠标在水里快速划一划，看夜光藻闪光；打开蓝光手电则能看到珊瑚荧光。')],
+  truk:[$t('密克罗尼西亚特鲁克泻湖 · 富士川丸'),$t('一艘 133 m 长的二战日本飞机运输舰，1944 年在“冰雹行动”中被击沉，至今直立着坐在约 34 m 深的沙底上，后桅几乎伸出水面。'),$t('十几米深处红光已被海水吸收，软珊瑚看上去发暗；打开白光手电，它们才显出粉红、橙红的本色。从舱口往 2 号货舱里看，还能找到拆解的战斗机。')],
+  rost:[$t('挪威罗弗敦外海 · 勒斯特冷水珊瑚礁 · 320 m'),$t('已知最大的冷水珊瑚礁，全长三四十公里。白色和橙色的深水石珊瑚长成一丛丛灌木，下面是层层堆积的死珊瑚骨架和碎屑；红色的泡泡糖珊瑚顺着海流张开，大眼的挪威平鲉悬停在礁上。'),$t('点击珊瑚看它每年只长几毫米；关掉手电，这片礁就完全沉入黑暗。')],
+  arctic:[$t('加拿大北极 · 庞德因莱特浮冰边缘'),$t('北纬约 73°，巴芬岛北端的埃克利普斯海峡。冬天海面冻成约 1.8 m 厚、连着陆地不动的固定冰；春天它的外缘一点点碎裂后退，冰缘外是开阔水面。5 月底到 6 月，一角鲸和白鲸沿着冰缘向峡湾里迁移，冰底正是冰藻繁殖最旺的时候。'),$t('头顶是被冰藻染成褐色的冰底，挂着一缕缕北极直链藻；冰缘外明亮的开阔水里，一角鲸和白鲸的小群会沿着冰缘游过，不时上浮换气。点击冰底和冰缘看说明。')],
+  ice:[$t('南极麦克默多湾 · 海冰之下'),$t('头顶是约 2 m 厚的海冰，阳光只透下百分之几，冰底被冰藻染成褐色，冰洞里照下一道光柱。水温 −1.9 °C，海底有红海星、南极海胆、玻璃海绵和巨型海蜘蛛，威德尔海豹不时从冰下游过。'),$t('抬头看冰底的片状冰和贴在冰下的气泡；在海底找一找趴着不动、几乎透明的冰鱼。')],
+  mangrove:[$t('海南陵水新村潟湖 · 海草床与红树林 · 1.6 m'),$t('一个几乎被沙坝围住的潟湖。岸边是红树林，支柱根扎进软泥；往外是海菖蒲和泰来草组成的海草床。2007 年，新村港和相邻的黎安港一起设立了我国第一个以海草床为保护对象的特别保护区。'),$t('左边是红树林的支柱根，小鱼在根间躲避捕食者；右边的海草随波摆动，水面上漂着海菖蒲的白色雄花。找找缠在海草上的海马和倒躺在泥上的倒立水母。')],
+  nanji:[$t('浙江南麂列岛 · 岩礁潮间带'),$t('温州平阳外海的南麂列岛，1990 年成为我国首批 5 个海洋自然保护区之一，1998 年加入联合国“人与生物圈”网络，以“贝藻王国”著称：已记录 422 种藻类、725 种贝类等软体动物。潮间带的岩石每天被海水淹没、露出各两次。'),$t('让潮汐播放起来，看海面怎样一点点淹过藤壶带和贻贝床；藤壶一被淹没就伸出蔓足捕食。也可以拖动“潮位”停在任一时刻。')],
+  seamount:[$t('加州戴维森海山 · 章鱼花园 · 3,200 m'),$t('蒙特雷西南约 129 km 的一座死火山，长 42 km、从海底拔起约 2,280 m。山脚一座小丘上，岩缝里渗出地热加温的海水，几千只珍珠章鱼聚在这里产卵、孵卵——2018 年才被发现，是已知最大的深海章鱼聚集地。'),$t('看温泉上方水的“抖动”，那是温水折射光线；章鱼妈妈的外套膜在一张一缩地给卵泵水。点击岩石和温泉看说明。')],
+  abyss:[$t('太平洋克拉里昂-克利珀顿区 · 深海平原 · 4,100 m'),$t('夏威夷与墨西哥之间一片约 600 万平方公里的深海平原，水深 4,000–6,000 m，水温约 1.5 °C。海底铺满土豆大小的锰结核，每一百万年只长 1–10 cm。这里已记录到 5,578 种动物，约九成从未被科学描述。'),$t('在手电光里找沿着自己的取食痕迹爬行的长尾蝶参、成群的海猪、用鳍条“站”在海底的三脚架鱼。右边那条没有结核的宽带是 1979 年采矿试验留下的车辙，点击它看 44 年后的样子。')],
+  spawn:[$t('海南三亚鹿回头 · 珊瑚产卵之夜'),$t('春季满月前后的某几个夜里，鹿角珊瑚在 21 点后的约一小时内集体释放红色的卵精束。它们缓缓上浮，像一场倒着下的雪。'),$t('把时间拖到 21:00 之前，可以看到珊瑚表面布满“含着”的卵精束；21:30 之后抬头看水面聚起的浮层。')],
+  monterey:[$t('加州蒙特雷湾巨藻林 · 12 m'),$t('冷水上升流养出的海底森林。巨藻随涌浪整片摆动，水温约 12 °C，对造礁珊瑚来说太冷了。'),$t('在“环境参数”里调大有效波高或波周期，看巨藻和海底沙纹怎样变化。')],
+  eilat:[$t('红海埃拉特中光层礁 · 55 m'),$t('红海的海水极清，55 m 深处仍有几个百分点的阳光。光越弱，珊瑚越长成扁平的盘状，好接住更多光。'),$t('看面板里的“此处剩余阳光”：红光几乎为零，所以这里的一切都是蓝绿色。')],
+  slope:[$t('南海北部陆坡 · 600 m'),$t('暮光层的底部，阳光几乎耗尽，只有手电照亮的一小片海底。灯笼鱼、银斧鱼在这一带活动，竹珊瑚被触碰时会沿枝条传出蓝光。'),$t('关掉手电，剩下的光点全部来自生物发光。')],
+  deep:[$t('南海海马冷泉 · 1,390 m'),$t('海底渗出甲烷，细菌把它当作能量来源，养活了贻贝床、管栖蠕虫和白色的细菌席。这里冒出的气泡是甲烷。'),$t('点击贻贝、管栖蠕虫和细菌席，看它们怎样靠化学能生活。')],
+  brine:[$t('墨西哥湾 NR1 海底盐池 · 650 m'),$t('比海水重得多的卤水在海底积成一个湖，有清晰的湖面和湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。'),$t('点击湖面会荡开慢慢的波纹；贴近湖面斜看，湖面才会像镜子一样倒映出对岸。')],
+  whalefall:[$t('蒙特雷峡谷鲸落 · 1,800 m'),$t('一头灰鲸沉到海底后，几十年里会依次养活食腐动物、食骨蠕虫和靠硫化物生活的细菌群落。'),$t('拖动面板里“经过的时间”滑块，从几周快进到几十年。')],
+  vent:[$t('西南印度洋龙旂热液区 · 2,800 m'),$t('300 多摄氏度的热液从黑烟囱喷出。周围的盲虾、铁甲蜗牛、雪人蟹完全不靠阳光，而是靠细菌把热液里的化学能转化成养分。'),$t('点击烟囱和动物，看它们分别住在离热源多远的地方。')]
 };
-function updSite(){const d=S.loc?SITE[S.loc]:null;$('siteT').textContent=d?d[0]:'自定义参数';$('siteD').textContent=d?d[1]:'在“环境参数”里改深度、水温、水质、海流和波浪，场景会按同样的物理和生态规则重新生成。';$('siteTip').innerHTML='<b>看点</b>'+(d?d[2]:'把深度拖到 200 m 以下，看珊瑚和阳光怎样消失。');}
+function updSite(){const d=S.loc?SITE[S.loc]:null;$('siteT').textContent=d?d[0]:$t('自定义参数');$('siteD').textContent=d?d[1]:$t('在“环境参数”里改深度、水温、水质、海流和波浪，场景会按同样的物理和生态规则重新生成。');$('siteTip').innerHTML=$t('<b>看点</b>')+(d?d[2]:$t('把深度拖到 200 m 以下，看珊瑚和阳光怎样消失。'));}
 const custom=()=>{S.loc=null;};
 $('sDepth').value=toSlider(S.D);
 $('sDepth').addEventListener('input',e=>{custom();applyDepth(fromSlider(+e.target.value));});
 $('locSeg').addEventListener('click',e=>{const l=e.target.dataset.l;if(l)applyLocation(l);});
-$('timeSeg').addEventListener('click',e=>{const t=e.target.dataset.t;if(!t)return;if(SPN.on&&t==='day'){showCaption('珊瑚只在夜里产卵','这一场景固定在夜里；想看白天的珊瑚礁，请选“西沙 · 珊瑚礁”。',5);return;}if(DIVE.dvm){DVM.t=t==='night'?22:12;dvmLight();zoneUpdate();drawEcho();dvmNote();readouts();return;}S.night=t==='night';if(S.night&&S.torch==='off')S.torch='white';rebuild();});
+$('timeSeg').addEventListener('click',e=>{const t=e.target.dataset.t;if(!t)return;if(SPN.on&&t==='day'){showCaption($t('珊瑚只在夜里产卵'),$t('这一场景固定在夜里；想看白天的珊瑚礁，请选“西沙 · 珊瑚礁”。'),5);return;}if(DIVE.dvm){DVM.t=t==='night'?22:12;dvmLight();zoneUpdate();drawEcho();dvmNote();readouts();return;}S.night=t==='night';if(S.night&&S.torch==='off')S.torch='white';rebuild();});
 $('torchSeg').addEventListener('click',e=>{const k=e.target.dataset.k;if(!k)return;S.torch=k;if(DIVE.on)DIVE.manualTorch=true;rebuild();});
 $('diveCta').addEventListener('click',()=>applyLocation('dive'));
 const WF_MIN=Math.log10(1/52),WF_MAX=Math.log10(60);
@@ -3211,7 +3237,7 @@ $('waterSeg').addEventListener('click',e=>{const w=e.target.dataset.w;if(!w)retu
 [['sTemp','temp'],['sCur','cur'],['sDir','dir'],['sH','H'],['sT','T'],['sSun','sun']].forEach(([id,k])=>$(id).addEventListener('input',e=>{S[k]=+e.target.value;custom();rebuild();}));
 $('cAdapt').addEventListener('change',e=>{S.adapt=e.target.checked;});
 $('cTour').addEventListener('change',e=>{S.tour=e.target.checked;});
-function setPanel(open){$('panelBody').hidden=!open;$('panel').classList.toggle('closed',!open);$('toggle').textContent=open?'收起':'展开';}
+function setPanel(open){$('panelBody').hidden=!open;$('panel').classList.toggle('closed',!open);$('toggle').textContent=open?$t('收起'):$t('展开');}
 $('toggle').addEventListener('click',()=>setPanel($('panelBody').hidden));
 let lastTouch=-1e9;controls.addEventListener('start',()=>{lastTouch=performance.now();});
 
@@ -3384,10 +3410,10 @@ function buildAbyss(on){
   stepAbyss(0,0);
 }
 const ABY_INFO={
-  nodule:['锰结核（多金属结核）','直径约 4–12 cm · 每百万年只长 1–10 cm','以鲨鱼牙齿、贝壳碎片等为核心，从海水和沉积物孔隙水里一层层析出锰、铁的氧化物，并富集镍、钴、铜。克拉里昂-克利珀顿区平均每平方米约有 15 kg。在一片软泥里，结核是难得的硬底，海绵、珊瑚、海葵等很多固着动物只能长在它们上面。','克拉里昂-克利珀顿区 · 约 4,100 m'],
-  minetrack:['1979 年采矿试验的车辙','宽约 8 m · 44 年后几乎没有变化','1979 年，一台约 100 吨重的集矿机在这一海区做了太平洋最早的工业深海采矿试验：清走一条约 8 m 宽的结核，压出两道深沟。2023 年科学家重访，车辙看起来和刚压出时差不多；巨型单细胞生物和小型活动动物已部分回来，但很多动物数量仍然偏少，固着在海底的大型动物几乎没有恢复（Jones 等，Nature，2025）。画面中的车辙按论文描述示意。','克拉里昂-克利珀顿区 · 约 4,100 m']
+  nodule:[$t('锰结核（多金属结核）'),$t('直径约 4–12 cm · 每百万年只长 1–10 cm'),$t('以鲨鱼牙齿、贝壳碎片等为核心，从海水和沉积物孔隙水里一层层析出锰、铁的氧化物，并富集镍、钴、铜。克拉里昂-克利珀顿区平均每平方米约有 15 kg。在一片软泥里，结核是难得的硬底，海绵、珊瑚、海葵等很多固着动物只能长在它们上面。'),$t('克拉里昂-克利珀顿区 · 约 4,100 m')],
+  minetrack:[$t('1979 年采矿试验的车辙'),$t('宽约 8 m · 44 年后几乎没有变化'),$t('1979 年，一台约 100 吨重的集矿机在这一海区做了太平洋最早的工业深海采矿试验：清走一条约 8 m 宽的结核，压出两道深沟。2023 年科学家重访，车辙看起来和刚压出时差不多；巨型单细胞生物和小型活动动物已部分回来，但很多动物数量仍然偏少，固着在海底的大型动物几乎没有恢复（Jones 等，Nature，2025）。画面中的车辙按论文描述示意。'),$t('克拉里昂-克利珀顿区 · 约 4,100 m')]
 };
-ABY_INFO.abysed=['深海软泥','沉积物积累得极慢 · 水温约 1.5 °C','深海平原铺着细软的软泥，主要是从上方几千米慢慢飘落的“海洋雪”和微小的浮游生物骨骼。海参等动物一边爬一边吞食它，身后留下取食痕迹；那些小黑点是穴居动物的洞口。','克拉里昂-克利珀顿区 · 约 4,100 m'];
+ABY_INFO.abysed=[$t('深海软泥'),$t('沉积物积累得极慢 · 水温约 1.5 °C'),$t('深海平原铺着细软的软泥，主要是从上方几千米慢慢飘落的“海洋雪”和微小的浮游生物骨骼。海参等动物一边爬一边吞食它，身后留下取食痕迹；那些小黑点是穴居动物的洞口。'),$t('克拉里昂-克利珀顿区 · 约 4,100 m')];
 Object.assign(CHIM_INFO,ABY_INFO);
 function stepAbyss(dt,t){
   if(!ABY.on)return;
@@ -3406,19 +3432,19 @@ function stepAbyss(dt,t){
 }
 [psychroMat,rattailMat].forEach(mt=>{const o=mt.onBeforeCompile;mt.onBeforeCompile=sh=>{o(sh);mt.userData.u=sh.uniforms.uCrawl||sh.uniforms.uSwim;};});
 /* field guide entries, facts, species list */
-CAT.push(['psychro','长尾蝶参','Psychropotes longicauda','深海平原 · 深渊层'],['seapig','海猪','Scotoplanes','深海平原 · 深渊层'],
-  ['tripod','三脚架鱼（深海狗母鱼）','Bathypterois','约 900–4,700 m'],['rattail','深海长尾鳕','Coryphaenoides armatus','约 2,000–4,700 m'],
-  ['ophiuroid','深海蛇尾','Ophiuroidea','深海平原'],['hyalonema','有柄玻璃海绵','Hyalonema 等','深海平原 · 长在结核上']);
+CAT.push(['psychro',$t('长尾蝶参'),'Psychropotes longicauda',$t('深海平原 · 深渊层')],['seapig',$t('海猪'),'Scotoplanes',$t('深海平原 · 深渊层')],
+  ['tripod',$t('三脚架鱼（深海狗母鱼）'),'Bathypterois',$t('约 900–4,700 m')],['rattail',$t('深海长尾鳕'),'Coryphaenoides armatus',$t('约 2,000–4,700 m')],
+  ['ophiuroid',$t('深海蛇尾'),'Ophiuroidea',$t('深海平原')],['hyalonema',$t('有柄玻璃海绵'),$t('Hyalonema 等'),$t('深海平原 · 长在结核上')]);
 CAT.slice(-6).forEach(c=>CATMAP[c[0]]=c);
 Object.assign(FACTS,{
-  psychro:'身体半透明，背后竖着一面高高的“尾帆”，外号“橡皮软糖松鼠”。它一边在海底爬一边吞食沉积物，身后留下长长的取食痕迹：海底那些弯弯曲曲的浅色带子就是这样来的。',
-  seapig:'用几对鼓胀的管足在海底“行走”，常常成群出现，面朝水流吃沉积物里的有机碎屑。',
-  tripod:'用两根腹鳍鳍条和一根尾鳍鳍条把身体撑离海底，面朝水流一动不动，等着漂来的小动物。它雌雄同体，找不到配偶时可以自体受精。',
-  rattail:'深海里最常见的鱼之一：大头、细长的“鼠尾”，常头朝下贴着海底慢慢游，靠嗅觉寻找落到海底的动物尸体。',
-  ophiuroid:'深海平原上数量最多的大型动物之一，靠五条细长的腕划动着移动。',
-  hyalonema:'用一束长长的玻璃质骨针固定在锰结核上。2016 年科学家在夏威夷外海 4,000 多米处发现一种幽灵般的白色章鱼，把卵产在死去海绵的柄上，而这些海绵只能长在结核这样的硬底上。'
+  psychro:$t('身体半透明，背后竖着一面高高的“尾帆”，外号“橡皮软糖松鼠”。它一边在海底爬一边吞食沉积物，身后留下长长的取食痕迹：海底那些弯弯曲曲的浅色带子就是这样来的。'),
+  seapig:$t('用几对鼓胀的管足在海底“行走”，常常成群出现，面朝水流吃沉积物里的有机碎屑。'),
+  tripod:$t('用两根腹鳍鳍条和一根尾鳍鳍条把身体撑离海底，面朝水流一动不动，等着漂来的小动物。它雌雄同体，找不到配偶时可以自体受精。'),
+  rattail:$t('深海里最常见的鱼之一：大头、细长的“鼠尾”，常头朝下贴着海底慢慢游，靠嗅觉寻找落到海底的动物尸体。'),
+  ophiuroid:$t('深海平原上数量最多的大型动物之一，靠五条细长的腕划动着移动。'),
+  hyalonema:$t('用一束长长的玻璃质骨针固定在锰结核上。2016 年科学家在夏威夷外海 4,000 多米处发现一种幽灵般的白色章鱼，把卵产在死去海绵的柄上，而这些海绵只能长在结核这样的硬底上。')
 });
-SPECIES.push(['psychro','长尾蝶参'],['seapig','海猪'],['tripod','三脚架鱼'],['rattail','深海长尾鳕'],['ophiuroid','深海蛇尾'],['hyalonema','有柄玻璃海绵']);
+SPECIES.push(['psychro',$t('长尾蝶参')],['seapig',$t('海猪')],['tripod',$t('三脚架鱼')],['rattail',$t('深海长尾鳕')],['ophiuroid',$t('深海蛇尾')],['hyalonema',$t('有柄玻璃海绵')]);
 /* =========================================================
    14zd. Xincun Lagoon, Lingshui, Hainan: seagrass meadow at the mangrove fringe (~1.6 m).
    - Xincun and neighbouring Li'an lagoons: China's first special protected area for seagrass beds (2007);
@@ -3577,24 +3603,24 @@ function stepMangrove(dt,t){
     m.position.set(u.x+sw*0.15,u.y,u.z);m.rotation.set(0.1*Math.sin(t*0.9+u.ph),u.yaw+0.2*Math.sin(t*0.3+u.ph),sw);});
 }
 const MANG_INFO={
-  enhalus_flower:['海菖蒲的雄花','直径约几毫米 · 漂在水面上','海菖蒲是开花植物。雄花成熟后脱离植株浮上水面，像一粒粒白色小泡沫随水漂动；雌花长在长柄上伸到水面，两者在水面相遇完成授粉。','新村潟湖'],
-  mang_mud:['潟湖软泥','细颗粒淤泥 · 富含有机质','红树林和海草的叶片落下、腐烂，连同潮水带来的细泥一起沉积下来，把大量碳埋进泥里，几百上千年都不会释放。那些小洞是蟹和蠕虫的洞穴，白色碎屑是贝壳。','新村潟湖']
+  enhalus_flower:[$t('海菖蒲的雄花'),$t('直径约几毫米 · 漂在水面上'),$t('海菖蒲是开花植物。雄花成熟后脱离植株浮上水面，像一粒粒白色小泡沫随水漂动；雌花长在长柄上伸到水面，两者在水面相遇完成授粉。'),$t('新村潟湖')],
+  mang_mud:[$t('潟湖软泥'),$t('细颗粒淤泥 · 富含有机质'),$t('红树林和海草的叶片落下、腐烂，连同潮水带来的细泥一起沉积下来，把大量碳埋进泥里，几百上千年都不会释放。那些小洞是蟹和蠕虫的洞穴，白色碎屑是贝壳。'),$t('新村潟湖')]
 };
 Object.assign(CHIM_INFO,MANG_INFO);
-CAT.push(['enhalus','海菖蒲','Enhalus acoroides','潮间带至约 4 m'],['thalassia','泰来草','Thalassia hemprichii','潮间带至浅海'],
-  ['rhizophora','红海榄','Rhizophora stylosa','红树林 · 潮间带'],['avicennia','白骨壤','Avicennia marina','红树林 · 潮间带'],
-  ['oyster','牡蛎','Ostreidae','潮间带 · 红树林根上'],['seahorse','大海马','Hippocampus kuda','海草床 · 浅海'],['cassiopea','仙后水母（倒立水母）','Cassiopea','红树林与海草床浅水']);
+CAT.push(['enhalus',$t('海菖蒲'),'Enhalus acoroides',$t('潮间带至约 4 m')],['thalassia',$t('泰来草'),'Thalassia hemprichii',$t('潮间带至浅海')],
+  ['rhizophora',$t('红海榄'),'Rhizophora stylosa',$t('红树林 · 潮间带')],['avicennia',$t('白骨壤'),'Avicennia marina',$t('红树林 · 潮间带')],
+  ['oyster',$t('牡蛎'),'Ostreidae',$t('潮间带 · 红树林根上')],['seahorse',$t('大海马'),'Hippocampus kuda',$t('海草床 · 浅海')],['cassiopea',$t('仙后水母（倒立水母）'),'Cassiopea',$t('红树林与海草床浅水')]);
 CAT.slice(-7).forEach(c=>CATMAP[c[0]]=c);
 Object.assign(FACTS,{
-  enhalus:'世界上最大的海草之一，带状叶片长 30–150 cm，靠粗壮的地下茎扎在软泥里抵御风浪和潮流。',
-  thalassia:'叶片较短而弯，常和海菖蒲混生。海草不是海藻，而是从陆地回到海里的开花植物，有根、茎、叶，靠地下茎在泥里蔓延。',
-  rhizophora:'一根根弯曲的支柱根把树干撑在潮间带的软泥上，也挡住了风浪。根间是小鱼小虾躲避捕食者的“育儿所”。',
-  avicennia:'从泥里竖起一根根铅笔似的呼吸根，在缺氧的淤泥里给根系通气。',
-  oyster:'附着在被潮水淹没的根和石头上，靠过滤海水里的浮游生物为生，同时帮助净化水质。',
-  seahorse:'用尾巴缠住海草，靠伪装和吸管一样的嘴吸食小型甲壳动物。海马由雄性的育儿袋孵育后代。',
-  cassiopea:'倒着躺在泥上、口腕朝上，因为体内共生的藻类要晒太阳进行光合作用；被惊扰时会放出带刺细胞的黏液。'
+  enhalus:$t('世界上最大的海草之一，带状叶片长 30–150 cm，靠粗壮的地下茎扎在软泥里抵御风浪和潮流。'),
+  thalassia:$t('叶片较短而弯，常和海菖蒲混生。海草不是海藻，而是从陆地回到海里的开花植物，有根、茎、叶，靠地下茎在泥里蔓延。'),
+  rhizophora:$t('一根根弯曲的支柱根把树干撑在潮间带的软泥上，也挡住了风浪。根间是小鱼小虾躲避捕食者的“育儿所”。'),
+  avicennia:$t('从泥里竖起一根根铅笔似的呼吸根，在缺氧的淤泥里给根系通气。'),
+  oyster:$t('附着在被潮水淹没的根和石头上，靠过滤海水里的浮游生物为生，同时帮助净化水质。'),
+  seahorse:$t('用尾巴缠住海草，靠伪装和吸管一样的嘴吸食小型甲壳动物。海马由雄性的育儿袋孵育后代。'),
+  cassiopea:$t('倒着躺在泥上、口腕朝上，因为体内共生的藻类要晒太阳进行光合作用；被惊扰时会放出带刺细胞的黏液。')
 });
-SPECIES.push(['enhalus','海菖蒲'],['thalassia','泰来草'],['rhizophora','红海榄'],['avicennia','白骨壤'],['oyster','牡蛎'],['seahorse','大海马'],['cassiopea','倒立水母']);
+SPECIES.push(['enhalus',$t('海菖蒲')],['thalassia',$t('泰来草')],['rhizophora',$t('红海榄')],['avicennia',$t('白骨壤')],['oyster',$t('牡蛎')],['seahorse',$t('大海马')],['cassiopea',$t('倒立水母')]);
 /* =========================================================
    14s. Arctic floe edge: Eclipse Sound near Pond Inlet, Nunavut (~72.8° N), late May – June.
    Land-fast ice about 1.8 m thick ends at a ragged edge; beyond it lies open water hundreds of metres deep.
@@ -3820,21 +3846,21 @@ function stepArctic(dt,t){
   stepPods(dt,t);
 }
 const ARC_INFO={
-  arc_ice:['北极海冰的底面','约 1.8 m 厚的岸冰 · 冰底 −1.8 °C','冬天冻结、贴着海岸不动的“固定冰”。春天积雪变薄、日照变长，冰底的冰藻大量繁殖，把冰染成褐色。冰下的光只有水面的百分之几，冰藻能在只有水面约 0.02% 的光下进行光合作用。雪薄的地方更亮。','埃克利普斯海峡 · 庞德因莱特'],
-  arc_edge:['浮冰边缘（冰缘）','固定冰与开阔水面的交界','这一侧是连着陆地、整片不动的固定冰，另一侧是开阔水面。冰缘随季节向陆地后退。春天，冰藻、浮游植物、北极鳕和鲸都聚集在这条线上，因纽特人世代在这里狩猎。冰块底下发褐的一层就是冰藻。','埃克利普斯海峡 · 庞德因莱特']
+  arc_ice:[$t('北极海冰的底面'),$t('约 1.8 m 厚的岸冰 · 冰底 −1.8 °C'),$t('冬天冻结、贴着海岸不动的“固定冰”。春天积雪变薄、日照变长，冰底的冰藻大量繁殖，把冰染成褐色。冰下的光只有水面的百分之几，冰藻能在只有水面约 0.02% 的光下进行光合作用。雪薄的地方更亮。'),$t('埃克利普斯海峡 · 庞德因莱特')],
+  arc_edge:[$t('浮冰边缘（冰缘）'),$t('固定冰与开阔水面的交界'),$t('这一侧是连着陆地、整片不动的固定冰，另一侧是开阔水面。冰缘随季节向陆地后退。春天，冰藻、浮游植物、北极鳕和鲸都聚集在这条线上，因纽特人世代在这里狩猎。冰块底下发褐的一层就是冰藻。'),$t('埃克利普斯海峡 · 庞德因莱特')]
 };
 Object.assign(CHIM_INFO,ARC_INFO);
-CAT.push(['narwhal','一角鲸','Monodon monoceros','北极 · 浮冰边缘和峡湾'],['beluga','白鲸','Delphinapterus leucas','北极与亚北极'],
-  ['polarcod','北极鳕','Boreogadus saida','北冰洋 · 冰下'],['apherusa','冰下端足类','Apherusa glacialis','北冰洋 · 海冰底面'],['melosira','北极直链藻','Melosira arctica','北冰洋 · 海冰底面']);
+CAT.push(['narwhal',$t('一角鲸'),'Monodon monoceros',$t('北极 · 浮冰边缘和峡湾')],['beluga',$t('白鲸'),'Delphinapterus leucas',$t('北极与亚北极')],
+  ['polarcod',$t('北极鳕'),'Boreogadus saida',$t('北冰洋 · 冰下')],['apherusa',$t('冰下端足类'),'Apherusa glacialis',$t('北冰洋 · 海冰底面')],['melosira',$t('北极直链藻'),'Melosira arctica',$t('北冰洋 · 海冰底面')]);
 CAT.slice(-5).forEach(c=>CATMAP[c[0]]=c);
 Object.assign(FACTS,{
-  narwhal:'雄性的长牙是左上颌的一颗牙齿，螺旋生长，可达 2 m 以上，表面有多达一千万个神经末梢。成年雄性体长约 4.5 m。它们能潜到 1,500 m 以下，一次超过 25 分钟。全球约四分之三的一角鲸在加拿大海域。',
-  beluga:'成年白鲸全身雪白，体长可达约 4.9 m；幼崽是深灰色的，随年龄慢慢变白。颈椎没有愈合，能点头、左右转头，便于在浮冰间穿行；额头圆圆的“额隆”柔软，帮助聚焦和调整发出的声音。叫声丰富，被称为“海中金丝雀”。',
-  polarcod:'北极食物网的枢纽：吃冰下的端足类和桡足类，又是一角鲸、白鲸、海豹和海鸟的主要食物。幼鱼躲在海冰的缝隙里，身体里 50–90% 的碳最终来自冰藻。',
-  apherusa:'一辈子贴着海冰底面生活，啃食冰藻。北极鳕的幼鱼主要吃它们，冰藻的能量就这样一级级传上去。海冰减少，它们的家也在缩小。',
-  melosira:'一种硅藻，细胞连成长链，在冰底挂成一缕缕金褐色的“帘子”，可长到 1 m 以上。冰融化时成团快速沉到几千米深的海底，给那里的生物送去食物。2012 年海冰最少的夏天，它贡献了北冰洋中部约 45% 的初级生产。'
+  narwhal:$t('雄性的长牙是左上颌的一颗牙齿，螺旋生长，可达 2 m 以上，表面有多达一千万个神经末梢。成年雄性体长约 4.5 m。它们能潜到 1,500 m 以下，一次超过 25 分钟。全球约四分之三的一角鲸在加拿大海域。'),
+  beluga:$t('成年白鲸全身雪白，体长可达约 4.9 m；幼崽是深灰色的，随年龄慢慢变白。颈椎没有愈合，能点头、左右转头，便于在浮冰间穿行；额头圆圆的“额隆”柔软，帮助聚焦和调整发出的声音。叫声丰富，被称为“海中金丝雀”。'),
+  polarcod:$t('北极食物网的枢纽：吃冰下的端足类和桡足类，又是一角鲸、白鲸、海豹和海鸟的主要食物。幼鱼躲在海冰的缝隙里，身体里 50–90% 的碳最终来自冰藻。'),
+  apherusa:$t('一辈子贴着海冰底面生活，啃食冰藻。北极鳕的幼鱼主要吃它们，冰藻的能量就这样一级级传上去。海冰减少，它们的家也在缩小。'),
+  melosira:$t('一种硅藻，细胞连成长链，在冰底挂成一缕缕金褐色的“帘子”，可长到 1 m 以上。冰融化时成团快速沉到几千米深的海底，给那里的生物送去食物。2012 年海冰最少的夏天，它贡献了北冰洋中部约 45% 的初级生产。')
 });
-SPECIES.push(['narwhal','一角鲸'],['beluga','白鲸'],['polarcod','北极鳕'],['apherusa','冰下端足类'],['melosira','北极直链藻']);
+SPECIES.push(['narwhal',$t('一角鲸')],['beluga',$t('白鲸')],['polarcod',$t('北极鳕')],['apherusa',$t('冰下端足类')],['melosira',$t('北极直链藻')]);
 /* =========================================================
    14t. Davidson Seamount, off central California: the "Octopus Garden" (~3,200 m).
    - Davidson Seamount: an extinct submarine volcano ~129 km SW of Monterey, 42 km long, 13 km wide, rising 2,280 m
@@ -3943,20 +3969,20 @@ function stepSeamount(dt,t){
   wbPass.uniforms.uShN.value=n;wbPass.uniforms.uShT.value=t;
 }
 const SMT_INFO={
-  smt_rock:['戴维森海山的枕状熔岩','已熄灭的海底火山 · 约 900 万–1,500 万年前形成','海底火山喷出的熔岩一遇冷水，外壳立刻凝固，里面的岩浆再把它撑破、挤出，堆成一个个“枕头”。戴维森海山长 42 km、宽 13 km，从海底拔起约 2,280 m，山顶仍在水下 1,250 m。山上记录到 237 种生物、27 类深海珊瑚，2009 年起归入蒙特雷湾国家海洋保护区。','戴维森海山 · 约 3,200 m'],
-  smt_seep:['温泉','裂缝里的水最高约 10.8 °C · 周围只有 1.6 °C','海山脚下的岩石裂缝里渗出被地热加温的海水。水几乎看不出颜色，唯一的迹象是水面上方像海市蜃楼一样的“抖动”——那是温水和冷水密度不同，让光线发生折射。','戴维森海山 · 章鱼花园']
+  smt_rock:[$t('戴维森海山的枕状熔岩'),$t('已熄灭的海底火山 · 约 900 万–1,500 万年前形成'),$t('海底火山喷出的熔岩一遇冷水，外壳立刻凝固，里面的岩浆再把它撑破、挤出，堆成一个个“枕头”。戴维森海山长 42 km、宽 13 km，从海底拔起约 2,280 m，山顶仍在水下 1,250 m。山上记录到 237 种生物、27 类深海珊瑚，2009 年起归入蒙特雷湾国家海洋保护区。'),$t('戴维森海山 · 约 3,200 m')],
+  smt_seep:[$t('温泉'),$t('裂缝里的水最高约 10.8 °C · 周围只有 1.6 °C'),$t('海山脚下的岩石裂缝里渗出被地热加温的海水。水几乎看不出颜色，唯一的迹象是水面上方像海市蜃楼一样的“抖动”——那是温水和冷水密度不同，让光线发生折射。'),$t('戴维森海山 · 章鱼花园')]
 };
 Object.assign(CHIM_INFO,SMT_INFO);
-CAT.push(['pearlocto','珍珠章鱼（孵卵中）','Muusoctopus robustus','约 3,200 m · 戴维森海山'],['smanem','深海海葵','Actiniaria','章鱼花园'],
-  ['smsnail','捕食性螺','Buccinoidea 等','章鱼花园'],['smshrimp','深海小虾','Caridea','章鱼花园']);
+CAT.push(['pearlocto',$t('珍珠章鱼（孵卵中）'),'Muusoctopus robustus',$t('约 3,200 m · 戴维森海山')],['smanem',$t('深海海葵'),'Actiniaria',$t('章鱼花园')],
+  ['smsnail',$t('捕食性螺'),$t('Buccinoidea 等'),$t('章鱼花园')],['smshrimp',$t('深海小虾'),'Caridea',$t('章鱼花园')]);
 CAT.slice(-4).forEach(c=>CATMAP[c[0]]=c);
 Object.assign(FACTS,{
-  pearlocto:'雌章鱼把卵产在温泉渗出的岩缝上，然后倒伏在卵上一动不动地守护，不吃东西，直到卵孵化后死去。2018 年发现这里时，一小块 2.5 公顷的范围内就数出 5,718 只，其中 4,707 只在孵卵，整片可能超过两万只。温水让卵约 1.8 年就孵化，在冰冷的深海里要长得多。',
-  smanem:'夹在孵卵的章鱼妈妈之间，吃刚孵出的小章鱼和死去的母亲，把能量留在这片“花园”里。',
-  smsnail:'在章鱼窝之间爬行，吃被遗弃的卵、捕捉刚孵出的小章鱼。',
-  smshrimp:'小虾在章鱼窝周围游走，捡食没有母亲守护的卵。'
+  pearlocto:$t('雌章鱼把卵产在温泉渗出的岩缝上，然后倒伏在卵上一动不动地守护，不吃东西，直到卵孵化后死去。2018 年发现这里时，一小块 2.5 公顷的范围内就数出 5,718 只，其中 4,707 只在孵卵，整片可能超过两万只。温水让卵约 1.8 年就孵化，在冰冷的深海里要长得多。'),
+  smanem:$t('夹在孵卵的章鱼妈妈之间，吃刚孵出的小章鱼和死去的母亲，把能量留在这片“花园”里。'),
+  smsnail:$t('在章鱼窝之间爬行，吃被遗弃的卵、捕捉刚孵出的小章鱼。'),
+  smshrimp:$t('小虾在章鱼窝周围游走，捡食没有母亲守护的卵。')
 });
-SPECIES.push(['pearlocto','珍珠章鱼'],['smanem','深海海葵'],['smsnail','捕食性螺'],['smshrimp','深海小虾']);
+SPECIES.push(['pearlocto',$t('珍珠章鱼')],['smanem',$t('深海海葵')],['smsnail',$t('捕食性螺')],['smshrimp',$t('深海小虾')]);
 /* =========================================================
    14u. Rocky intertidal shore, Nanji Islands, Pingyang, Wenzhou, Zhejiang (27°27′N 121°02′E).
    - Nanji Archipelago National Marine Nature Reserve: one of China's first five marine reserves (1990),
@@ -4089,30 +4115,30 @@ let tideUIt=0;
 function tideUI(){
   const now=performance.now();if(now-tideUIt<150)return;tideUIt=now;
   const h=TIDE.h,hr=TIDE.hr,rising=hr<6.21;
-  $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+(Math.abs(h)>1.85?(h>0?'高潮':'低潮'):rising?'涨潮':'落潮');
+  $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+(Math.abs(h)>1.85?(h>0?$t('高潮'):$t('低潮')):rising?$t('涨潮'):$t('落潮'));
   if(document.activeElement!==$('sTide'))$('sTide').value=Math.round(hr/12.42*1000);
-  const sub=[['滨螺带',1.9],['藤壶带',1.0],['龟足',0.6],['贻贝床',-0.1],['鼠尾藻',0.0],['珊瑚藻与马尾藻',-1.3]].filter(z=>z[1]<h).map(z=>z[0]);
-  $('tideNote').textContent='距上一次低潮 '+hr.toFixed(1)+' 小时。现在淹在水下：'+(sub.length?sub.join('、'):'只有潮下带的海藻和海胆')+'。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。';
+  const sub=[[$t('滨螺带'),1.9],[$t('藤壶带'),1.0],[$t('龟足'),0.6],[$t('贻贝床'),-0.1],[$t('鼠尾藻'),0.0],[$t('珊瑚藻与马尾藻'),-1.3]].filter(z=>z[1]<h).map(z=>z[0]);
+  $('tideNote').textContent=$t('距上一次低潮 ')+hr.toFixed(1)+$t(' 小时。现在淹在水下：')+(sub.length?sub.join($t('、')):$t('只有潮下带的海藻和海胆'))+$t('。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。');
 }
-$('sTide').addEventListener('input',e=>{setTideHr(+e.target.value/1000*12.42);TIDE.play=false;$('tidePlay').textContent='▶ 播放潮汐';});
-$('tidePlay').addEventListener('click',()=>{TIDE.play=!TIDE.play;$('tidePlay').textContent=TIDE.play?'❚❚ 暂停潮汐':'▶ 播放潮汐';});
+$('sTide').addEventListener('input',e=>{setTideHr(+e.target.value/1000*12.42);TIDE.play=false;$('tidePlay').textContent=$t('▶ 播放潮汐');});
+$('tidePlay').addEventListener('click',()=>{TIDE.play=!TIDE.play;$('tidePlay').textContent=TIDE.play?$t('❚❚ 暂停潮汐'):$t('▶ 播放潮汐');});
 const TIDE_INFO={
-  tide_rock:['南麂列岛的岩礁海岸','“贝藻王国” · 浙江温州平阳','潮水每天涨落两次，岩石上同一个高度被淹没的时间是固定的，于是生物按高度排成一条条带子：最高处是黑色的蓝藻带和滨螺，往下是白花花的藤壶带，再往下是黑紫色的贻贝床，最低处是粉红的珊瑚藻和成片的马尾藻。南麂列岛已记录 422 种藻类、725 种贝类等软体动物，1998 年成为我国第一个加入联合国“人与生物圈”的海洋保护区。','南麂列岛国家级海洋自然保护区']
+  tide_rock:[$t('南麂列岛的岩礁海岸'),$t('“贝藻王国” · 浙江温州平阳'),$t('潮水每天涨落两次，岩石上同一个高度被淹没的时间是固定的，于是生物按高度排成一条条带子：最高处是黑色的蓝藻带和滨螺，往下是白花花的藤壶带，再往下是黑紫色的贻贝床，最低处是粉红的珊瑚藻和成片的马尾藻。南麂列岛已记录 422 种藻类、725 种贝类等软体动物，1998 年成为我国第一个加入联合国“人与生物圈”的海洋保护区。'),$t('南麂列岛国家级海洋自然保护区')]
 };
 Object.assign(CHIM_INFO,TIDE_INFO);
-CAT.push(['tetraclita','鳞笠藤壶','Tetraclita','潮间带中高潮区'],['capitulum','龟足','Capitulum mitella','潮间带岩缝'],['mytilus','厚壳贻贝','Mytilus coruscus','潮间带中低潮区'],
-  ['littorina','短滨螺','Littorina brevicula','潮间带高潮区'],['sargassum','鼠尾藻与马尾藻','Sargassum','潮间带至潮下带'],['tanem','绿海葵','Actiniaria','潮间带低潮区'],['heliocidaris','紫海胆','Heliocidaris crassispina','低潮线以下岩礁']);
+CAT.push(['tetraclita',$t('鳞笠藤壶'),'Tetraclita',$t('潮间带中高潮区')],['capitulum',$t('龟足'),'Capitulum mitella',$t('潮间带岩缝')],['mytilus',$t('厚壳贻贝'),'Mytilus coruscus',$t('潮间带中低潮区')],
+  ['littorina',$t('短滨螺'),'Littorina brevicula',$t('潮间带高潮区')],['sargassum',$t('鼠尾藻与马尾藻'),'Sargassum',$t('潮间带至潮下带')],['tanem',$t('绿海葵'),'Actiniaria',$t('潮间带低潮区')],['heliocidaris',$t('紫海胆'),'Heliocidaris crassispina',$t('低潮线以下岩礁')]);
 CAT.slice(-7).forEach(c=>CATMAP[c[0]]=c);
 Object.assign(FACTS,{
-  tetraclita:'藤壶是甲壳动物，幼体漂流一阵后头朝下粘在岩石上，一辈子不再移动。涨潮时打开壳板、伸出羽毛似的蔓足扫食浮游生物；退潮时关紧壳板，把一点海水锁在里面熬过几个小时的日晒。',
-  capitulum:'也是一种藤壶，有一根肉质的柄，顶端一簇尖尖的壳板像乌龟的脚，因此叫“龟足”。成群挤在浪大的岩缝里。',
-  mytilus:'用足丝把自己牢牢粘在岩石上，层层叠叠铺成贻贝床，经得住大浪。它们滤食浮游生物，床缝里又住着许多小动物。',
-  littorina:'住在潮间带最高处，退潮时能在空气里待很久，靠刮食岩石上的微藻和蓝藻为生。',
-  sargassum:'鼠尾藻矮小粗壮，长在潮间带较高处；更低处的马尾藻能长得很高，靠小小的气囊让藻体在水里立起来。南麂列岛的潮下带上部几乎全被马尾藻覆盖。',
-  tanem:'退潮时缩成一团、身上粘着碎壳和沙粒防晒，涨潮后才张开触手。',
-  heliocidaris:'躲在低潮线以下的岩缝里啃食海藻，是我国东南沿海常见的食用海胆。'
+  tetraclita:$t('藤壶是甲壳动物，幼体漂流一阵后头朝下粘在岩石上，一辈子不再移动。涨潮时打开壳板、伸出羽毛似的蔓足扫食浮游生物；退潮时关紧壳板，把一点海水锁在里面熬过几个小时的日晒。'),
+  capitulum:$t('也是一种藤壶，有一根肉质的柄，顶端一簇尖尖的壳板像乌龟的脚，因此叫“龟足”。成群挤在浪大的岩缝里。'),
+  mytilus:$t('用足丝把自己牢牢粘在岩石上，层层叠叠铺成贻贝床，经得住大浪。它们滤食浮游生物，床缝里又住着许多小动物。'),
+  littorina:$t('住在潮间带最高处，退潮时能在空气里待很久，靠刮食岩石上的微藻和蓝藻为生。'),
+  sargassum:$t('鼠尾藻矮小粗壮，长在潮间带较高处；更低处的马尾藻能长得很高，靠小小的气囊让藻体在水里立起来。南麂列岛的潮下带上部几乎全被马尾藻覆盖。'),
+  tanem:$t('退潮时缩成一团、身上粘着碎壳和沙粒防晒，涨潮后才张开触手。'),
+  heliocidaris:$t('躲在低潮线以下的岩缝里啃食海藻，是我国东南沿海常见的食用海胆。')
 });
-SPECIES.push(['tetraclita','鳞笠藤壶'],['capitulum','龟足'],['mytilus','厚壳贻贝'],['littorina','短滨螺'],['sargassum','马尾藻'],['tanem','绿海葵'],['heliocidaris','紫海胆']);
+SPECIES.push(['tetraclita',$t('鳞笠藤壶')],['capitulum',$t('龟足')],['mytilus',$t('厚壳贻贝')],['littorina',$t('短滨螺')],['sargassum',$t('马尾藻')],['tanem',$t('绿海葵')],['heliocidaris',$t('紫海胆')]);
 /* =========================================================
    Performance mode switch (state PERF is set up in 02-renderer). The light mode lowers the pixel ratio to 1,
    turns bloom off and plants/places about 45 % of the densest instanced life (seagrass, barnacles, mussels,
@@ -4131,7 +4157,7 @@ function stepPerf(rdt){
   if(PERF.done||PERF.user||document.hidden)return;
   PERF.t0+=rdt;if(PERF.t0<3)return;PERF.samp.push(rdt);
   if(PERF.t0>10){PERF.done=true;const s=PERF.samp.sort((a,b)=>a-b),med=s[s.length>>1];
-    if(med>0.045&&!PERF.low){applyPerf(true,false);showCaption('已切换到流畅模式','画面较卡，已自动降低分辨率和重复生物的数量。可以在控制台“时间与照明”下面改回高画质。',8);}}
+    if(med>0.045&&!PERF.low){applyPerf(true,false);showCaption($t('已切换到流畅模式'),$t('画面较卡，已自动降低分辨率和重复生物的数量。可以在控制台“时间与照明”下面改回高画质。'),8);}}
 }
 applyPerf(PERF.low,false,true);PERF.ready=true;   /* resize() runs later in the main loop setup */
 /* =========================================================
@@ -4149,7 +4175,7 @@ function enterPilot(){
   PILOT.pos.copy(camera.position);PILOT.v.set(0,0,0);PILOT.home.set(controls.target.x,0,controls.target.z);
   $('pilotBar').hidden=false;$('pilotBtn').hidden=true;$('diveCta').hidden=true;$('cardBtn').style.bottom=window.innerWidth<760?'200px':'140px';$('joyWrap').hidden=!matchMedia('(pointer: coarse)').matches;
   if(window.innerWidth<760)setPanel(false);
-  showCaption('自由驾驶','推进器加速度约 0.9 m/s²，最高速度约 1 m/s；海流和波浪会推着你漂。缆绳长 60 m。',6);
+  showCaption($t('自由驾驶'),$t('推进器加速度约 0.9 m/s²，最高速度约 1 m/s；海流和波浪会推着你漂。缆绳长 60 m。'),6);
 }
 function exitPilot(){
   if(!PILOT.on)return;PILOT.on=false;controls.enabled=true;
@@ -4179,9 +4205,9 @@ function stepPilot(rdt,t){
   if(brineOn&&brineQ(p.x,p.z)<1.02&&p.y<BR.base+BR.L+0.3){p.y=BR.base+BR.L+0.3;if(PILOT.v.y<0)PILOT.v.y=0;}
   camera.position.copy(p);_pa.copy(p).add(pilotDir(_pd));camera.lookAt(_pa);controls.target.copy(p).addScaledVector(_pd,4);
   PILOT.hudT+=rdt;if(PILOT.hudT>0.2){PILOT.hudT=0;
-    let hd=((-PILOT.yaw*180/Math.PI)%360+360)%360;const nm=['北','东北','东','东南','南','西南','西','西北'][Math.round(hd/45)%8];
+    let hd=((-PILOT.yaw*180/Math.PI)%360+360)%360;const nm=[$t('北'),$t('东北'),$t('东'),$t('东南'),$t('南'),$t('西南'),$t('西'),$t('西北')][Math.round(hd/45)%8];
     PILOT.warn=Math.max(0,PILOT.warn-0.2);
-    $('pilotInfo').textContent='速度 '+PILOT.v.length().toFixed(2)+' m/s · 航向 '+Math.round(hd)+'° '+nm+' · 离底 '+(p.y-floorY(p.x,p.z)).toFixed(1)+' m · 缆绳 '+Math.round(Math.min(dh,PILOT.tether))+' / '+PILOT.tether+' m'+(PILOT.warn>0?' · 缆绳已放到头':'')+(_pw.length()>0.05?' · 水流 '+_pw.length().toFixed(2)+' m/s':'');}
+    $('pilotInfo').textContent=$t('速度 ')+PILOT.v.length().toFixed(2)+$t(' m/s · 航向 ')+Math.round(hd)+'° '+nm+$t(' · 离底 ')+(p.y-floorY(p.x,p.z)).toFixed(1)+$t(' m · 缆绳 ')+Math.round(Math.min(dh,PILOT.tether))+' / '+PILOT.tether+' m'+(PILOT.warn>0?$t(' · 缆绳已放到头'):'')+(_pw.length()>0.05?$t(' · 水流 ')+_pw.length().toFixed(2)+' m/s':'');}
 }
 window.addEventListener('keydown',e=>{if(!PILOT.on)return;const tg=e.target;if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))return;const k=e.key.toLowerCase();
   if(k==='escape'){exitPilot();return;}if(['w','a','s','d','q','e','c',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){KEYS[k]=true;e.preventDefault();}});
@@ -4210,32 +4236,32 @@ try{const o=JSON.parse(localStorage.getItem('seafloor-missions')||'{}');if(o.v)o
 function saveMS(){try{localStorage.setItem('seafloor-missions',JSON.stringify({v:[...MS.visited],m:MS.maxD,d:Math.round(MS.dist),f:MS.flags,done:[...MS.done]}));}catch(e){}}
 const cnt=keys=>keys.filter(k=>FOUND.has(k)).length;
 const MISSIONS=[
-  {id:'reef',t:'珊瑚礁新手',d:'在热带珊瑚礁认识 5 种生物。',go:'xisha',n:5,p:()=>cnt(['coral','anem','clown','clam','chromis','anthias','butterfly','snapper','parrot','urchinD','starT','turtle','manta','fanS']),
-    w:'珊瑚礁只占海底面积的不到 1%，却养活了约四分之一的海洋物种。'},
-  {id:'glow',t:'会发光的深海',d:'找到 3 种会发光的生物（深海、夜里或冰下都有）。',go:'slope',n:3,p:()=>cnt(['lantern','hatchet','atolla','angler','vampire','gulper','siph','krill','fanD']),
-    w:'在深海的水层里，约四分之三的动物会发光，大多发出海水最透明的蓝光。'},
-  {id:'chemo',t:'不靠阳光的生命',d:'找到 3 种靠化学能（甲烷或硫化物）生活的生物。',go:'vent',n:3,p:()=>cnt(['seep','rimicaris','scalyfoot','kiwa','giga','ventmussel','childressi']),
-    w:'1977 年在加拉帕戈斯热液区的发现，让人们第一次知道整个生态系统可以不依赖阳光。'},
-  {id:'giants',t:'遇见巨兽',d:'在下潜途中遇见鲸鲨、抹香鲸和大王乌贼。',go:'dive',n:3,p:()=>cnt(['whaleshark','sperm','squid']),
-    w:'抹香鲸能下潜到两千米以下捕食大王乌贼，两者的搏斗至今没有人亲眼见过。'},
-  {id:'bottom',t:'到达最深处',d:'下潜到挑战者深渊，10,900 m 以下。',go:'dive',n:1,p:()=>MS.maxD>=10900?1:0,
-    w:'到过挑战者深渊的人，比登上月球的人还少。'},
-  {id:'whale',t:'鲸落的三幕',d:'在鲸落找齐盲鳗、睡鲨和食骨蠕虫（拖动时间滑块）。',go:'whalefall',n:3,p:()=>cnt(['hagfish','sleeper','osedax']),
-    w:'一头鲸的遗体能在深海养活一个群落几十年。'},
-  {id:'dvm',t:'夜里的迁移',d:'在昼夜垂直迁移场景里，夜里在 100 m 以浅遇见灯笼鱼。',go:'dvm',n:1,p:()=>MS.flags.dvm?1:0,
-    w:'中层鱼类的总重量可能超过一百亿吨，它们每晚上下迁移，把表层的碳带进深海。'},
-  {id:'extreme',t:'极端之地',d:'到过热液喷口、海底盐池、蓝洞的无氧层和南极海冰之下。',go:'brine',n:4,p:()=>['vent','brine','anoxic','ice'].filter(k=>MS.visited.has(k)).length,
-    w:'这些地方的高温、高盐、无氧或冰冷，让科学家思考：地外海洋里会不会也有生命。'},
-  {id:'ice',t:'冰下的生命',d:'在南极海冰下遇见冰鱼和威德尔海豹。',go:'ice',n:2,p:()=>cnt(['icefish','seal']),
-    w:'冰鱼的血里没有血红蛋白，是唯一这样的脊椎动物。'},
-  {id:'arctic',t:'冰缘的独角兽',d:'在北极浮冰边缘遇见一角鲸和白鲸。',go:'arctic',n:2,p:()=>cnt(['narwhal','beluga']),
-    w:'一角鲸的长牙其实是一颗牙齿，表面有多达一千万个神经末梢。'},
-  {id:'spawn',t:'一年一度的夜',d:'看到鹿角珊瑚集体产卵。',go:'spawn',n:1,p:()=>cnt(['acropora']),
-    w:'珊瑚集体产卵直到 1981 年才被科学家第一次完整记录。'},
-  {id:'pilot',t:'自由驾驶员',d:'用自由驾驶累计游出 50 m。',go:null,n:50,p:()=>Math.min(50,Math.floor(MS.dist)),
-    w:'系缆式水下机器人（ROV）是今天深海科考的主力工具之一。'},
-  {id:'all',t:'图鉴达人',d:'图鉴收集 50 种生物。',go:null,n:50,p:()=>Math.min(50,FOUND.size),
-    w:'科学家估计海洋里约九成的物种还没有被描述过。'}
+  {id:'reef',t:$t('珊瑚礁新手'),d:$t('在热带珊瑚礁认识 5 种生物。'),go:'xisha',n:5,p:()=>cnt(['coral','anem','clown','clam','chromis','anthias','butterfly','snapper','parrot','urchinD','starT','turtle','manta','fanS']),
+    w:$t('珊瑚礁只占海底面积的不到 1%，却养活了约四分之一的海洋物种。')},
+  {id:'glow',t:$t('会发光的深海'),d:$t('找到 3 种会发光的生物（深海、夜里或冰下都有）。'),go:'slope',n:3,p:()=>cnt(['lantern','hatchet','atolla','angler','vampire','gulper','siph','krill','fanD']),
+    w:$t('在深海的水层里，约四分之三的动物会发光，大多发出海水最透明的蓝光。')},
+  {id:'chemo',t:$t('不靠阳光的生命'),d:$t('找到 3 种靠化学能（甲烷或硫化物）生活的生物。'),go:'vent',n:3,p:()=>cnt(['seep','rimicaris','scalyfoot','kiwa','giga','ventmussel','childressi']),
+    w:$t('1977 年在加拉帕戈斯热液区的发现，让人们第一次知道整个生态系统可以不依赖阳光。')},
+  {id:'giants',t:$t('遇见巨兽'),d:$t('在下潜途中遇见鲸鲨、抹香鲸和大王乌贼。'),go:'dive',n:3,p:()=>cnt(['whaleshark','sperm','squid']),
+    w:$t('抹香鲸能下潜到两千米以下捕食大王乌贼，两者的搏斗至今没有人亲眼见过。')},
+  {id:'bottom',t:$t('到达最深处'),d:$t('下潜到挑战者深渊，10,900 m 以下。'),go:'dive',n:1,p:()=>MS.maxD>=10900?1:0,
+    w:$t('至今只有二十多人到过挑战者深渊；首次是 1960 年的的里雅斯特号。')},
+  {id:'whale',t:$t('鲸落的三幕'),d:$t('在鲸落找齐盲鳗、睡鲨和食骨蠕虫（拖动时间滑块）。'),go:'whalefall',n:3,p:()=>cnt(['hagfish','sleeper','osedax']),
+    w:$t('一头鲸的遗体能在深海养活一个群落几十年。')},
+  {id:'dvm',t:$t('夜里的迁移'),d:$t('在昼夜垂直迁移场景里，夜里在 100 m 以浅遇见灯笼鱼。'),go:'dvm',n:1,p:()=>MS.flags.dvm?1:0,
+    w:$t('中层鱼类的总重量可能超过一百亿吨，它们每晚上下迁移，把表层的碳带进深海。')},
+  {id:'extreme',t:$t('极端之地'),d:$t('到过热液喷口、海底盐池、蓝洞的无氧层和南极海冰之下。'),go:'brine',n:4,p:()=>['vent','brine','anoxic','ice'].filter(k=>MS.visited.has(k)).length,
+    w:$t('这些地方的高温、高盐、无氧或冰冷，让科学家思考：地外海洋里会不会也有生命。')},
+  {id:'ice',t:$t('冰下的生命'),d:$t('在南极海冰下遇见冰鱼和威德尔海豹。'),go:'ice',n:2,p:()=>cnt(['icefish','seal']),
+    w:$t('冰鱼的血里没有血红蛋白，是唯一这样的脊椎动物。')},
+  {id:'arctic',t:$t('冰缘的独角兽'),d:$t('在北极浮冰边缘遇见一角鲸和白鲸。'),go:'arctic',n:2,p:()=>cnt(['narwhal','beluga']),
+    w:$t('一角鲸的长牙其实是一颗牙齿，表面有多达一千万个神经末梢。')},
+  {id:'spawn',t:$t('一年一度的夜'),d:$t('看到鹿角珊瑚集体产卵。'),go:'spawn',n:1,p:()=>cnt(['acropora']),
+    w:$t('珊瑚集体产卵直到 1981 年才被科学家第一次完整记录。')},
+  {id:'pilot',t:$t('自由驾驶员'),d:$t('用自由驾驶累计游出 50 m。'),go:null,n:50,p:()=>Math.min(50,Math.floor(MS.dist)),
+    w:$t('系缆式水下机器人（ROV）是今天深海科考的主力工具之一。')},
+  {id:'all',t:$t('图鉴达人'),d:$t('图鉴收集 50 种生物。'),go:null,n:50,p:()=>Math.min(50,FOUND.size),
+    w:$t('科学家估计海洋里约九成的物种还没有被描述过。')}
 ];
 function stepMissions(rdt){
   if(S.loc)MS.visited.add(S.loc);
@@ -4244,16 +4270,16 @@ function stepMissions(rdt){
   if(PILOT.on){if(MS.last)MS.dist+=MS.last.distanceTo(camera.position);MS.last=(MS.last||new THREE.Vector3()).copy(camera.position);}else MS.last=null;
   MS.t+=rdt;if(MS.t<1)return;MS.t=0;
   let changed=false;
-  for(const m of MISSIONS){if(MS.done.has(m.id))continue;if(m.p()>=m.n){MS.done.add(m.id);changed=true;toastQ.push({mission:m});if(!TOUR.on)showCaption('任务完成：'+m.t,m.w,7);}}
+  for(const m of MISSIONS){if(MS.done.has(m.id))continue;if(m.p()>=m.n){MS.done.add(m.id);changed=true;toastQ.push({mission:m});if(!TOUR.on)showCaption($t('任务完成：')+m.t,m.w,7);}}
   if(changed)saveMS();
   renderMissions();
 }
 let msHTML='';
 function renderMissions(){
   const h=MISSIONS.map(m=>{const v=Math.min(m.n,m.p()),dn=MS.done.has(m.id);
-    return '<li class="'+(dn?'done':'')+'"><div class="mt"><b>'+(dn?'✓ ':'')+m.t+'</b><span>'+v+' / '+m.n+'</span></div><p>'+m.d+(dn?'':m.go&&S.loc!==m.go?' <button type="button" data-go="'+m.go+'">前往</button>':'')+'</p><div class="prog"><div style="width:'+(v/m.n*100)+'%"></div></div></li>';}).join('');
+    return '<li class="'+(dn?'done':'')+'"><div class="mt"><b>'+(dn?'✓ ':'')+m.t+'</b><span>'+v+' / '+m.n+'</span></div><p>'+m.d+(dn?'':m.go&&S.loc!==m.go?' <button type="button" data-go="'+m.go+$t('">前往</button>'):'')+'</p><div class="prog"><div style="width:'+(v/m.n*100)+'%"></div></div></li>';}).join('');
   if(h!==msHTML){msHTML=h;$('missions').innerHTML=h;}
-  $('msN').textContent='已完成 '+MS.done.size+' / '+MISSIONS.length;
+  $('msN').textContent=$t('已完成 ')+MS.done.size+' / '+MISSIONS.length;
 }
 $('missions').addEventListener('click',e=>{const g=e.target.dataset&&e.target.dataset.go;if(g)applyLocation(g);});
 
@@ -4280,7 +4306,7 @@ canvas.addEventListener('pointermove',e=>{
   if(!STIR.on||!STIR.prev)return;const now=performance.now(),dt=Math.max(0.008,(now-STIR.lastT)/1000);STIR.lastT=now;
   const p=pointerWorld(e,1.6,_sp1),U=p.distanceTo(STIR.prev)/dt;
   if(isDark()){stirFlash(STIR.prev,p,Math.min(U,3),0.1);}
-  else if(U>0.3&&STIR.hint<=0){STIR.hint=60;showCaption('这里太亮了','生物发光很微弱，白天在浅水里看不到。切到“夜潜”，或者到 200 m 以下，再用手指或鼠标在水里划一划。',5);}
+  else if(U>0.3&&STIR.hint<=0){STIR.hint=60;showCaption($t('这里太亮了'),$t('生物发光很微弱，白天在浅水里看不到。切到“夜潜”，或者到 200 m 以下，再用手指或鼠标在水里划一划。'),5);}
   STIR.prev.copy(p);
 });
 function stepStir(rdt){
@@ -4326,31 +4352,31 @@ function sofDraw(){
   const cx=c=>L+(c-1475)/(1560-1475)*pw;g.strokeStyle='#62d4e3';g.lineWidth=1.5;g.beginPath();
   for(let z=0;z<=SOF.zmax;z+=20){const X=cx(sofC(z)),Y=y(z);z?g.lineTo(X,Y):g.moveTo(X,Y);}g.stroke();
   g.fillStyle='#86a7ae';g.textAlign='right';for(let z=0;z<=SOF.zmax;z+=1000){g.fillText(z+' m',L-4,y(z)+3);}
-  g.textAlign='center';g.fillText('声速 m/s',L+pw/2,Hh-4);for(const c of[1480,1520,1560]){g.fillText(c,cx(c),T+ph+12);}
+  g.textAlign='center';g.fillText($t('声速 m/s'),L+pw/2,Hh-4);for(const c of[1480,1520,1560]){g.fillText(c,cx(c),T+ph+12);}
   /* axis */
   g.setLineDash([4,4]);g.strokeStyle='rgba(255,214,120,.8)';g.beginPath();g.moveTo(L,y(SOF.axis));g.lineTo(L+pw+gap+rw,y(SOF.axis));g.stroke();g.setLineDash([]);
-  g.fillStyle='rgba(255,214,120,.95)';g.textAlign='left';g.fillText('声道轴 约 '+Math.round(SOF.axis/10)*10+' m · '+SOF.cmin.toFixed(0)+' m/s',L+pw+gap+6,y(SOF.axis)-5);
+  g.fillStyle='rgba(255,214,120,.95)';g.textAlign='left';g.fillText($t('声道轴 约 ')+Math.round(SOF.axis/10)*10+' m · '+SOF.cmin.toFixed(0)+' m/s',L+pw+gap+6,y(SOF.axis)-5);
   /* rays */
   const rx=r=>L+pw+gap+r/SOF.rmax*rw;let trapped=0;
   for(const ry of SOF.rays){const ok=ry.hits===0;if(ok)trapped++;g.strokeStyle=ok?'rgba(98,212,227,.85)':'rgba(160,170,175,.35)';g.lineWidth=ok?1.1:0.8;g.beginPath();
     ry.pts.forEach((p,i)=>{const X=rx(p[0]),Y=y(p[1]);i?g.lineTo(X,Y):g.moveTo(X,Y);});g.stroke();}
   g.fillStyle='#ff7a63';g.beginPath();g.arc(rx(0),y(SOF.src),4,0,6.283);g.fill();
   g.fillStyle='#86a7ae';g.textAlign='center';for(let r=0;r<=300;r+=100)g.fillText(r+' km',Math.max(L+pw+gap+16,Math.min(rx(r*1000),L+pw+gap+rw-14)),T+ph+12);
-  $('sofStat').textContent='声源深度 '+SOF.src+' m · 25 条声线中有 '+trapped+' 条被困在声道里（不碰海面也不碰海底），可以一直传下去；灰色的声线撞到海面或海底，每撞一次都会损失能量。';
+  $('sofStat').textContent=$t('声源深度 ')+SOF.src+$t(' m · 25 条声线中有 ')+trapped+$t(' 条被困在声道里（不碰海面也不碰海底），可以一直传下去；灰色的声线撞到海面或海底，每撞一次都会损失能量。');
 }
 function sofPlay(){
-  if(!audioStart()||!AUD.ctx){$('sofStat').textContent='这个浏览器不支持网页音频。';return;}
-  const ctx=AUD.ctx,arr=SOF.arr.slice().sort((a,b)=>a-b);if(!arr.length){$('sofStat').textContent='这个声源深度下，没有声线能不碰海面和海底地传到 1,000 km 外。把声源移到声道轴附近再试。';return;}
+  if(!audioStart()||!AUD.ctx){$('sofStat').textContent=$t('这个浏览器不支持网页音频。');return;}
+  const ctx=AUD.ctx,arr=SOF.arr.slice().sort((a,b)=>a-b);if(!arr.length){$('sofStat').textContent=$t('这个声源深度下，没有声线能不碰海面和海底地传到 1,000 km 外。把声源移到声道轴附近再试。');return;}
   const t0=arr[0],span=arr[arr.length-1]-t0,k=span>6?6/span:1,now=ctx.currentTime+0.15;
   arr.forEach((ta,i)=>{const at=now+(ta-t0)*k,o=ctx.createOscillator(),gn=ctx.createGain();o.type='sine';o.frequency.value=180+40*Math.random();
     gn.gain.setValueAtTime(0,at);gn.gain.linearRampToValueAtTime(0.18,at+0.005);gn.gain.exponentialRampToValueAtTime(0.0005,at+0.25);o.connect(gn).connect(ctx.destination);o.start(at);o.stop(at+0.3);});
-  $('sofStat').textContent='1,000 km 外的接收器先听到斜着走的声线（它们穿过更快的水层，先到），最后才是沿声道轴走的声线，所以声音越来越密、在最后戛然而止，这正是 1944 年 Ewing 和 Worzel 第一次听到的“SOFAR 信号”。到达时间跨度约 '+span.toFixed(1)+' 秒'+(k<1?'（这里压缩到 6 秒播放）':'')+'。';
+  $('sofStat').textContent=$t('1,000 km 外的接收器先听到斜着走的声线（它们穿过更快的水层，先到），最后才是沿声道轴走的声线，所以声音越来越密、在最后戛然而止，这正是 1944 年 Ewing 和 Worzel 第一次听到的“SOFAR 信号”。到达时间跨度约 ')+span.toFixed(1)+$t(' 秒')+(k<1?$t('（这里压缩到 6 秒播放）'):'')+$t('。');
 }
 function openSofar(){$('sofar').hidden=false;sofCompute();requestAnimationFrame(sofDraw);}
 $('sofOpen').addEventListener('click',openSofar);$('sofX').addEventListener('click',()=>{$('sofar').hidden=true;});
 $('sofSrc').addEventListener('input',e=>{SOF.src=+e.target.value;$('sofSrcV').textContent=SOF.src+' m';sofCompute();sofDraw();});
 $('sofPlay').addEventListener('click',sofPlay);window.addEventListener('resize',()=>{if(!$('sofar').hidden)sofDraw();});
-MILESTONES.push([Math.round(SOF.axis/10)*10,'约 '+(Math.round(SOF.axis/10)*10).toLocaleString('en-US')+' m · 深海声道轴','这里的声速最慢（约 '+SOF.cmin.toFixed(0)+' m/s）。上面的水暖、下面的水压高，声音都会被“折”回这一层，低频声音能沿着它传几千公里，鲸的叫声也能借它远距离传播。']);
+MILESTONES.push([Math.round(SOF.axis/10)*10,$t('约 ')+(Math.round(SOF.axis/10)*10).toLocaleString('en-US')+$t(' m · 深海声道轴'),$t('这里的声速最慢（约 ')+SOF.cmin.toFixed(0)+$t(' m/s）。上面的水暖、下面的水压高，声音都会被“折”回这一层，低频声音能沿着它传几千公里，鲸的叫声也能借它远距离传播。')]);
 MILESTONES.sort((a,b)=>a[0]-b[0]);
 
 
@@ -4374,15 +4400,15 @@ function pressDraw(){
   const cupPath=(cx,s)=>{const h=110*s,tw=80*s,bw=52*s;return 'M'+(cx-tw/2)+','+(base-h)+' L'+(cx+tw/2)+','+(base-h)+' L'+(cx+bw/2)+','+base+' L'+(cx-bw/2)+','+base+' Z';};
   let h='<rect x="0" y="0" width="600" height="230" fill="#05141c"/>';
   h+='<path d="'+cupPath(100,1)+'" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
-  h+='<path d="'+cupPath(100,cupS)+'" fill="#e9e4d8" stroke="#bfb8a8"/><text x="100" y="222" text-anchor="middle" class="pt">泡沫杯</text>';
+  h+='<path d="'+cupPath(100,cupS)+$t('" fill="#e9e4d8" stroke="#bfb8a8"/><text x="100" y="222" text-anchor="middle" class="pt">泡沫杯</text>');
   const br=48;h+='<circle cx="300" cy="'+(base-br)+'" r="'+br+'" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
-  h+='<circle cx="300" cy="'+(base-br*balS)+'" r="'+Math.max(1.5,br*balS)+'" fill="#ff7a63" opacity=".85"/><text x="300" y="222" text-anchor="middle" class="pt">装空气的气球</text>';
+  h+='<circle cx="300" cy="'+(base-br*balS)+'" r="'+Math.max(1.5,br*balS)+$t('" fill="#ff7a63" opacity=".85"/><text x="300" y="222" text-anchor="middle" class="pt">装空气的气球</text>');
   const bw=56,bh=100;h+='<rect x="'+(500-bw/2)+'" y="'+(base-bh)+'" width="'+bw+'" height="'+bh+'" rx="8" fill="none" stroke="rgba(217,236,239,.25)" stroke-dasharray="4 4"/>';
-  h+='<rect x="'+(500-bw*watS/2)+'" y="'+(base-bh*watS)+'" width="'+(bw*watS)+'" height="'+(bh*watS)+'" rx="8" fill="#5ea8ff" opacity=".8"/><text x="500" y="222" text-anchor="middle" class="pt">装满水的瓶子</text>';
+  h+='<rect x="'+(500-bw*watS/2)+'" y="'+(base-bh*watS)+'" width="'+(bw*watS)+'" height="'+(bh*watS)+$t('" rx="8" fill="#5ea8ff" opacity=".8"/><text x="500" y="222" text-anchor="middle" class="pt">装满水的瓶子</text>');
   svg.innerHTML=h;
   $('pxZ').textContent=z.toLocaleString('en-US')+' m';
   const kg=pressure(z)*1e-4/9.81;
-  $('pxNum').innerHTML='<b>'+P.toFixed(1)+' 个大气压</b>，相当于每平方厘米上压着 <b>'+(kg<1000?kg.toFixed(kg<10?2:0)+' kg':(kg/1000).toFixed(2)+' 吨')+'</b>。<br>气球体积：原来的 <b>'+(bal*100).toFixed(bal<0.01?2:1)+'%</b>（回到水面会恢复）；泡沫杯：原来的 <b>'+(cup*100).toFixed(1)+'%</b>，高度约原来的 <b>'+(cupS*100).toFixed(0)+'%</b>（回到水面也不会恢复）；水：原来的 <b>'+(wat*100).toFixed(2)+'%</b>。';
+  $('pxNum').innerHTML='<b>'+P.toFixed(1)+$t(' 个大气压</b>，相当于每平方厘米上压着 <b>')+(kg<1000?kg.toFixed(kg<10?2:0)+' kg':(kg/1000).toFixed(2)+$t(' 吨'))+$t('</b>。<br>气球体积：原来的 <b>')+(bal*100).toFixed(bal<0.01?2:1)+$t('%</b>（回到水面会恢复）；泡沫杯：原来的 <b>')+(cup*100).toFixed(1)+$t('%</b>，高度约原来的 <b>')+(cupS*100).toFixed(0)+$t('%</b>（回到水面也不会恢复）；水：原来的 <b>')+(wat*100).toFixed(2)+$t('%</b>。');
 }
 function pressSet(z){PX.z=z;$('pxS').value=pressZ2slider(z);pressDraw();}
 $('pxOpen').addEventListener('click',()=>{$('press').hidden=false;PX.minV=1;pressSet(0);});
@@ -4428,7 +4454,7 @@ function mapDraw(){
 }
 function profDraw(){
   const cv=$('profCv'),pr=Math.min(2,window.devicePixelRatio||1),w=cv.clientWidth,h=cv.clientHeight;cv.width=w*pr;cv.height=h*pr;const g=cv.getContext('2d');g.setTransform(pr,0,0,pr,0,0);
-  g.fillStyle='#04121a';g.fillRect(0,0,w,h);if(MAP.sel.length<2){g.fillStyle='#86a7ae';g.font='12px '+getComputedStyle(document.body).getPropertyValue('--f-body');g.textAlign='center';g.fillText('在地图上点两个点，就能画出这两点之间的海底剖面',w/2,h/2);return;}
+  g.fillStyle='#04121a';g.fillRect(0,0,w,h);if(MAP.sel.length<2){g.fillStyle='#86a7ae';g.font='12px '+getComputedStyle(document.body).getPropertyValue('--f-body');g.textAlign='center';g.fillText($t('在地图上点两个点，就能画出这两点之间的海底剖面'),w/2,h/2);return;}
   const[a,b]=MAP.sel,N=300,pts=[];let mn=1e9,mx=-1e9;
   const R=6371,toR=Math.PI/180,dist=R*Math.acos(Math.min(1,Math.sin(a[0]*toR)*Math.sin(b[0]*toR)+Math.cos(a[0]*toR)*Math.cos(b[0]*toR)*Math.cos((b[1]-a[1])*toR)));
   let dl=b[1]-a[1];if(dl>180)dl-=360;if(dl<-180)dl+=360;
@@ -4441,7 +4467,7 @@ function profDraw(){
   for(let z=Math.ceil(bot/2000)*2000;z<=top;z+=2000)g.fillText(z+' m',L-4,y(z)+3);
   g.textAlign='center';g.fillText('0 km',L+10,h-6);g.fillText(Math.round(dist)+' km',L+pw-20,h-6);
   const ve=Math.round((dist*1000/pw)/((top-bot)/ph));
-  $('profNote').textContent='剖面长约 '+Math.round(dist).toLocaleString('en-US')+' km，最深处水深约 '+Math.round(-mn).toLocaleString('en-US')+' m，'+(mx<0?'最浅处水深约 '+Math.round(-mx).toLocaleString('en-US')+' m':'最高处海拔约 '+Math.round(mx).toLocaleString('en-US')+' m')+'。图里的竖直方向被放大了约 '+ve+' 倍；按真实比例画，几千米的起伏放在几百上千公里宽的剖面上，几乎就是一条平线。';
+  $('profNote').textContent=$t('剖面长约 ')+Math.round(dist).toLocaleString('en-US')+$t(' km，最深处水深约 ')+Math.round(-mn).toLocaleString('en-US')+$t(' m，')+(mx<0?$t('最浅处水深约 ')+Math.round(-mx).toLocaleString('en-US')+' m':$t('最高处海拔约 ')+Math.round(mx).toLocaleString('en-US')+' m')+$t('。图里的竖直方向被放大了约 ')+ve+$t(' 倍；按真实比例画，几千米的起伏放在几百上千公里宽的剖面上，几乎就是一条平线。');
 }
 /* The 0.8 MB relief data is only fetched the first time the map is opened (the single-file build inlines it). */
 function loadEtopo(){
@@ -4452,9 +4478,9 @@ function loadEtopo(){
 }
 async function mapOpen(){
   $('mapOv').hidden=false;
-  if(!window.ETOPO_B64){$('mapRead').textContent='正在加载全球地形数据（约 0.8 MB）…';
-    try{await loadEtopo();}catch(e){$('mapRead').textContent='地形数据加载失败，请检查网络后关闭再打开。';return;}
-    $('mapRead').textContent='把鼠标移到地图上，可以看到那里的经纬度和水深。';}
+  if(!window.ETOPO_B64){$('mapRead').textContent=$t('正在加载全球地形数据（约 0.8 MB）…');
+    try{await loadEtopo();}catch(e){$('mapRead').textContent=$t('地形数据加载失败，请检查网络后关闭再打开。');return;}
+    $('mapRead').textContent=$t('把鼠标移到地图上，可以看到那里的经纬度和水深。');}
   mapRender();if(!MAP.sel.length)MAP.sel=[[15,141],[8,143.5]];requestAnimationFrame(()=>{mapDraw();profDraw();});}
 $('mapOpen').addEventListener('click',mapOpen);$('mapX').addEventListener('click',()=>{$('mapOv').hidden=true;});
 $('mapOv').addEventListener('click',e=>{if(e.target.id==='mapOv')$('mapOv').hidden=true;});
@@ -4462,8 +4488,8 @@ $('mapCv').addEventListener('click',e=>{const cv=$('mapCv'),b=cv.getBoundingClie
   for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){$('mapOv').hidden=true;applyLocation(k);return;}}
   const lat=90-y/h*180,lon=x/w*360-180;if(MAP.sel.length>=2)MAP.sel=[];MAP.sel.push([lat,lon]);mapDraw();profDraw();});
 $('mapCv').addEventListener('mousemove',e=>{const cv=$('mapCv'),b=cv.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top,w=b.width,h=b.height,lat=90-y/h*180,lon=x/w*360-180;
-  let near='';for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){near=LOC[k].name+'（点击前往）';break;}}
-  const z=mapH(lat,lon);$('mapRead').textContent=(near?near+' · ':'')+Math.abs(lat).toFixed(1)+'°'+(lat>=0?'N':'S')+' '+Math.abs(lon).toFixed(1)+'°'+(lon>=0?'E':'W')+' · '+(z<0?'水深约 '+Math.round(-z).toLocaleString('en-US')+' m':'海拔约 '+Math.round(z).toLocaleString('en-US')+' m');});
+  let near='';for(const k in SITE_LL){const[sx,sy]=mapXY(...SITE_LL[k],w,h);if(Math.hypot(sx-x,sy-y)<8){near=LOC[k].name+$t('（点击前往）');break;}}
+  const z=mapH(lat,lon);$('mapRead').textContent=(near?near+' · ':'')+Math.abs(lat).toFixed(1)+'°'+(lat>=0?'N':'S')+' '+Math.abs(lon).toFixed(1)+'°'+(lon>=0?'E':'W')+' · '+(z<0?$t('水深约 ')+Math.round(-z).toLocaleString('en-US')+' m':$t('海拔约 ')+Math.round(z).toLocaleString('en-US')+' m');});
 $('mapPreset').addEventListener('click',e=>{const p=e.target.dataset.p;if(!p)return;MAP.sel={mariana:[[15,141],[8,143.5]],atl:[[30,-80],[20,-15]],sio:[[-30,45],[-45,55]],scs:[[22,110],[12,120]]}[p];mapDraw();profDraw();});
 window.addEventListener('resize',()=>{if(!$('mapOv').hidden){mapDraw();profDraw();}});
 
@@ -4482,31 +4508,31 @@ function makeCard(){
   const gr=g.createLinearGradient(0,ph-80,0,ph);gr.addColorStop(0,'rgba(3,18,26,0)');gr.addColorStop(1,'rgba(3,18,26,1)');g.fillStyle=gr;g.fillRect(0,ph-80,W,80);
   const z=camZ(),T=DIVE.on?(DIVE.bh?bhTemp(z):tempAt(z)):S.temp,P=pressure(z)/PATM,css=getComputedStyle(document.body);
   const fd=css.getPropertyValue('--f-display'),fb=css.getPropertyValue('--f-body'),fm=css.getPropertyValue('--f-mono');
-  const site=S.loc?(SITE[S.loc]?SITE[S.loc][0]:LOC[S.loc].name):'自定义参数';
+  const site=S.loc?(SITE[S.loc]?SITE[S.loc][0]:LOC[S.loc].name):$t('自定义参数');
   g.fillStyle='#d9ecef';g.font='700 46px '+fd;g.fillText(site,60,ph+70);
   g.fillStyle='#62d4e3';g.font='600 30px '+fm;
   const d=new Date(),ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   g.fillText('−'+fmtD(z)+' m  ·  '+T.toFixed(1)+' °C  ·  '+P.toFixed(P<10?2:0)+' atm  ·  '+ds,60,ph+122);
-  let line=S.loc&&SITE[S.loc]?SITE[S.loc][1]:'';const dot=line.indexOf('。');if(dot>0)line=line.slice(0,dot+1);if(line.length>52)line=line.slice(0,51)+'…';
+  let line=S.loc&&SITE[S.loc]?SITE[S.loc][1]:'';const dot=line.indexOf($t('。'));if(dot>0)line=line.slice(0,dot+1);if(line.length>52)line=line.slice(0,51)+'…';
   g.fillStyle='#86a7ae';g.font='26px '+fb;g.fillText(line,60,ph+172);
-  g.textAlign='right';g.fillStyle='#62d4e3';g.font='600 22px '+fd;g.fillText('海底物理世界',W-60,ph+70);
-  g.fillStyle='#86a7ae';g.font='18px '+fb;g.fillText('按真实地点与实测数据模拟',W-60,ph+100);
+  g.textAlign='right';g.fillStyle='#62d4e3';g.font='600 22px '+fd;g.fillText($t('海底物理世界'),W-60,ph+70);
+  g.fillStyle='#86a7ae';g.font='18px '+fb;g.fillText($t('按真实地点与实测数据模拟'),W-60,ph+100);
   g.strokeStyle='rgba(120,190,205,.35)';g.lineWidth=2;g.strokeRect(20,20,W-40,H-40);
   return g0;
 }
 function openCard(){
-  let cv;try{cv=makeCard();}catch(e){showCaption('拍不了明信片','这个浏览器不允许读取三维画面。',5);return;}
+  let cv;try{cv=makeCard();}catch(e){showCaption($t('拍不了明信片'),$t('这个浏览器不允许读取三维画面。'),5);return;}
   const url=cv.toDataURL('image/png');$('cardImg').src=url;
   const bin=atob(url.split(',')[1]),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);CARD.blob=new Blob([u8],{type:'image/png'});
   $('card').hidden=false;$('cardSave').hidden=!CARD.dl&&!!window.claude;
-  $('cardTip').textContent=!window.claude?'点“保存图片”会把这张明信片下载到你的设备；手机上也可以长按图片保存。':CARD.dl?'点“保存图片”会弹出确认框，确认后图片会保存到你的设备。':'这里不能直接保存文件：电脑上右键图片“另存为”，手机上长按图片保存。';
+  $('cardTip').textContent=!window.claude?$t('点“保存图片”会把这张明信片下载到你的设备；手机上也可以长按图片保存。'):CARD.dl?$t('点“保存图片”会弹出确认框，确认后图片会保存到你的设备。'):$t('这里不能直接保存文件：电脑上右键图片“另存为”，手机上长按图片保存。');
 }
 $('cardBtn').addEventListener('click',openCard);$('cardX').addEventListener('click',()=>{$('card').hidden=true;});
 $('card').addEventListener('click',e=>{if(e.target.id==='card')$('card').hidden=true;});
-$('cardSave').addEventListener('click',async()=>{if(!CARD.blob)return;const nm='海底明信片-'+(S.loc||'custom')+'-'+Math.round(camZ())+'m.png';
-  if(!CARD.dl){const u=URL.createObjectURL(CARD.blob),a=document.createElement('a');a.href=u;a.download=nm;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);$('cardTip').textContent='已交给浏览器下载。';return;}
-  try{await CARD.dl.save({filename:nm,data:CARD.blob});$('cardTip').textContent='已交给浏览器保存。';}
-  catch(e){const c=e&&e.code;$('cardTip').textContent=c==='declined'?'已取消保存。':c==='rate_limited'?'已有一个保存确认框，请先处理它。':'这里暂时不能保存：电脑上右键图片“另存为”，手机上长按图片保存。';if(c==='unavailable'||c==='not_granted')$('cardSave').hidden=true;}});
+$('cardSave').addEventListener('click',async()=>{if(!CARD.blob)return;const nm=$t('海底明信片-')+(S.loc||'custom')+'-'+Math.round(camZ())+'m.png';
+  if(!CARD.dl){const u=URL.createObjectURL(CARD.blob),a=document.createElement('a');a.href=u;a.download=nm;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);$('cardTip').textContent=$t('已交给浏览器下载。');return;}
+  try{await CARD.dl.save({filename:nm,data:CARD.blob});$('cardTip').textContent=$t('已交给浏览器保存。');}
+  catch(e){const c=e&&e.code;$('cardTip').textContent=c==='declined'?$t('已取消保存。'):c==='rate_limited'?$t('已有一个保存确认框，请先处理它。'):$t('这里暂时不能保存：电脑上右键图片“另存为”，手机上长按图片保存。');if(c==='unavailable'||c==='not_granted')$('cardSave').hidden=true;}});
 $('helpBtn').addEventListener('click',()=>{$('help').hidden=false;});$('helpX').addEventListener('click',()=>{$('help').hidden=true;});
 $('welGo').addEventListener('click',()=>{$('welcome').hidden=true;});$('welHelp').addEventListener('click',()=>{$('welcome').hidden=true;$('help').hidden=false;});
 for(const id of['help','sofar','welcome'])$(id).addEventListener('click',e=>{if(e.target.id===id)$(id).hidden=true;});
@@ -4522,16 +4548,16 @@ const CATKEYS=new Set(CAT.map(c=>c[0]));
 function shareRender(){
   const box=$('shareBox');if(!SHARE.live){box.hidden=true;return;}
   box.hidden=false;
-  $('shareN').textContent=SHARE.n?'· 共 '+SHARE.n+' 位探险者':'· 还没有人留下记录';
+  $('shareN').textContent=SHARE.n?$t('· 共 ')+SHARE.n+$t(' 位探险者'):$t('· 还没有人留下记录');
   // rarest species this viewer has met
   let best=null;for(const k of FOUND){if(!CATKEYS.has(k))continue;const n=SHARE.cnt[k]||0;if(n&&(!best||n<best[1]))best=[k,n];}
-  $('shareRare').textContent=!best?'':(SHARE.state==='ok'&&best[1]===1)?'你遇见过的生物里，「'+CATMAP[best[0]][1]+'」目前只有你一个人见过。':'你遇见过的生物里，最少人见过的是「'+CATMAP[best[0]][1]+'」：共 '+best[1]+' 人遇见过。';
+  $('shareRare').textContent=!best?'':(SHARE.state==='ok'&&best[1]===1)?$t('你遇见过的生物里，「')+CATMAP[best[0]][1]+$t('」目前只有你一个人见过。'):$t('你遇见过的生物里，最少人见过的是「')+CATMAP[best[0]][1]+$t('」：共 ')+best[1]+$t(' 人遇见过。');
   const me=$('shareMe');me.classList.remove('warn');
-  if(SHARE.state==='readonly'){me.classList.add('warn');me.textContent='你可以看到大家的数字，但你的发现只保存在这台设备上、没有计入共享图鉴：分享这个页面的人给你的权限是“查看者”。想被计入，请对方在“分享”里把你设为“参与者（Contributor）”。';}
-  else if(SHARE.state==='noid'){me.classList.add('warn');me.textContent='登录 Claude 后打开，你的发现才会计入共享图鉴；现在只保存在这台设备上。';}
-  else if(SHARE.state==='full'){me.classList.add('warn');me.textContent='共享图鉴的存储已满，你的新发现暂时没能计入。';}
-  else if(SHARE.state==='ok')me.textContent='你的 '+FOUND.size+' 种发现已计入共享图鉴（只记录遇见了哪些生物，不记录名字或位置）。';
-  else me.textContent='遇见第一种生物后，你的发现会自动计入共享图鉴（只记录遇见了哪些生物，不记录名字或位置）。';
+  if(SHARE.state==='readonly'){me.classList.add('warn');me.textContent=$t('你可以看到大家的数字，但你的发现只保存在这台设备上、没有计入共享图鉴：分享这个页面的人给你的权限是“查看者”。想被计入，请对方在“分享”里把你设为“参与者（Contributor）”。');}
+  else if(SHARE.state==='noid'){me.classList.add('warn');me.textContent=$t('登录 Claude 后打开，你的发现才会计入共享图鉴；现在只保存在这台设备上。');}
+  else if(SHARE.state==='full'){me.classList.add('warn');me.textContent=$t('共享图鉴的存储已满，你的新发现暂时没能计入。');}
+  else if(SHARE.state==='ok')me.textContent=$t('你的 ')+FOUND.size+$t(' 种发现已计入共享图鉴（只记录遇见了哪些生物，不记录名字或位置）。');
+  else me.textContent=$t('遇见第一种生物后，你的发现会自动计入共享图鉴（只记录遇见了哪些生物，不记录名字或位置）。');
 }
 function shareOnSnap(snap){
   const cnt={};let n=0;
@@ -4613,8 +4639,8 @@ function enterVR(){
   const start=()=>{window.addEventListener('deviceorientation',onDevOri);};
   try{if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')start();}).catch(()=>{});else start();}catch(e){}
   resize();
-  vrHint('<b>手机分屏 VR</b>：把手机横过来；有纸盒眼镜就放进去，没有也可以直接看。<br>转动手机（或用手指拖动）看四周，<b>轻点屏幕</b>开始或停止朝视线方向游动。',9);
-  setTimeout(()=>{if(VR.on&&!VR.xr&&!VR.gyro)vrHint('这个页面读不到手机的陀螺仪（浏览器不支持，或者没有允许访问“动作与方向”），画面不会跟着手机转。<b>用手指左右上下拖动</b>来看四周，轻点屏幕开始或停止游动。',10);},2200);
+  vrHint($t('<b>手机分屏 VR</b>：把手机横过来；有纸盒眼镜就放进去，没有也可以直接看。<br>转动手机（或用手指拖动）看四周，<b>轻点屏幕</b>开始或停止朝视线方向游动。'),9);
+  setTimeout(()=>{if(VR.on&&!VR.xr&&!VR.gyro)vrHint($t('这个页面读不到手机的陀螺仪（浏览器不支持，或者没有允许访问“动作与方向”），画面不会跟着手机转。<b>用手指左右上下拖动</b>来看四周，轻点屏幕开始或停止游动。'),10);},2200);
 }
 function exitVR(){
   if(!VR.on)return;
@@ -4642,7 +4668,7 @@ function stepVR(rdt){
   }else{_ve.set(VR.pitch,VR.yaw,0,'YXZ');camera.quaternion.setFromEuler(_ve);}
   if(VR.glide){camera.getWorldDirection(_vv);vrMove(_vv,0.5*Math.min(rdt,0.25));}
   VR.lblT-=rdt;if(VR.lblT<=0){VR.lblT=0.3;
-    const z=Math.max(-camera.position.y,0),top='−'+fmtD(z)+' m · '+$('hZone').textContent+(VR.glide?' · 游动中':'');
+    const z=Math.max(-camera.position.y,0),top='−'+fmtD(z)+' m · '+$('hZone').textContent+(VR.glide?$t(' · 游动中'):'');
     const cap=$('cap').classList.contains('on')?$('capT').textContent:'';
     document.querySelectorAll('#vrUI .vt').forEach(e=>e.textContent=top);document.querySelectorAll('#vrUI .vc').forEach(e=>e.textContent=cap);
     document.querySelectorAll('#vrUI .dot').forEach(e=>e.classList.toggle('go',VR.glide));}
@@ -4695,15 +4721,15 @@ function enterXR(){
       scene.add(camera);renderer.xr.enabled=false;VR.xr=false;VR.on=false;
       controls.enabled=true;camera.getWorldDirection(_vv);controls.target.copy(camera.position).addScaledVector(_vv,3);controls.update();
       resize();last=performance.now();requestAnimationFrame(frame);
-      $('vrNote').textContent='已退出头显 VR。';
+      $('vrNote').textContent=$t('已退出头显 VR。');
     });
     last=performance.now();renderer.setAnimationLoop(frame);
-  }).catch(err=>{$('vrNote').textContent='没能进入头显 VR：'+(err&&err.message?err.message:'浏览器拒绝了请求')+'。可以改用上面的手机分屏 VR。';});
+  }).catch(err=>{$('vrNote').textContent=$t('没能进入头显 VR：')+(err&&err.message?err.message:$t('浏览器拒绝了请求'))+$t('。可以改用上面的手机分屏 VR。');});
 }
 $('vrXR').addEventListener('click',enterXR);
 (function vrCheck(){
-  const no='这台设备的浏览器没有提供头显 VR（WebXR），所以这里只有手机分屏模式。用 VR 头显时，请在头显自带的浏览器里打开这个页面。';
-  try{if(navigator.xr&&navigator.xr.isSessionSupported)navigator.xr.isSessionSupported('immersive-vr').then(ok=>{$('vrXR').hidden=!ok;$('vrNote').textContent=ok?'检测到 VR 头显，可以用“进入头显 VR”。头显模式里没有泛光和白平衡后期处理，颜色会比屏幕上偏蓝一些。':no;}).catch(()=>{$('vrNote').textContent=no;});
+  const no=$t('这台设备的浏览器没有提供头显 VR（WebXR），所以这里只有手机分屏模式。用 VR 头显时，请在头显自带的浏览器里打开这个页面。');
+  try{if(navigator.xr&&navigator.xr.isSessionSupported)navigator.xr.isSessionSupported('immersive-vr').then(ok=>{$('vrXR').hidden=!ok;$('vrNote').textContent=ok?$t('检测到 VR 头显，可以用“进入头显 VR”。头显模式里没有泛光和白平衡后期处理，颜色会比屏幕上偏蓝一些。'):no;}).catch(()=>{$('vrNote').textContent=no;});
   else $('vrNote').textContent=no;}catch(e){$('vrNote').textContent=no;}
 })();
 
@@ -4711,22 +4737,22 @@ $('vrXR').addEventListener('click',enterXR);
    14zb. Exhibition mode: an automatic guided tour of the whole ocean
    ========================================================= */
 const TOUR_STOPS=[
-  {l:'xisha',n:'s01_xisha',d:20,t:'海洋覆盖地球 71% 的表面',s:'导览从南海西沙 10 m 深的珊瑚礁出发。珊瑚礁只占海底面积不到 1%，却养活了约四分之一的海洋物种。'},
-  {l:'mangrove',n:'s01b_mangrove',d:20,t:'海草床与红树林',s:'海南陵水新村潟湖。红树林的支柱根是小鱼的育幼场，海草随波摆动。海草床只占海底约 0.2%，却储存了海洋约 10% 的碳。'},
-  {l:'nanji',n:'s01c_nanji',d:24,t:'南麂列岛：潮间带',s:'潮水每天两涨两落。岩石上的生物按高度排成带：滨螺、藤壶、龟足、贻贝和海藻。藤壶被淹没时会伸出蔓足捕食。'},
-  {l:'monterey',n:'s02_monterey',d:18,t:'巨藻林：海底的森林',s:'加州蒙特雷湾的冷水上升流带来养分，巨藻长成十几米高的森林，随涌浪整片摆动。'},
-  {l:'truk',n:'s03_truk',d:20,t:'沉船变成的鱼礁',s:'富士川丸 1944 年沉没，八十年后船身已被软珊瑚和鱼群占据。十几米深处，红光已被海水吸收，一切都偏蓝绿。'},
-  {l:'ice',n:'s04_ice',d:20,t:'南极海冰之下',s:'水温 −1.9 °C，海水因为含盐而不结冰。头顶两米厚的海冰只透下百分之几的阳光，冰底的冰藻是南大洋食物链的起点。'},
-  {l:'arctic',n:'s04b_arctic',d:24,t:'北极浮冰边缘',s:'固定冰在这里断开，外面是开阔水面。冰底被冰藻染成褐色，挂着直链藻；一角鲸和白鲸沿着冰缘游过，上浮换气。'},
-  {l:'spawn',n:'s05_spawn',d:24,t:'珊瑚产卵之夜',s:'一年中只有满月前后的几个夜里，珊瑚同时释放红色的卵精束，缓缓上浮，像一场倒着下的雪。'},
-  {l:'rost',n:'s06_rost',d:20,t:'320 m：没有阳光的珊瑚礁',s:'挪威外海的冷水珊瑚不靠阳光，靠捕食海流带来的浮游生物。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁。'},
-  {l:'deep',n:'s07_deep',d:18,t:'1,390 m：靠甲烷生活',s:'南海海马冷泉从海底渗出甲烷，细菌把它变成养分，养活了贻贝床、管栖蠕虫和白色的细菌席。'},
-  {l:'brine',n:'s08_brine',d:18,t:'650 m：海底的湖',s:'比海水重得多的卤水在海底积成湖，有湖面也有湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。'},
-  {l:'whalefall',n:'s09_whalefall',d:18,t:'1,800 m：鲸落',s:'一头鲸沉到深海，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物。'},
-  {l:'vent',n:'s10_vent',d:20,t:'2,800 m：热液喷口',s:'300 多摄氏度的热液从黑烟囱喷出。周围的盲虾和雪人蟹完全不靠阳光，靠细菌把化学能变成养分。'},
-  {l:'seamount',n:'s10a_seamount',d:22,t:'3,200 m：海山章鱼花园',s:'戴维森海山脚下的岩缝渗出温泉，几千只珍珠章鱼聚在这里孵卵。温水上方的“抖动”是光线在冷热水交界处折射。'},
-  {l:'abyss',n:'s10b_abyss',d:20,t:'4,100 m：深海平原',s:'海底铺满土豆大小的锰结核，一百万年只长 1–10 cm。这片海区已记录到五千多种动物，约九成从未被科学描述；那条没有结核的宽带，是 1979 年采矿试验留下的车辙。'},
-  {l:'dive',n:'s11_dive',d:112,dive:true,t:'最后一站：马里亚纳海沟',s:'从关岛礁壁出发，一路下潜到地球海洋最深处。光、水温和生物会随深度一层层改变；左侧剖面显示你的位置。'}
+  {l:'xisha',n:'s01_xisha',d:20,t:$t('海洋覆盖地球 71% 的表面'),s:$t('导览从南海西沙 10 m 深的珊瑚礁出发。珊瑚礁只占海底面积不到 1%，却养活了约四分之一的海洋物种。')},
+  {l:'mangrove',n:'s01b_mangrove',d:20,t:$t('海草床与红树林'),s:$t('海南陵水新村潟湖。红树林的支柱根是小鱼的育幼场，海草随波摆动。海草床只占海底约 0.2%，却储存了海洋约 10% 的碳。')},
+  {l:'nanji',n:'s01c_nanji',d:24,t:$t('南麂列岛：潮间带'),s:$t('潮水每天两涨两落。岩石上的生物按高度排成带：滨螺、藤壶、龟足、贻贝和海藻。藤壶被淹没时会伸出蔓足捕食。')},
+  {l:'monterey',n:'s02_monterey',d:18,t:$t('巨藻林：海底的森林'),s:$t('加州蒙特雷湾的冷水上升流带来养分，巨藻长成十几米高的森林，随涌浪整片摆动。')},
+  {l:'truk',n:'s03_truk',d:20,t:$t('沉船变成的鱼礁'),s:$t('富士川丸 1944 年沉没，八十年后船身已被软珊瑚和鱼群占据。十几米深处，红光已被海水吸收，一切都偏蓝绿。')},
+  {l:'ice',n:'s04_ice',d:20,t:$t('南极海冰之下'),s:$t('水温 −1.9 °C，海水因为含盐而不结冰。头顶两米厚的海冰只透下百分之几的阳光，冰底的冰藻是南大洋食物链的起点。')},
+  {l:'arctic',n:'s04b_arctic',d:24,t:$t('北极浮冰边缘'),s:$t('固定冰在这里断开，外面是开阔水面。冰底被冰藻染成褐色，挂着直链藻；一角鲸和白鲸沿着冰缘游过，上浮换气。')},
+  {l:'spawn',n:'s05_spawn',d:24,t:$t('珊瑚产卵之夜'),s:$t('一年中只有满月前后的几个夜里，珊瑚同时释放红色的卵精束，缓缓上浮，像一场倒着下的雪。')},
+  {l:'rost',n:'s06_rost',d:20,t:$t('320 m：没有阳光的珊瑚礁'),s:$t('挪威外海的冷水珊瑚不靠阳光，靠捕食海流带来的浮游生物。勒斯特礁全长三四十公里，是已知最大的冷水珊瑚礁。')},
+  {l:'deep',n:'s07_deep',d:18,t:$t('1,390 m：靠甲烷生活'),s:$t('南海海马冷泉从海底渗出甲烷，细菌把它变成养分，养活了贻贝床、管栖蠕虫和白色的细菌席。')},
+  {l:'brine',n:'s08_brine',d:18,t:$t('650 m：海底的湖'),s:$t('比海水重得多的卤水在海底积成湖，有湖面也有湖岸。湖里没有氧气，岸边却挤满了靠甲烷生活的贻贝。')},
+  {l:'whalefall',n:'s09_whalefall',d:18,t:$t('1,800 m：鲸落'),s:$t('一头鲸沉到深海，能养活一个群落几十年。科学家已在鲸落上记录到 400 多种生物。')},
+  {l:'vent',n:'s10_vent',d:20,t:$t('2,800 m：热液喷口'),s:$t('300 多摄氏度的热液从黑烟囱喷出。周围的盲虾和雪人蟹完全不靠阳光，靠细菌把化学能变成养分。')},
+  {l:'seamount',n:'s10a_seamount',d:22,t:$t('3,200 m：海山章鱼花园'),s:$t('戴维森海山脚下的岩缝渗出温泉，几千只珍珠章鱼聚在这里孵卵。温水上方的“抖动”是光线在冷热水交界处折射。')},
+  {l:'abyss',n:'s10b_abyss',d:20,t:$t('4,100 m：深海平原'),s:$t('海底铺满土豆大小的锰结核，一百万年只长 1–10 cm。这片海区已记录到五千多种动物，约九成从未被科学描述；那条没有结核的宽带，是 1979 年采矿试验留下的车辙。')},
+  {l:'dive',n:'s11_dive',d:112,dive:true,t:$t('最后一站：马里亚纳海沟'),s:$t('从关岛礁壁出发，一路下潜到地球海洋最深处。光、水温和生物会随深度一层层改变；左侧剖面显示你的位置。')}
 ];
 const TOUR={on:false,i:0,t:0,paused:false,prevSpeed:0.35,pend:null,prevZ:0};
 /* ---- voice-over: MiniMax clips from audio/tour/ (made by tools/gen_tts.py) ----
@@ -4734,10 +4760,11 @@ const TOUR={on:false,i:0,t:0,paused:false,prevSpeed:0.35,pend:null,prevZ:0};
    after which later clips can start from the timer without another tap (mobile autoplay rules).
    No robotic browser-speech fallback: if the clips are unavailable the tour simply runs with captions. */
 const NARR_INLINE=null; /* tools/build_single.py inlines narration/tour.json here */
+const NARR_DIR=LANG==='en'?'audio/tour/en/':'audio/tour/';   /* English clips are voiced from narration/tour.en.json */
 const NARR={on:true,clips:null,lines:null,ctx:null,buf:{},src:null,playing:false,tok:0,state:'loading'};
 NARR.ready=(async()=>{
   const get=u=>fetch(u,{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null);
-  const [m,l]=await Promise.all([get('audio/tour/manifest.json'),NARR_INLINE||get('narration/tour.json')]);
+  const [m,l]=await Promise.all([get(NARR_DIR+'manifest.json'),LANG==='en'?get('narration/tour.en.json'):(NARR_INLINE||get('narration/tour.json'))]);
   NARR.clips=m&&Object.keys(m).length?m:null;NARR.lines=l&&l.lines?l.lines:null;
   NARR.state=NARR.clips&&(window.AudioContext||window.webkitAudioContext)?'ok':'none';tourShow();
 })();
@@ -4750,7 +4777,7 @@ function narrUnlock(){
 }
 function narrLoad(id){
   if(NARR.buf[id])return NARR.buf[id];
-  NARR.buf[id]=fetch('audio/tour/'+id+'.mp3').then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+  NARR.buf[id]=fetch(NARR_DIR+id+'.mp3').then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
     .then(ab=>new Promise((res,rej)=>NARR.ctx.decodeAudioData(ab,res,rej)))
     .catch(e=>{NARR.buf[id]=null;throw e;});
   return NARR.buf[id];
@@ -4779,11 +4806,11 @@ const tourTotal=()=>TOUR_STOPS.reduce((a,b)=>a+stopDur(b),0);
 function tourShow(){
   const st=TOUR_STOPS[TOUR.i];
   $('tourI').textContent=(TOUR.i+1)+' / '+TOUR_STOPS.length;$('tourN').textContent=LOC[st.l].name;
-  $('tourPause').textContent=TOUR.paused?'继续':'暂停';$('tourPrev').disabled=TOUR.i===0;
-  $('tourNext').textContent=TOUR.i===TOUR_STOPS.length-1?'结束':'下一站';
+  $('tourPause').textContent=TOUR.paused?$t('继续'):$t('暂停');$('tourPrev').disabled=TOUR.i===0;
+  $('tourNext').textContent=TOUR.i===TOUR_STOPS.length-1?$t('结束'):$t('下一站');
   $('tourVoice').hidden=NARR.state==='none';
-  $('tourVoice').textContent=NARR.state==='fail'?'语音讲解：加载失败':'语音讲解：'+(NARR.on?'开':'关');
-  $('tourVoice').setAttribute('aria-pressed',String(NARR.on));$('tourVoice').title='MiniMax 语音合成的讲解配音';
+  $('tourVoice').textContent=NARR.state==='fail'?$t('语音讲解：加载失败'):$t('语音讲解：')+(NARR.on?$t('开'):$t('关'));
+  $('tourVoice').setAttribute('aria-pressed',String(NARR.on));$('tourVoice').title=$t('MiniMax 语音合成的讲解配音');
 }
 function goStop(i){
   TOUR.i=Math.max(0,Math.min(TOUR_STOPS.length-1,i));TOUR.t=0;
@@ -4808,7 +4835,7 @@ function exitTour(msg){
   if(!TOUR.on)return;TOUR.on=false;narrStop();TOUR.pend=null;if(msg)narrPlay('end');
   controls.autoRotateSpeed=TOUR.prevSpeed;document.body.classList.remove('tour');$('tourBar').hidden=true;
   updDiveUI();
-  showCaption(msg?'导览结束':'已退出展览模式',msg||'现在可以自由探索：拖动画面看四周，点击生物看它是谁，控制台里还有蓝洞、昼夜迁移等场景。',8);
+  showCaption(msg?$t('导览结束'):$t('已退出展览模式'),msg||$t('现在可以自由探索：拖动画面看四周，点击生物看它是谁，控制台里还有蓝洞、昼夜迁移等场景。'),8);
 }
 function stepTour(rdt){
   if(TOUR.paused)return;
@@ -4822,7 +4849,7 @@ function stepTour(rdt){
     if(NARR.lines)for(const l of NARR.lines)if(l.depth&&TOUR.prevZ<l.depth&&DIVE.z>=l.depth)TOUR.pend=l.id;
     TOUR.prevZ=DIVE.z;
     if(TOUR.pend&&!narrBusy())narrPlay(TOUR.pend);
-    if(u>=1&&!TOUR.bottom){TOUR.bottom=true;if(narrBusy())TOUR.pend='bottom';else narrPlay('bottom');showCaption('10,935 m：地球海洋最深处','这里的压力超过 1,000 个大气压，水温只有 2 °C 多。即使到了今天，人类对深海的了解仍然非常有限。',14);}
+    if(u>=1&&!TOUR.bottom){TOUR.bottom=true;if(narrBusy())TOUR.pend='bottom';else narrPlay('bottom');showCaption($t('10,935 m：地球海洋最深处'),$t('这里的压力超过 1,000 个大气压，水温只有 2 °C 多。即使到了今天，人类对深海的了解仍然非常有限。'),14);}
   }else{TOUR.bottom=false;
     /* a gentle push-in toward the subject while the camera circles */
     const off=_vv.copy(camera.position).sub(controls.target),len=off.length();
@@ -4830,7 +4857,7 @@ function stepTour(rdt){
   }
   const before=TOUR_STOPS.slice(0,TOUR.i).reduce((a,b)=>a+stopDur(b),0);
   $('tourP').style.width=Math.min(100,(before+TOUR.t)/tourTotal()*100)+'%';
-  if(TOUR.t>=stopDur(st)){if(TOUR.i<TOUR_STOPS.length-1)goStop(TOUR.i+1);else exitTour('你从 10 m 的珊瑚礁一路走到了 10,935 m 的海沟底。现在可以自由探索：控制台里还有蓝洞、昼夜垂直迁移等场景，也可以开着水下机器人四处看看。');}
+  if(TOUR.t>=stopDur(st)){if(TOUR.i<TOUR_STOPS.length-1)goStop(TOUR.i+1);else exitTour($t('你从 10 m 的珊瑚礁一路走到了 10,935 m 的海沟底。现在可以自由探索：控制台里还有蓝洞、昼夜垂直迁移等场景，也可以开着水下机器人四处看看。'));}
 }
 $('tourBtn').addEventListener('click',startTour);
 $('welTour').addEventListener('click',startTour);

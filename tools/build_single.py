@@ -20,6 +20,10 @@ assert n == 1
 narr = read('narration/tour.json')
 assert 'const NARR_INLINE=null;' in html
 html = html.replace('const NARR_INLINE=null;', 'const NARR_INLINE=' + json.dumps(json.loads(narr), ensure_ascii=False) + ';')
+# English text: the site loads i18n/en.js only for English visitors; the single file carries it inline
+html, n = re.subn(r"document\.write\('<script src=\"i18n/en\.js(\?v=[0-9a-f]+)?\"><\\/script>'\);", '', html)
+assert n == 1
+html = html.replace('<script>/* language:', '<script>\n' + read('i18n/en.js') + '</script>\n<script>/* language:', 1)
 os.makedirs(os.path.dirname(out), exist_ok=True)
 open(out, 'w', encoding='utf-8').write(html)
 print('wrote', out, '%.2f MB' % (len(html.encode()) / 1e6))

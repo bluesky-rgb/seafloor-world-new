@@ -117,9 +117,9 @@ function drawEcho(){
 }
 function dvmNote(){
   const h=DVM.t,el=sunElev(h),zl=migZ('lantern',h),vl=(migZ('lantern',h+1/60)-zl);
-  const phase=el>20?'白天':el>0?(h<12?'清晨':'傍晚'):el>-12?(h<12?'黎明':'黄昏'):'夜里';
-  const mv=Math.abs(vl)<0.3?'停在那里':(vl<0?'正以约 '+Math.abs(vl).toFixed(1)+' m/min 上升':'正以约 '+vl.toFixed(1)+' m/min 下沉');
-  $('dvmNote').innerHTML='<b>'+phase+'</b> · 水面光照约为正午的 '+pct(surfE(h))+'。灯笼鱼层在约 <b>'+Math.round(zl)+' m</b>，'+mv+'；磷虾层约 '+Math.round(migZ('krill',h))+' m，樽海鞘约 '+Math.round(migZ('salp',h))+' m。银斧鱼不迁移，一直留在 300–500 m。';
+  const phase=el>20?$t('白天'):el>0?(h<12?$t('清晨'):$t('傍晚')):el>-12?(h<12?$t('黎明'):$t('黄昏')):$t('夜里');
+  const mv=Math.abs(vl)<0.3?$t('停在那里'):(vl<0?$t('正以约 ')+Math.abs(vl).toFixed(1)+$t(' m/min 上升'):$t('正以约 ')+vl.toFixed(1)+$t(' m/min 下沉'));
+  $('dvmNote').innerHTML='<b>'+phase+$t('</b> · 水面光照约为正午的 ')+pct(surfE(h))+$t('。灯笼鱼层在约 <b>')+Math.round(zl)+$t(' m</b>，')+mv+$t('；磷虾层约 ')+Math.round(migZ('krill',h))+$t(' m，樽海鞘约 ')+Math.round(migZ('salp',h))+$t(' m。银斧鱼不迁移，一直留在 300–500 m。');
   $('dvmTV').textContent=hhmm(h);$('dvmZV').textContent=Math.round(DIVE.z)+' m';
   if(document.activeElement!==$('sDvmT'))$('sDvmT').value=Math.round(((h%24)+24)%24*60)%1440;
   if(document.activeElement!==$('sDvmZ'))$('sDvmZ').value=Math.round(DIVE.z);
@@ -133,7 +133,7 @@ function enterDVM(){
   S.D=L.D;DIVE.z=DVM.z;DIVE.lastZ=DVM.z;controls.target.set(0,-DVM.z,0);camera.position.set(3.2,-DVM.z+0.9,5.6);
   bubbles.forEach(b=>b.on=false);sparkAge.fill(99);DVM.lastSun=-99;S.night=sunElev(DVM.t)<-6;
   rebuild();dvmLight();updDiveUI();$('dvmSec').hidden=false;drawEchoBase();drawEcho();dvmNote();
-  showCaption('地球上规模最大的迁移','每天黄昏，暮光层里数以十亿计的灯笼鱼、磷虾和樽海鞘从几百米深处升到表层觅食，天亮前再沉回去。你现在悬停在 '+Math.round(DVM.z)+' m，看着它们到来。',10);
+  showCaption($t('地球上规模最大的迁移'),$t('每天黄昏，暮光层里数以十亿计的灯笼鱼、磷虾和樽海鞘从几百米深处升到表层觅食，天亮前再沉回去。你现在悬停在 ')+Math.round(DVM.z)+$t(' m，看着它们到来。'),10);
 }
 function stepDVM(rdt){
   if(!DIVE.dvm)return;

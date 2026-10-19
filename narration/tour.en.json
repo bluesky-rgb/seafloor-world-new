@@ -1,0 +1,102 @@
+{
+  "_note": "English voice-over for exhibition mode. Ids match narration/tour.json. Write numbers the way they are spoken so the speech synthesis reads them correctly. After a change is pushed, GitHub Actions regenerates the clips that changed into audio/tour/en/.",
+  "lines": [
+    {
+      "id": "s01_xisha",
+      "text": "The ocean covers seventy-one percent of the Earth's surface. Our tour begins on a coral reef ten metres deep in the Paracel Islands of the South China Sea. Coral reefs cover less than one percent of the seafloor, yet they support about a quarter of all marine species."
+    },
+    {
+      "id": "s01b_mangrove",
+      "text": "Nearby, Xincun Lagoon in Lingshui is a different kind of shallow sea. Mangrove prop roots reach down into the soft mud, a nursery where small fish hide from predators. Beyond them, a seagrass meadow sways with the waves. Seagrass covers only about zero point two percent of the seafloor, but it stores about ten percent of the ocean's carbon."
+    },
+    {
+      "id": "s01c_nanji",
+      "text": "The Nanji Islands in Zhejiang, a kingdom of shellfish and seaweed. Here the tide rises and falls twice a day, and life on the rocks is sorted into bands by height: periwinkles at the top, then white barnacles and gooseneck barnacles, then dark mussel beds and fields of Sargassum. Watch: as soon as the sea covers them, the barnacles open their plates and sweep the water for food."
+    },
+    {
+      "id": "s02_monterey",
+      "text": "A kelp forest, a forest under the sea. In Monterey Bay, California, cold upwelling brings nutrients, and giant kelp grows into forests more than ten metres tall, swaying together with the swell."
+    },
+    {
+      "id": "s03_truk",
+      "text": "A shipwreck turned reef. The Fujikawa Maru sank in nineteen forty-four. Eighty years later, its hull belongs to soft corals and schools of fish. At this depth the red light has already been absorbed by the water, and everything turns blue-green."
+    },
+    {
+      "id": "s04_ice",
+      "text": "Under the Antarctic sea ice. The water is minus one point nine degrees Celsius, and it stays liquid only because it is salty. Two metres of ice overhead let through just a few percent of the sunlight. The algae on the underside of the ice are where the Southern Ocean food chain begins."
+    },
+    {
+      "id": "s04b_arctic",
+      "text": "The Arctic, at the edge of the ice. Here the sea ice attached to the land breaks off, and open water lies beyond. The underside of the ice is stained brown by algae and hung with strands of Melosira, and polar cod hide in the cracks. Every May and June, narwhals and belugas follow the floe edge into the fjords. The narwhal's tusk is really a single tooth, growing in a spiral."
+    },
+    {
+      "id": "s05_spawn",
+      "text": "A night of coral spawning. On just a few nights around the full moon each year, the corals release red bundles of eggs and sperm all at once. They drift slowly upwards, like snow falling the wrong way."
+    },
+    {
+      "id": "s06_rost",
+      "text": "Three hundred and twenty metres: a coral reef without sunlight. The cold-water corals off Norway do not depend on the sun. They catch plankton carried by the current. The Røst Reef stretches thirty to forty kilometres, the largest cold-water coral reef known."
+    },
+    {
+      "id": "s07_deep",
+      "text": "One thousand three hundred and ninety metres: life on methane. At the Haima cold seep in the South China Sea, methane seeps from the seafloor. Bacteria turn it into food, feeding mussel beds, tubeworms and white bacterial mats."
+    },
+    {
+      "id": "s08_brine",
+      "text": "Six hundred and fifty metres: a lake on the seafloor. Brine, far heavier than seawater, has pooled into a lake, with a surface and a shore. There is no oxygen in the lake, yet its shore is crowded with mussels that live on methane."
+    },
+    {
+      "id": "s09_whalefall",
+      "text": "One thousand eight hundred metres: a whale fall. A whale that sinks to the deep sea can feed a whole community for decades. Scientists have recorded more than four hundred species living on whale falls."
+    },
+    {
+      "id": "s10_vent",
+      "text": "Two thousand eight hundred metres: hydrothermal vents. Fluid hotter than three hundred degrees Celsius gushes from black smokers. The blind shrimp and yeti crabs around them do not depend on sunlight at all. Bacteria turn chemical energy into food."
+    },
+    {
+      "id": "s10a_seamount",
+      "text": "Three thousand two hundred metres, at the foot of Davidson Seamount. Water warmed by the Earth's heat seeps from cracks in the rock, and thousands of pearl octopuses gather here to lay their eggs. Each mother lies over her eggs without moving until the young hatch. The warm water lets them hatch in under two years; in the icy deep it would take far longer. Where you see the water gently shimmer, that is a warm spring."
+    },
+    {
+      "id": "s10b_abyss",
+      "text": "Four thousand one hundred metres: the abyssal plain. The seafloor is strewn with potato-sized manganese nodules that grow just one to ten centimetres in a million years. More than five thousand animal species have been recorded in this region, and about nine in ten have never been described by science. The wide band without nodules is the track of a mining test in nineteen seventy-nine. More than forty years later, it looks almost unchanged."
+    },
+    {
+      "id": "s11_dive",
+      "text": "Last stop: the Mariana Trench. We set off from the reef wall of Guam and dive all the way to the deepest point of the world ocean. Light, temperature and life change layer by layer as we go down. The profile on the left shows where you are."
+    },
+    {
+      "id": "m0200",
+      "text": "Two hundred metres: entering the twilight zone. Less than one percent of the sunlight is left, too little for plants to photosynthesise.",
+      "depth": 200
+    },
+    {
+      "id": "m1000",
+      "text": "One thousand metres: entering the midnight zone. Not a trace of sunlight remains. Every light you see from here on is made by living things.",
+      "depth": 1000
+    },
+    {
+      "id": "m4000",
+      "text": "Four thousand metres: entering the abyssal zone. The water is about one point five degrees Celsius, and the pressure about four hundred atmospheres.",
+      "depth": 4000
+    },
+    {
+      "id": "m6000",
+      "text": "Six thousand metres: entering the hadal zone. It exists only inside the trenches.",
+      "depth": 6000
+    },
+    {
+      "id": "m8849",
+      "text": "Eight thousand eight hundred and forty-nine metres: the height of Mount Everest. Put the whole mountain in this trench, and its summit would still be more than two kilometres below the surface.",
+      "depth": 8849
+    },
+    {
+      "id": "bottom",
+      "text": "Ten thousand nine hundred and thirty-five metres: the deepest point of the world ocean. The pressure here is more than a thousand atmospheres, and the water is just over two degrees Celsius. Even today, we know remarkably little about the deep sea."
+    },
+    {
+      "id": "end",
+      "text": "The tour is over. You have travelled from a coral reef ten metres deep to the floor of the trench, ten thousand nine hundred and thirty-five metres down. Now you are free to explore."
+    }
+  ]
+}
