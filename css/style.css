@@ -148,7 +148,7 @@ section .exp+.exp{margin-top:0}
 #shareMe.warn{color:#e8c37a}
 #tourBtn{position:fixed;left:16px;bottom:164px;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font:13px var(--f-body);cursor:pointer;backdrop-filter:blur(8px)}
 #tourBtn b{color:var(--accent);font-weight:500}
-body.tour #panel,body.tour #cardBtn,body.tour #pilotBtn,body.tour #diveCta,body.tour #diveBar,body.tour #tourBtn,body.tour #info,body.tour #joyWrap{display:none!important}
+body.tour #panel,body.tour #tmBtn,body.tour #cardBtn,body.tour #pilotBtn,body.tour #diveCta,body.tour #diveBar,body.tour #tourBtn,body.tour #info,body.tour #joyWrap{display:none!important}
 #tourBar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);width:min(640px,calc(100vw - 32px));background:rgba(4,20,30,.72);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;padding:10px 14px;color:var(--fg);z-index:40}
 #tourBar[hidden]{display:none}
 #tourBar .tr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -176,6 +176,8 @@ body.vr>*:not(#gl):not(#vrUI){visibility:hidden!important}
 .prog div{height:100%;background:var(--accent);width:0;transition:width .6s}
 #locSeg button.dive{flex-basis:100%;text-align:left;border-color:var(--accent);color:var(--accent)}
 #locSeg button.dive[aria-pressed="true"]{color:var(--abyss)}
+#tmBtn{position:fixed;left:16px;bottom:212px;background:var(--panel);color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:8px 14px;font:13px var(--f-body);cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#tmBtn[hidden]{display:none}
 #cardBtn{position:fixed;left:16px;bottom:116px;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font:13px var(--f-body);cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #cardBtn[hidden]{display:none}
 #cardImg{width:100%;height:auto;display:block;border-radius:8px;margin-top:4px}
@@ -214,6 +216,7 @@ body.vr>*:not(#gl):not(#vrUI){visibility:hidden!important}
   #hud .depth{font-size:30px}
   #diveCta{bottom:64px}
   #tourBtn{bottom:212px}
+  #tmBtn{bottom:260px}
   #tourBar .th{display:none}
   #pilotBtn{bottom:116px}
   #cardBtn{bottom:164px}
@@ -223,7 +226,7 @@ body.vr>*:not(#gl):not(#vrUI){visibility:hidden!important}
   #diveBar{right:16px;bottom:64px}
   #cap{left:50%;width:calc(100% - 32px);bottom:auto;top:36%}
   #capT{font-size:19px}
-  #toast{left:50%;top:auto;bottom:262px}   /* clear of the exhibition-mode button (bottom 212px) */
+  #toast{left:50%;top:auto;bottom:310px}   /* clear of the left button stack (time machine at 260px) */
   #info{left:16px;right:16px;width:auto;transform:none;top:auto;bottom:calc(52% + 12px)}
   #panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:52%;border-radius:14px 14px 0 0;border-bottom:none;padding-bottom:env(safe-area-inset-bottom,0px)}
   #panel.closed{bottom:0}
@@ -278,7 +281,9 @@ figure.lc{margin:0}
 .lsun{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;margin:8px 0 0;font-size:12px;color:var(--muted)}
 .lsun .seg button{font-size:11.5px;padding:4px 10px}
 details.tm{border-top:1px solid var(--line);padding-top:8px}
-details.tm>summary{cursor:pointer;font-size:12.5px;color:var(--accent);font-weight:500}
+details.tm>summary{cursor:pointer;font-size:13px;color:var(--abyss);background:var(--accent);font-weight:500;border-radius:999px;padding:6px 12px;display:inline-block;list-style:none}
+details.tm>summary::-webkit-details-marker{display:none}
+details.tm[open]>summary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
 .tmBody{display:grid;gap:8px;margin-top:8px}
 .tmBody input[type=range]{width:100%}
 .tmEv{gap:5px}

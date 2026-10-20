@@ -5218,7 +5218,7 @@ function coralCard(id){
     +'<div class="ctl"><label for="simDhw">'+$t('模拟热应力 DHW')+' <b id="simV">'+(simOn?fx(LIVE.sim):$t('今天 ')+fx(c.dhw))+'</b></label><input id="simDhw" type="range" min="0" max="20" step="0.5" value="'+fx(simOn?LIVE.sim:c.dhw)+'"></div>'
     +'<div class="seg lrow"><button type="button" id="simBack"'+(simOn?'':' disabled')+'>'+$t('回到今天的实测')+'</button><button type="button" class="lguideBtn">'+$t('怎么观察')+'</button></div>'
     +'<ol class="lhow"><li>'+$t('看珊瑚的颜色，再对照上面的警报等级。')+'</li><li>'+$t('把“模拟热应力”从 0 拖到 16，看白化怎样从枝状珊瑚的顶端开始扩散，再拖回“今天”。')+'</li><li>'+$t('看温度曲线：海温高于白化阈值的那些天，DHW 曲线才会上升；它累计的是过去 12 周。')+'</li><li>'+$t('打开下面的“时间机器”，回到有记录以来最热的那几年，播放一整个夏天。')+'</li></ol>'
-    +'<details class="tm"'+(TM.on&&TM.id===id?' open':'')+'><summary>'+$t('时间机器：回看 1985 年以来的任何一天')+'</summary><div class="tmBody"></div></details>');
+    +'<details class="tm"'+(TM.on&&TM.id===id?' open':'')+'><summary>⏱ '+$t('时间机器：回看 1985 年以来的任何一天')+'</summary><div class="tmBody"></div></details>');
   el.querySelector('#simDhw').addEventListener('input',e=>{if(TM.on)tmStop();LIVE.sim=+e.target.value;applyBleach();const v=$('simV');if(v)v.textContent=fx(LIVE.sim);
     const sc=el.querySelector('.lscene');if(sc)sc.innerHTML='<b>'+$t('画面里（模拟 DHW ')+fx(LIVE.sim)+QRP+QCO+'</b>'+bleachWords(reefNow());el.querySelector('#simBack').disabled=false;});
   el.querySelector('#simBack').addEventListener('click',()=>{LIVE.sim=null;applyBleach();renderLive();});
@@ -5379,6 +5379,20 @@ let liveGuideFrom=null;
 function openLiveGuide(from){liveGuideFrom=from||document.activeElement;$('liveGuide').hidden=false;$('liveGuideX').focus();}
 function closeLiveGuide(){$('liveGuide').hidden=true;if(liveGuideFrom&&liveGuideFrom.focus)liveGuideFrom.focus();}
 $('liveOn').addEventListener('click',()=>setLiveOn(!LIVE.on));
+/* the time machine from anywhere: switch live data on, go to a reef (Paracels) if needed, open the console and the card */
+function openTimeMachine(){
+  if(TOUR.on)exitTour();if(PILOT.on)exitPilot();
+  if(!LIVE.on)setLiveOn(true);
+  if(!REEF_IDS.includes(LIVE.site)||S.loc!==LIVE.site)applyLocation('xisha');
+  if($('panel').classList.contains('closed'))$('toggle').click();
+  if(!LIVE.data){showCaption($t('正在加载现实数据……'),$t('数据加载完以后再点一次“珊瑚时间机器”。'),4);return;}
+  renderLive();
+  const d=document.querySelector('#liveHere details.tm');if(!d)return;
+  if(!d.open)d.open=true;
+  setTimeout(()=>d.scrollIntoView({block:'start',behavior:'smooth'}),60);
+}
+$('tmBtn').addEventListener('click',openTimeMachine);
+$('liveTmBtn').addEventListener('click',openTimeMachine);
 $('liveHowBtn').addEventListener('click',e=>openLiveGuide(e.currentTarget));
 $('liveGuideX').addEventListener('click',closeLiveGuide);
 $('liveGuide').addEventListener('click',e=>{if(e.target===$('liveGuide'))closeLiveGuide();});
