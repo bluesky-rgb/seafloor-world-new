@@ -4,6 +4,8 @@
 Run daily by .github/workflows/live.yml. Sources (all public, no key):
   - NOAA Coral Reef Watch 5-km regional virtual stations: sea surface temperature, HotSpot,
     Degree Heating Weeks and bleaching alert for the Paracel Islands, Hainan Island and the Gulf of Aqaba
+    (the whole daily record since 1985 also goes to data/reef_history.json for the time machine)
+  - Open-Meteo marine API: today's wave height, wave period and sea surface temperature at four sites
   - Open-Meteo marine API (Meteo-France SMOC model): hourly sea level including tides off the Nanji Islands
   - NSIDC Sea Ice Index v4: daily Arctic and Antarctic sea-ice extent and the 1981-2010 daily climatology
 
@@ -26,6 +28,11 @@ REEFS = {  # scene id -> CRW station file
 }
 TIDE_URL = ('https://marine-api.open-meteo.com/v1/marine?latitude=27.45&longitude=121.12'
             '&hourly=sea_level_height_msl&past_days=1&forecast_days=4&timezone=GMT&cell_selection=sea')
+# today's sea state (wave height and period, sea surface temperature), hourly from the same marine API
+SEA_URL = ('https://marine-api.open-meteo.com/v1/marine?latitude=%s&longitude=%s'
+           '&hourly=wave_height,wave_period,sea_surface_temperature&past_days=1&forecast_days=4&timezone=GMT&cell_selection=sea')
+SEA = {'monterey': (36.62, -121.90), 'xisha': (16.5, 111.6), 'eilat': (29.5, 34.95), 'nanji': (27.45, 121.12)}
+HIST_OUT = os.path.join(os.path.dirname(OUT), 'reef_history.json')
 NSIDC = 'https://noaadata.apps.nsidc.org/NOAA/G02135/%s/daily/data/%s_seaice_extent_%s_v4.0.csv'
 
 
@@ -33,7 +40,7 @@ def get(url):
     if FIX:
         name = url.split('?')[0].rsplit('/', 1)[-1] or 'marine'
         if 'open-meteo' in url:
-            name = 'marine.json'
+            name = 'marine_sea.json' if 'wave_height' in url else 'marine.json'
         with open(os.path.join(FIX, name), encoding='utf-8') as f:
             return f.read()
     req = urllib.request.Request(url, headers={'User-Agent': 'seafloor-world (github.com/bluesky-rgb/seafloor-world-new)'})
@@ -82,18 +89,40 @@ def reef(station):
     for r in rows:
         if r[6] > best.get(r[0].year, (None, -1))[1]:
             best[r[0].year] = (r[0], r[6])
-    top = sorted(best.values(), key=lambda v: -v[1])[:3]
-    return {
+    top = sorted(best.values(), key=lambda v: -v[1])[:5]
+    # the whole record, one value per day from the first date (null where a day is missing), in tenths
+    start = rows[0][0]
+    n = (last[0] - start).days + 1
+    sst, hs, dhw = [None] * n, [None] * n, [None] * n
+    for r in rows:
+        i = (r[0] - start).days
+        sst[i], hs[i], dhw[i] = round(r[3] * 10), round(r[5] * 10), round(r[6] * 10)
+    hist = {'station': name, 'start': start.isoformat(), 'mmm': round(mmm, 2), 'threshold': round(mmm + 1, 2),
+            'events': [{'date': d.isoformat(), 'dhw': round(v, 2)} for d, v in top if v > 0],
+            'sst10': sst, 'hs10': hs, 'dhw10': dhw}
+    return hist, {
         'station': name, 'file': station, 'lat': lat, 'lon': lon,
         'date': last[0].isoformat(),
         'sstMin': last[1], 'sstMax': last[2], 'sst': last[3], 'ssta': round(last[4], 2),
         'hotspot': round(last[5], 2), 'dhw': round(last[6], 2), 'level': level, 'baa': last[7],
         'mmm': round(mmm, 2), 'threshold': round(mmm + 1, 2), 'monthly': [round(v, 2) for v in monthly],
         'peak365': {'date': peak[0].isoformat(), 'dhw': round(peak[6], 2)},
-        'record': [{'date': d.isoformat(), 'dhw': round(v, 2)} for d, v in top if v > 0],
+        'record': [{'date': d.isoformat(), 'dhw': round(v, 2)} for d, v in top[:3] if v > 0],
         # past year, daily: [days before the last date, SST at the 90th-percentile HotSpot pixel, DHW]
         'series': [[(last[0] - r[0]).days, round(r[3], 2), round(r[6], 2)] for r in year],
     }
+
+
+# ---- sea state ---------------------------------------------------------------------------------------------------
+def sea(lat, lon):
+    j = json.loads(get(SEA_URL % (lat, lon)))
+    h = j['hourly']
+    t0 = dt.datetime.fromisoformat(h['time'][0]).replace(tzinfo=dt.timezone.utc)
+    rnd = lambda a, n: [None if v is None else round(v, n) for v in a]
+    if sum(v is not None for v in h['wave_height']) < 24:
+        raise ValueError('too few wave values')
+    return {'lat': j.get('latitude'), 'lon': j.get('longitude'), 't0': int(t0.timestamp()), 'step': 3600,
+            'H': rnd(h['wave_height'], 2), 'T': rnd(h['wave_period'], 1), 'sst': rnd(h.get('sea_surface_temperature') or [], 1)}
 
 
 # ---- tide off the Nanji Islands -----------------------------------------------------------------------------
@@ -172,12 +201,23 @@ def main():
     except (OSError, ValueError):
         old = {}
     out = {'updated': dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
-           'coral': dict(old.get('coral', {})), 'tide': old.get('tide'), 'ice': dict(old.get('ice', {})), 'errors': []}
+           'coral': dict(old.get('coral', {})), 'tide': old.get('tide'), 'ice': dict(old.get('ice', {})),
+           'sea': dict(old.get('sea', {})), 'errors': []}
+    try:
+        with open(HIST_OUT, encoding='utf-8') as f:
+            hist = json.load(f)
+    except (OSError, ValueError):
+        hist = {'reefs': {}}
     for sid, st in REEFS.items():
         try:
-            out['coral'][sid] = reef(st)
+            hist['reefs'][sid], out['coral'][sid] = reef(st)
         except Exception as e:  # keep the previous value
             out['errors'].append('coral %s: %s' % (st, e))
+    for sid, (lat, lon) in SEA.items():
+        try:
+            out['sea'][sid] = sea(lat, lon)
+        except Exception as e:
+            out['errors'].append('sea %s: %s' % (sid, e))
     try:
         out['tide'] = tide()
     except Exception as e:
@@ -191,10 +231,15 @@ def main():
     with open(OUT, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
         f.write('\n')
+    hist['updated'] = out['updated']
+    with open(HIST_OUT, 'w', encoding='utf-8') as f:
+        json.dump(hist, f, ensure_ascii=False, separators=(',', ':'))
+        f.write('\n')
     for e in out['errors']:
         print('error:', e)
-    ok = len(REEFS) + 3 - len(out['errors'])
-    print('live data: %d of %d sources updated -> %s' % (ok, len(REEFS) + 3, os.path.relpath(OUT, ROOT)))
+    total = len(REEFS) + len(SEA) + 3
+    ok = total - len(out['errors'])
+    print('live data: %d of %d sources updated -> %s, %s' % (ok, total, os.path.relpath(OUT, ROOT), os.path.relpath(HIST_OUT, ROOT)))
     sys.exit(0 if ok else 1)
 
 
