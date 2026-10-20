@@ -95,6 +95,7 @@
  "2012 年 3 月 26 日 05:15": "26 March 2012, 05:15",
  "2012 年 3 月 26 日 · 当地时间 ": "26 March 2012 · local time ",
  "2016 年测得 300.89 m，是当时已知最深的蓝洞（现已知墨西哥的 Taam Ja' 蓝洞至少 420 m）。洞底沉积的有机碳最老约 6,800 年。": "Measured at 300.89 m in 2016, then the deepest known blue hole (Taam Ja’ in Mexico is now known to be at least 420 m). The oldest organic carbon in its bottom sediment is about 6,800 years old.",
+ "2024 年夏天：一场海洋热浪": "Summer 2024: a marine heatwave",
  "24 小时回声测深图：横轴是一天中的时间，纵轴是 0 到 1000 米深度，暖色是动物密集的声散射层。点击可跳到对应的时间和深度。": "24-hour echogram: the horizontal axis is the time of day, the vertical axis is depth from 0 to 1000 m, and warm colours are the sound-scattering layers of dense animals. Click to jump to that time and depth.",
  "3 个月": "3 months",
  "3,200 m：海山章鱼花园": "3,200 m: the seamount octopus garden",
@@ -590,7 +591,6 @@
  "展览模式：自动导览整片海洋": "Exhibition mode: an automatic tour of the whole ocean",
  "岩壁": "Rock wall",
  "左下摇杆移动 · 右侧按钮上浮/下潜 · 拖动画面转头": "Joystick (bottom left) to move · buttons on the right to rise/dive · drag to look around",
- "左下角“展览模式”（或欢迎页的“看 8 分钟展览导览”）会自动带你走过 16 个真实地点：珊瑚礁、海草床与红树林、岩礁潮间带、巨藻林、沉船、南极冰下、北极冰缘、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口、海山章鱼花园、深海平原，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。": "“Exhibition mode” at the bottom left (or “Watch the 8-minute tour” on the welcome card) takes you through 16 real places automatically: coral reef, seagrass and mangroves, rocky intertidal, kelp forest, shipwreck, under the Antarctic ice, the Arctic floe edge, coral spawning, cold-water coral reef, cold seep, brine pool, whale fall, hydrothermal vents, the seamount octopus garden and the abyssal plain, finally diving all the way to the bottom of the Mariana Trench. Each stop lasts about 20 seconds with captions and spoken narration (the “Narration” button at the bottom turns it off); the camera circles automatically and you can drag at any time. At the bottom you can pause or skip to the previous or next stop; press “Exit” or Esc to go back to free exploring.",
  "左下角“拍明信片”会把当前画面做成一张带地点、深度、水温和气压的图片，可以保存下来分享。": "“Take a postcard” at the bottom left turns the current view into a picture with the place, depth, water temperature and pressure, which you can save and share.",
  "左侧剖面里，珠穆朗玛峰按比例放进了海沟；可以在下方调倍速，或直接拖动深度条。": "In the profile on the left, Mount Everest is placed in the trench to scale. Change the speed below, or drag the depth bar.",
  "左前方": "ahead left",
@@ -1203,6 +1203,7 @@
  "这些地方的高温、高盐、无氧或冰冷，让科学家思考：地外海洋里会不会也有生命。": "The heat, salt, lack of oxygen or cold of these places make scientists wonder whether life could exist in oceans beyond Earth.",
  "这台设备的浏览器没有提供头显 VR（WebXR），所以这里只有手机分屏模式。用 VR 头显时，请在头显自带的浏览器里打开这个页面。": "This device’s browser does not offer headset VR (WebXR), so only split-screen mode is available here. With a VR headset, open this page in the headset’s own browser.",
  "这是一个按真实地点和实测数据搭建的海底世界。光线、水色、波浪、海流、水温和压强都按物理公式计算，每种生物只会出现在它真实生活的深度、水温和环境里。控制台最下方的“场景用到的物理与生态规则”列出了所有依据。": "This is a seafloor world built from real places and measured data. Light, water colour, waves, currents, temperature and pressure are calculated from physical formulas, and each animal appears only at the depth, temperature and habitat where it really lives. “Physical and ecological rules used in the scenes” at the bottom of the console lists everything they are based on.",
+ "这是西沙卫星海温的真实记录，快放一遍：热应力越过警报线以后，珊瑚从枝状珊瑚的顶端开始变白。这样的热浪在 1990 年代很少见，2010 年以来的 17 年里有 14 年达到了白化警报。": "This is the real satellite record of sea temperature at the Paracels, fast-forwarded: once heat stress crosses the alert lines, the corals turn white starting from the tips of the branching corals. Heatwaves like this were rare in the 1990s; 14 of the 17 years since 2010 reached a bleaching alert.",
  "这片礁还没有历史数据。": "There is no historical data for this reef yet.",
  "这里不能直接保存文件：电脑上右键图片“另存为”，手机上长按图片保存。": "Files can’t be saved directly here: on a computer right-click the image and choose “Save as”; on a phone press and hold the image.",
  "这里再也没有一丝阳光。此后看到的光，除了潜水器的灯，全部来自生物自己。": "Not a trace of sunlight is left. From here on, apart from the sub’s lights, every light you see is made by living things.",
@@ -1376,5 +1377,9 @@
  "；": "; ",
  "；水的压缩系数取约 4.6×10⁻¹⁰ /Pa；泡沫杯用简化模型：含 95% 空气、约 6 个大气压后气泡壁开始被压垮，之后按玻意耳定律压缩并且不再恢复。泡沫杯的这两个参数是假设，不是测量值，真实杯子会有差异。": "; water compressibility is about 4.6×10⁻¹⁰ /Pa; the foam cup uses a simplified model: 95% air, cell walls start to collapse at about 6 atmospheres, after which it compresses by Boyle’s law and never recovers. These two foam parameters are assumptions, not measurements, and real cups differ.",
  "；海带、水母、海葵触手、颗粒都随之运动。水母本身是浮游生物，主要随水漂。": "; kelp, jellyfish, anemone tentacles and particles all move with it. Jellyfish are plankton and mostly drift with the water.",
- "；磷虾层约 ": "; the krill layer is at about "
+ "；磷虾层约 ": "; the krill layer is at about ",
+ "左下角“展览模式”（或欢迎页的“看 8 分钟展览导览”）会自动带你走过 16 个真实地点：珊瑚礁、海草床与红树林、岩礁潮间带、巨藻林、沉船、南极冰下、北极冰缘、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口、海山章鱼花园、深海平原，最后一路下潜到马里亚纳海沟底。在珊瑚礁之后有一站会用“珊瑚时间机器”快放 2024 年夏天西沙的真实海洋热浪，看珊瑚怎样随热应力白化。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。": "“Exhibition mode” at the bottom left (or “Watch the 8-minute tour” on the welcome card) takes you through 16 real places automatically: coral reef, seagrass and mangroves, rocky intertidal, kelp forest, shipwreck, under the Antarctic ice, the Arctic floe edge, coral spawning, cold-water coral reef, cold seep, brine pool, whale fall, hydrothermal vents, the seamount octopus garden and the abyssal plain, finally diving all the way to the bottom of the Mariana Trench. Right after the coral reef, one stop uses the “coral time machine” to fast-forward the real 2024 summer marine heatwave at Xisha, so you can watch the corals bleach as heat stress builds. Each stop lasts about 20 seconds with captions and spoken narration (the “Narration” button at the bottom turns it off); the camera circles automatically and you can drag at any time. At the bottom you can pause or skip to the previous or next stop; press “Exit” or Esc to go back to free exploring.",
+ "展览模式加入 2024 年海洋热浪一站": "A 2024 marine heatwave stop in the exhibition tour",
+ "展览导览在西沙珊瑚礁之后新增一站“2024 年夏天：一场海洋热浪”：用珊瑚时间机器从 4 月中旬开始快放真实的卫星海温记录，配中英文语音讲解，可以看到热应力越过警报线后珊瑚从枝状珊瑚的顶端开始变白": "The exhibition tour has a new stop after the Xisha coral reef, “Summer 2024: a marine heatwave”: the coral time machine fast-forwards the real satellite sea-temperature record from mid-April, with spoken narration in Chinese and English, so you can watch the corals start to bleach from the tips of the branching corals once heat stress crosses the alert line",
+ "导览途中画面左上角保留“今日实测”标签，快放热浪时显示正在播放的日期和热应力；暂停导览时时间机器也一起暂停": "The “Measured today” badge at the top left stays visible during the tour; while the heatwave plays it shows the date being played and the heat stress. Pausing the tour also pauses the time machine"
 }

@@ -4895,6 +4895,7 @@ $('vrXR').addEventListener('click',enterXR);
    ========================================================= */
 const TOUR_STOPS=[
   {l:'xisha',n:'s01_xisha',d:20,t:$t('海洋覆盖地球 71% 的表面'),s:$t('导览从南海西沙 10 m 深的珊瑚礁出发。珊瑚礁只占海底面积不到 1%，却养活了约四分之一的海洋物种。')},
+  {l:'xisha',n:'s01h_heat',d:34,tm:{id:'xisha',from:'2024-04-15'},t:$t('2024 年夏天：一场海洋热浪'),s:$t('这是西沙卫星海温的真实记录，快放一遍：热应力越过警报线以后，珊瑚从枝状珊瑚的顶端开始变白。这样的热浪在 1990 年代很少见，2010 年以来的 17 年里有 14 年达到了白化警报。')},
   {l:'mangrove',n:'s01b_mangrove',d:20,t:$t('海草床与红树林'),s:$t('海南陵水新村潟湖。红树林的支柱根是小鱼的育幼场，海草随波摆动。海草床只占海底约 0.2%，却储存了海洋约 10% 的碳。')},
   {l:'nanji',n:'s01c_nanji',d:24,t:$t('南麂列岛：潮间带'),s:$t('潮水每天两涨两落。岩石上的生物按高度排成带：滨螺、藤壶、龟足、贻贝和海藻。藤壶被淹没时会伸出蔓足捕食。')},
   {l:'monterey',n:'s02_monterey',d:18,t:$t('巨藻林：海底的森林'),s:$t('加州蒙特雷湾的冷水上升流带来养分，巨藻长成十几米高的森林，随涌浪整片摆动。')},
@@ -4973,11 +4974,20 @@ function goStop(i){
   TOUR.i=Math.max(0,Math.min(TOUR_STOPS.length-1,i));TOUR.t=0;
   const st=TOUR_STOPS[TOUR.i];
   if(st.l!=='spawn'&&S.night&&!SPN.on){S.night=false;}
+  if(TM.on)tmStop(true);
   applyLocation(st.l);
+  if(st.tm)tourHeatwave(st.tm);
   if(st.dive){DIVE.play=false;updDiveUI();$('diveBar').hidden=true;}
   showCaption(st.t,st.s,st.dive?9:Math.min(stopDur(st)-2,14));
   TOUR.prevZ=0;narrPlay(st.n);
   tourShow();updSite();
+}
+/* the heatwave stop: the coral time machine plays a real summer from the satellite record while the narration explains it */
+function tourHeatwave(o){
+  LIVE.sim=null;
+  histLoad(()=>{const st=TOUR_STOPS[TOUR.i];if(!TOUR.on||!st.tm)return;
+    TM.on=true;TM.id=o.id;const R=tmR();if(!R){TM.on=false;return;}
+    tmSeek(idxOf(R.start,o.from));tmPlay();});
 }
 function startTour(){
   if(VR.on)exitVR();if(PILOT.on)exitPilot();
@@ -4989,7 +4999,7 @@ function startTour(){
   goStop(0);
 }
 function exitTour(msg){
-  if(!TOUR.on)return;TOUR.on=false;narrStop();TOUR.pend=null;if(msg)narrPlay('end');
+  if(!TOUR.on)return;TOUR.on=false;narrStop();if(TM.on)tmStop(true);TOUR.pend=null;if(msg)narrPlay('end');
   controls.autoRotateSpeed=TOUR.prevSpeed;document.body.classList.remove('tour');$('tourBar').hidden=true;
   updDiveUI();
   showCaption(msg?$t('导览结束'):$t('已退出展览模式'),msg||$t('现在可以自由探索：拖动画面看四周，点击生物看它是谁，控制台里还有蓝洞、昼夜迁移等场景。'),8);
@@ -5263,7 +5273,7 @@ function tmSeek(k){const R=tmR();k=Math.max(0,Math.min(R.dhw10.length-1,Math.rou
 function tmAdvance(n){const R=tmR();for(let k=0;k<n;k++){if(TM.idx>=R.dhw10.length-1){tmPause();break;}TM.idx++;const v=R.dhw10[TM.idx];if(v!=null)reefStep(TM,v/10);}tmApply(false);}
 function tmPause(){if(TM.play){clearInterval(TM.play);TM.play=null;}const b=$('tmPlay');if(b)b.textContent=$t('▶ 播放（每秒 5 天）');}
 function tmPlay(){if(TM.play){tmPause();return;}const R=tmR();if(!R)return;if(TM.idx>=R.dhw10.length-1)tmSeek(TM.idx-200);
-  let acc=0;TM.play=setInterval(()=>{acc+=0.5;const n=Math.floor(acc);if(n){acc-=n;tmAdvance(n);}},100);const b=$('tmPlay');if(b)b.textContent=$t('❚❚ 暂停');}
+  let acc=0;TM.play=setInterval(()=>{if(TOUR.on&&TOUR.paused)return;acc+=0.5;const n=Math.floor(acc);if(n){acc-=n;tmAdvance(n);}},100);const b=$('tmPlay');if(b)b.textContent=$t('❚❚ 暂停');}
 function tmVals(){const R=tmR(),k=TM.idx,g=a=>a[k]==null?null:a[k]/10;return{iso:isoOf(R.start,k),sst:g(R.sst10),hs:g(R.hs10),dhw:g(R.dhw10)};}
 /* how many years per period reached Alert Level 1 (DHW ≥ 4): the trend the record shows */
 function tmDecades(R){

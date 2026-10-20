@@ -236,7 +236,7 @@ function tmSeek(k){const R=tmR();k=Math.max(0,Math.min(R.dhw10.length-1,Math.rou
 function tmAdvance(n){const R=tmR();for(let k=0;k<n;k++){if(TM.idx>=R.dhw10.length-1){tmPause();break;}TM.idx++;const v=R.dhw10[TM.idx];if(v!=null)reefStep(TM,v/10);}tmApply(false);}
 function tmPause(){if(TM.play){clearInterval(TM.play);TM.play=null;}const b=$('tmPlay');if(b)b.textContent=$t('▶ 播放（每秒 5 天）');}
 function tmPlay(){if(TM.play){tmPause();return;}const R=tmR();if(!R)return;if(TM.idx>=R.dhw10.length-1)tmSeek(TM.idx-200);
-  let acc=0;TM.play=setInterval(()=>{acc+=0.5;const n=Math.floor(acc);if(n){acc-=n;tmAdvance(n);}},100);const b=$('tmPlay');if(b)b.textContent=$t('❚❚ 暂停');}
+  let acc=0;TM.play=setInterval(()=>{if(TOUR.on&&TOUR.paused)return;acc+=0.5;const n=Math.floor(acc);if(n){acc-=n;tmAdvance(n);}},100);const b=$('tmPlay');if(b)b.textContent=$t('❚❚ 暂停');}
 function tmVals(){const R=tmR(),k=TM.idx,g=a=>a[k]==null?null:a[k]/10;return{iso:isoOf(R.start,k),sst:g(R.sst10),hs:g(R.hs10),dhw:g(R.dhw10)};}
 /* how many years per period reached Alert Level 1 (DHW ≥ 4): the trend the record shows */
 function tmDecades(R){

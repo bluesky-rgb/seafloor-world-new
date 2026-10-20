@@ -293,6 +293,5 @@ details.tm[open]>summary{background:transparent;color:var(--accent);border:1px s
 #hLive[hidden]{display:none}
 #hLive i{width:9px;height:9px;border-radius:50%;flex:none}
 #hLive b{font-weight:500;color:var(--accent)}
-body.tour #hLive{display:none}
 .lcmp{touch-action:none;user-select:none;-webkit-user-select:none}
 .lcmp[aria-pressed="true"]{background:var(--accent);color:var(--abyss)}

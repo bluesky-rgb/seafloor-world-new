@@ -11,7 +11,7 @@ A real-time 3D ocean built from real sites and measured data, from a 10 m coral 
 - **[项目总览（网页）](https://bluesky-rgb.github.io/seafloor-world-new/overview.html)**：研究思路、地点深度剖面、物理模型、技术架构、开发时间线、遗留问题、可扩展方向和可搜索的资料库（[English](https://bluesky-rgb.github.io/seafloor-world-new/overview.en.html)）
 - [项目总结](docs/PROJECT.md)：目标、场景一览、物理模型、功能、技术结构、已知限制和下一步
 - [技术实现说明](docs/ARCHITECTURE.md)：代码结构、渲染与水下光学、主循环、各功能实现、语音讲解流程、性能、开发流程
-- [更新记录](docs/CHANGELOG.md)：38 次更新，逐项说明加了什么
+- [更新记录](docs/CHANGELOG.md)：39 次更新，逐项说明加了什么
 - [路线图](docs/ROADMAP.md)
 - [资料来源](docs/SOURCES.md)：73 条参考资料
 - [现实中的海洋](docs/LIVE_DATA.md)：每天自动更新的珊瑚礁热应力、潮汐和海冰数据，以及它们怎样改变场景、怎么观察

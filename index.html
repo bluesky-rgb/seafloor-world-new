@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=b3727b7c">
+<link rel="stylesheet" href="css/style.css?v=c0f51877">
 </head>
 <body>
 <canvas id="gl" tabindex="0" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放；也可用方向键转动、+/− 缩放；按 G 键用文字描述当前画面"></canvas>
@@ -367,6 +367,13 @@
             <li data-s="done">现实数据：珊瑚白化时间机器（1985 年至今）、今日海况与当地昼夜</li>
             <li>现实数据：用 Argo 浮标的实测温盐剖面驱动下潜时的水温</li>
             <li>画质：用带骨骼动画的 glTF 模型替换主角生物</li>
+          </ul>
+        </div>
+        <div>
+          <h3>展览模式加入 2024 年海洋热浪一站<time>2026-10-20</time></h3>
+          <ul>
+            <li>展览导览在西沙珊瑚礁之后新增一站“2024 年夏天：一场海洋热浪”：用珊瑚时间机器从 4 月中旬开始快放真实的卫星海温记录，配中英文语音讲解，可以看到热应力越过警报线后珊瑚从枝状珊瑚的顶端开始变白</li>
+            <li>导览途中画面左上角保留“今日实测”标签，快放热浪时显示正在播放的日期和热应力；暂停导览时时间机器也一起暂停</li>
           </ul>
         </div>
         <div>
@@ -958,7 +965,7 @@
     <h3>拍明信片</h3>
     <p>左下角“拍明信片”会把当前画面做成一张带地点、深度、水温和气压的图片，可以保存下来分享。</p>
     <h3>展览模式</h3>
-    <p>左下角“展览模式”（或欢迎页的“看 8 分钟展览导览”）会自动带你走过 16 个真实地点：珊瑚礁、海草床与红树林、岩礁潮间带、巨藻林、沉船、南极冰下、北极冰缘、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口、海山章鱼花园、深海平原，最后一路下潜到马里亚纳海沟底。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
+    <p>左下角“展览模式”（或欢迎页的“看 8 分钟展览导览”）会自动带你走过 16 个真实地点：珊瑚礁、海草床与红树林、岩礁潮间带、巨藻林、沉船、南极冰下、北极冰缘、珊瑚产卵、冷水珊瑚礁、冷泉、海底盐池、鲸落、热液喷口、海山章鱼花园、深海平原，最后一路下潜到马里亚纳海沟底。在珊瑚礁之后有一站会用“珊瑚时间机器”快放 2024 年夏天西沙的真实海洋热浪，看珊瑚怎样随热应力白化。每站约 20 秒，配字幕和语音讲解（底部“语音讲解”按钮可以关掉）；镜头自动环绕，你也可以随时拖动。底部可以暂停、跳到上一站或下一站，按“退出”或 Esc 回到自由探索。</p>
     <h3>VR 模式</h3>
     <p>控制台“VR 模式”里点“手机分屏 VR”：把手机横过来，有纸盒 VR 眼镜就放进去。转动手机看四周（读不到陀螺仪时用手指拖动），轻点屏幕开始或停止游动，按“退出 VR”或 Esc 返回。用 VR 头显时，在头显自带的浏览器里打开本页，点“进入头显 VR”。</p>
     <h3>为了看得见而做的处理</h3>
@@ -1005,7 +1012,7 @@
 <script>/* language: ?lang=en|zh, saved choice, or the browser language; English text is loaded only when needed */
 (function(){var l=null;try{var q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
 if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';window.SEAFLOOR_LANG=l;
-if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=4faa87cb"><\/script>');}})();</script>
-<script src="js/seafloor.js?v=45612356"></script>
+if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=f98fb77c"><\/script>');}})();</script>
+<script src="js/seafloor.js?v=5d8108b5"></script>
 </body>
 </html>
