@@ -49,6 +49,11 @@
   "ms": 27864,
   "bytes": 447540
  },
+ "s01h_heat": {
+  "sig": "a389bd57f2ef",
+  "ms": 40860,
+  "bytes": 655476
+ },
  "s02_monterey": {
   "sig": "de95beb95672",
   "ms": 14112,
