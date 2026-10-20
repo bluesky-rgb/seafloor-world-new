@@ -278,7 +278,7 @@ for(let i=0;i<9;i++){
 }
 let fanOn=false;
 function buildFans(on){
-  fanOn=on;const deep=S.D>200,trop=S.temp>=18;
+  fanOn=on;const deep=S.D>200,trop=habTemp()>=18;
   const pal=ROST.on?[[0.92,0.2,0.22],[0.98,0.45,0.5],[0.95,0.9,0.85]]:deep?[[0.94,0.92,0.86],[0.95,0.78,0.78],[0.9,0.88,0.8]]:trop?[[0.85,0.18,0.15],[0.55,0.2,0.65],[0.95,0.72,0.2]]:[[0.95,0.35,0.15],[0.9,0.45,0.2],[0.95,0.6,0.25]];
   U.uDeepFan.value=deep&&!ROST.on?1:0;
   const garden=S.loc==='slope';
@@ -331,7 +331,7 @@ const stars=new THREE.InstancedMesh(starGeo,starMat,24);stars.frustumCulled=fals
 let starPalKey='';
 function buildStars(on){
   if(!on){stars.count=0;return;}
-  const trop=S.temp>=18,key=ICE.on?'a':trop?'t':'c';
+  const trop=habTemp()>=18,key=ICE.on?'a':trop?'t':'c';
   if(key!==starPalKey){starPalKey=key;const c=new THREE.Color();
     const pal=ICE.on?[[0.92,0.12,0.1],[0.85,0.2,0.12],[0.95,0.3,0.15]]:trop?[[0.15,0.4,0.95],[0.15,0.4,0.95],[0.9,0.25,0.15]]:[[0.95,0.4,0.15],[0.85,0.2,0.18],[0.55,0.25,0.6],[0.95,0.6,0.2]];
     stars.count=24;for(let i=0;i<24;i++){const p=pal[i%pal.length];stars.setColorAt(i,c.setRGB(p[0],p[1],p[2]));}stars.instanceColor.needsUpdate=true;}

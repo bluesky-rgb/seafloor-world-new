@@ -172,7 +172,7 @@ footer .wrap{padding-block:36px 56px;color:var(--muted);font-size:.88rem;display
 <section id="live"><div class="wrap">
   <p class="eyebrow">现实中的海洋</p>
   <h2>每天跟着现实世界变化的部分</h2>
-  <p class="col sub">仓库每天自动下载两次真实世界的海洋数据。三片珊瑚礁的水温和白化程度、南麂列岛的潮位跟着现实变化，南北极显示今天的海冰面积。生物仍然是模拟的，变的是它们所处的环境。下表是最新一次下载的数值。</p>
+  <p class="col sub">仓库每天自动下载两次真实世界的海洋数据。三片珊瑚礁的水温和白化程度、南麂列岛的潮位跟着现实变化，南北极显示今天的海冰面积。生物仍然是模拟的，变的是它们所处的环境。下表是最新一次下载的数值。珊瑚还可以用“时间机器”回到 1985 年以来的任何一天：西沙 1985–1999 年的 15 年里只有 3 年达到一级白化警报，2010 年以来的 17 年里有 14 年。</p>
   <div class="tbl"><table><thead><tr><th>地点</th><th>今天</th><th>数据来源</th></tr></thead><tbody id="liveRows"><tr><td colspan="3">正在读取 data/live.json……</td></tr></tbody></table></div>
   <p class="col sub">怎么观察：打开三维场景，在控制台的“现实中的海洋”一栏点“怎么观察”。那里解释了白化阈值、热应力 DHW 和警报等级的意思，给出一步步的观察方法、该在什么季节回来看，以及每类数据的局限。</p>
 </div></section>
@@ -273,6 +273,7 @@ index.html 内的更新记录 ──sync_docs.py──▶ docs/CHANGELOG.md · R
   fetch('data/live.json?h='+Math.floor(Date.now()/3.6e6)).then(function(r){return r.json();}).then(function(d){
     var rows=[];
     for(var k in REEF){var c=d.coral&&d.coral[k];if(!c)continue;rows.push('<tr><td>'+REEF[k]+'</td><td>'+LV[c.level]+' · 海温 '+f(c.sst)+' °C（白化阈值 '+f(c.threshold)+' °C）· 热应力 DHW '+f(c.dhw)+'</td><td class="num">NOAA CRW · '+c.date+'</td></tr>');}
+    var W=d.sea&&d.sea.monterey;if(W){var j=Math.round((Date.now()/1000-W.t0)/W.step);if(j>=0&&j<W.H.length&&W.H[j]!=null)rows.push('<tr><td>蒙特雷巨藻林 · 海况</td><td>有效波高 '+f(W.H[j])+' m，周期 '+f(W.T[j],0)+' s，海温 '+f(W.sst[j])+' °C</td><td class="num">Open-Meteo</td></tr>');}
     var T=d.tide;if(T){var x=(Date.now()/1000-T.t0)/T.step,i=Math.floor(x);if(i>=0&&i<T.h.length-1){var h=T.h[i]+(T.h[i+1]-T.h[i])*(x-i);rows.push('<tr><td>南麂列岛 · 潮位</td><td>此刻约 '+(h>=0?'+':'−')+f(Math.abs(h),2)+' m（'+(T.h[i+1]>T.h[i]?'涨潮':'落潮')+'）</td><td class="num">Open-Meteo / Météo-France</td></tr>');}}
     [['north','北极 · 海冰面积'],['south','南极 · 海冰面积']].forEach(function(p){var I=d.ice&&d.ice[p[0]];if(!I)return;var pc=(I.extent-I.climMedian)/I.climMedian*100;
       rows.push('<tr><td>'+p[1]+'</td><td>'+f(I.extent,2)+' 百万 km²，比 1981–2010 年同日中位数'+(pc<0?'少 ':'多 ')+f(Math.abs(pc),0)+'%，'+I.firstYear+' 年以来同日第 '+I.rankLow+' 低</td><td class="num">NSIDC · '+I.date+'</td></tr>');});

@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=a1567a9c">
+<link rel="stylesheet" href="css/style.css?v=ace35d25">
 </head>
 <body>
 <canvas id="gl" tabindex="0" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放；也可用方向键转动、+/− 缩放；按 G 键用文字描述当前画面"></canvas>
@@ -362,8 +362,20 @@
             <li data-s="done">英文界面与英文语音讲解</li>
             <li data-s="done">无障碍：文字描述（带方向）与键盘转动视角</li>
             <li data-s="done">现实数据：珊瑚礁热应力、南麂潮位和南北极海冰每天跟着现实更新</li>
+            <li data-s="done">现实数据：珊瑚白化时间机器（1985 年至今）、今日海况与当地昼夜</li>
             <li>现实数据：用 Argo 浮标的实测温盐剖面驱动下潜时的水温</li>
             <li>画质：用带骨骼动画的 glTF 模型替换主角生物</li>
+          </ul>
+        </div>
+        <div>
+          <h3>珊瑚白化时间机器、今日海况与当地昼夜<time>2026-10-20</time></h3>
+          <ul>
+            <li>时间机器：珊瑚卡片下方可以回到 1985 年以来的任何一天（NOAA 卫星的每日记录，西沙、三亚、埃拉特各 15,000 多天）。画面里的水温和珊瑚白化变成那一天的样子；点“热应力最强的几次”会从热浪来临前开始、以每秒 5 天的速度播放一整个夏天</li>
+            <li>白化有了“记忆”：热浪过后珊瑚还会白好几周才慢慢恢复，热应力超过 10–12 时一部分珊瑚死去、变成灰绿色，要几年才被取代。今天的白化程度也按过去一年的热应力这样推算</li>
+            <li>每个年代有几年达到一级警报：西沙 1985–1999 年的 15 年里只有 3 年，2010 年以来的 17 年里有 14 年，三亚和埃拉特趋势相同</li>
+            <li>今日海况：蒙特雷巨藻林、西沙和南麂的波浪改用当天的海浪预报（有效波高、周期），蒙特雷的海温也是当天的值；蒙特雷有了自己的海况卡片和接下来一天半的浪高曲线</li>
+            <li>当地昼夜（默认关闭）：打开后，西沙、南麂、蒙特雷、特鲁克、埃拉特和新村潟湖按当地此刻的太阳高度决定白天还是夜里，夜里自动变成夜潜</li>
+            <li>修正：哪些生物生活在某地，改为按常年水温决定，不随某一天的实测海温变化（蒙特雷某天偏暖时，不会冒出造礁珊瑚和海龟）</li>
           </ul>
         </div>
         <div>
@@ -877,10 +889,28 @@
     </ol>
     <p class="note">海冰数据只作为说明显示，场景里的冰不随它变化：两个冰下场景表现的是特定季节，北极是 5–6 月的浮冰边缘，南极是春天的固定冰。</p>
 
+    <h3>四、时间机器：回看珊瑚的过去</h3>
+    <p><b>是什么。</b>NOAA 从 1985 年起每天都有这三片礁的卫星记录。打开珊瑚卡片下方的“时间机器”，可以回到其中任何一天：画面里的水温和珊瑚的白化程度会变成那一天的样子。</p>
+    <ol>
+      <li>打开“时间机器”，它会先停在有记录以来热应力最强的那一天，比如西沙的 2024 年 7 月。看那天的警报等级、DHW 和“白化 / 死亡”比例。</li>
+      <li>点“热应力最强的几次”里的任意一个：会从热浪来临前三个多月开始，每秒 5 天往前播放。看 DHW 曲线一点点爬过一级、二级警报线，珊瑚从枝状珊瑚的顶端开始变白。</li>
+      <li>注意热浪过后：DHW 回落，珊瑚却还要白好几周才慢慢恢复；热应力超过 10–12 的那几年，一部分珊瑚会死去，表面变成灰绿色，要好几年才会被新珊瑚取代。</li>
+      <li>比较不同年代：时间机器下方会算出每个年代有几年达到一级警报（DHW ≥ 4）。以西沙为例，1985–1999 年的 15 年里只有 3 年，2010 年以来的 17 年里有 14 年；三亚和埃拉特也是一样的趋势。拖动日期滑块，可以直接回到那些年份去看。</li>
+      <li>看完点“回到今天”。</li>
+    </ol>
+    <p class="note">画面里的白化和死亡比例是按热应力推算的典型反应：白化在热应力回落后约 6 周的时间尺度上恢复，死亡的珊瑚约 3 年的时间尺度上被取代。这是简化，真实的恢复快慢因珊瑚种类和当地条件差别很大。</p>
+
+    <h3>五、今日海况和当地的昼夜</h3>
+    <p>蒙特雷巨藻林、西沙和南麂列岛的波浪用的是当天的海浪预报（有效波高和周期），蒙特雷的海温也是当天的值。浪越高、周期越长，巨藻摆得越厉害，海底的沙纹也越粗。哪些生物生活在这里由多年的常年水温决定，不会因为某一天偏暖或偏冷而改变。</p>
+    <ol>
+      <li>去“蒙特雷巨藻林”，看“今日海况”卡片里的波高和周期，再看巨藻的摆动。冬季北太平洋的风暴常把涌浪推到 3 m 以上。</li>
+      <li>在西沙、南麂、蒙特雷、特鲁克、埃拉特和新村潟湖，可以打开“按当地时间显示昼夜”：那里现在是夜里，画面就是夜潜，手电自动打开。这个开关默认是关的。</li>
+    </ol>
+
     <h3>数据从哪里来、多久更新</h3>
     <ul>
       <li>珊瑚礁热应力：<a href="https://coralreefwatch.noaa.gov/product/vs/" target="_blank" rel="noopener">NOAA Coral Reef Watch</a> 的 5 km 区域虚拟站（Paracel Islands、Hainan Island、Gulf of Aqaba），每天更新，通常比现实晚一天。</li>
-      <li>潮位：<a href="https://open-meteo.com/en/docs/marine-weather-api" target="_blank" rel="noopener">Open-Meteo 海洋数据接口</a>（Météo-France SMOC 模型），逐小时，覆盖下载之后的 4 天。</li>
+      <li>潮位：<a href="https://open-meteo.com/en/docs/marine-weather-api" target="_blank" rel="noopener">Open-Meteo 海洋数据接口</a>（Météo-France SMOC 模型），逐小时，覆盖下载之后的 4 天。同一个接口还提供蒙特雷、西沙和南麂的有效波高、波周期和海表温度。</li>
       <li>海冰：<a href="https://nsidc.org/data/g02135" target="_blank" rel="noopener">NSIDC 海冰指数第 4 版</a>，每天更新。</li>
       <li>仓库里的 GitHub Actions 每天北京时间 10:23 和 22:23 自动下载一次，存成 data/live.json；某个来源下载失败时，保留上一次的数值。“现实中的海洋”标题旁边显示最近一次更新的时间。</li>
       <li>不想跟着现实变化，就点“跟随现实数据：开”把它关掉，场景会回到资料里的典型数值。</li>
@@ -900,7 +930,7 @@
     <h3>自由驾驶</h3>
     <p>点左下角“自由驾驶”，自己开着水下机器人游。电脑：W/S 前进后退，A/D 左右平移，Q/E 下潜上浮，←/→ 转向，拖动画面转头，Esc 退出。手机：左下摇杆移动，右侧按钮上浮、下潜，拖动画面转头。最高约 1 m/s，海流和波浪会推着你漂，缆绳长 60 m。下潜路线中不能自由驾驶。</p>
     <h3>现实中的海洋</h3>
-    <p>控制台的“现实中的海洋”一栏每天跟着现实世界更新：西沙、三亚、埃拉特的珊瑚按今天的卫星海温和热应力白化，南麂列岛的海面是此刻的真实潮位，北极和南极显示今天的海冰面积。点“怎么观察”看每个数字的意思和观察方法；不想跟着变化，可以关掉。</p>
+    <p>控制台的“现实中的海洋”一栏每天跟着现实世界更新：西沙、三亚、埃拉特的珊瑚按今天的卫星海温和热应力白化，南麂列岛的海面是此刻的真实潮位，北极和南极显示今天的海冰面积。珊瑚卡片下方的“时间机器”能回到 1985 年以来的任何一天，播放一整个夏天的热浪。点“怎么观察”看每个数字的意思和观察方法；不想跟着变化，可以关掉。</p>
     <h3>文字描述（G 键）</h3>
     <p>按 G 键或点控制台顶部的“文字描述”，会用文字列出你现在在哪里、水深、压强、水温、光线，以及附近看得见的生物和它们的一句介绍。适合使用读屏软件，或者看不清三维画面的时候。</p>
     <h3>时间与照明</h3>
@@ -962,7 +992,7 @@
 <script>/* language: ?lang=en|zh, saved choice, or the browser language; English text is loaded only when needed */
 (function(){var l=null;try{var q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
 if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';window.SEAFLOOR_LANG=l;
-if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=dade5209"><\/script>');}})();</script>
-<script src="js/seafloor.js?v=b1736979"></script>
+if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=503ece75"><\/script>');}})();</script>
+<script src="js/seafloor.js?v=02446e8f"></script>
 </body>
 </html>

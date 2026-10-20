@@ -117,7 +117,7 @@ function frameCamera(){
   controls.target.set(0,F+(deep?1.3:1.5),0);camera.position.set(dist*0.5,F+(deep?2.2:2.9),dist*0.87);
 }
 function applyLocation(id){
-  exitPilot();CORALU.uBleach.value=CORALU.uDead.value=0;LIVE.site=null;LIVE.sim=null;renderLive();
+  exitPilot();S.tempRef=null;CORALU.uBleach.value=CORALU.uDead.value=0;LIVE.site=null;LIVE.sim=null;renderLive();
   if(id!=='spawn'&&SPN.on){SPN.on=false;S.night=SPN.prevNight;$('spSec').hidden=true;}
   if(id==='spawn'&&!SPN.on){SPN.prevNight=S.night;S.night=true;}
   if(id!=='brine'&&brineOn)buildBrine(false);
@@ -127,7 +127,8 @@ function applyLocation(id){
   if(id==='dive'||id==='replay'){enterDive(id==='replay');return;}
   if(DIVE.on)exitDive();
   const L=LOC[id];S.loc=id;
-  Object.assign(S,{water:L.water,temp:liveTemp(id,L.temp),H:L.H,T:L.T,cur:L.cur,dir:L.dir,sun:L.sun,seep:!!L.seep,torch:S.night&&L.torch==='off'?'white':L.torch});
+  Object.assign(S,{water:L.water,temp:L.temp,H:L.H,T:L.T,cur:L.cur,dir:L.dir,sun:L.sun,seep:!!L.seep,torch:S.night&&L.torch==='off'?'white':L.torch});
+  applyEnv(id,false);   /* today's real water temperature, waves and (optionally) local day/night: 50-live-ocean.js */
   $('sDepth').value=toSlider(L.D);$('sTemp').value=S.temp;$('sH').value=S.H;$('sT').value=S.T;$('sSun').value=S.sun;$('sCur').value=S.cur;$('sDir').value=S.dir;
   for(const k in FISH)FISH[k].active=false;for(const k in JELLY)JELLY[k].active=false;for(const k in DRIFT)DRIFT[k].active=false;
   [encWS,encSW,encSQ,encSI].forEach(e=>{e.on=false;e.cool=R(3,8);});
@@ -190,7 +191,7 @@ $('dvmRate').addEventListener('click',e=>{const r=e.target.dataset.r;if(!r)retur
 
 $('cSound').addEventListener('change',e=>setSound(e.target.checked));
 $('waterSeg').addEventListener('click',e=>{const w=e.target.dataset.w;if(!w)return;S.water=w;custom();rebuild();});
-[['sTemp','temp'],['sCur','cur'],['sDir','dir'],['sH','H'],['sT','T'],['sSun','sun']].forEach(([id,k])=>$(id).addEventListener('input',e=>{S[k]=+e.target.value;custom();rebuild();}));
+[['sTemp','temp'],['sCur','cur'],['sDir','dir'],['sH','H'],['sT','T'],['sSun','sun']].forEach(([id,k])=>$(id).addEventListener('input',e=>{S[k]=+e.target.value;if(k==='temp')S.tempRef=null;custom();rebuild();}));
 $('cAdapt').addEventListener('change',e=>{S.adapt=e.target.checked;});
 $('cTour').addEventListener('change',e=>{S.tour=e.target.checked;});
 function setPanel(open){$('panelBody').hidden=!open;$('panel').classList.toggle('closed',!open);$('toggle').textContent=open?$t('收起'):$t('展开');}

@@ -47,8 +47,8 @@ function isSeen(k){
     case'lophelia':return ROST.on&&nearF;
     case'geodia':return ROST.on&&nearF;
     case'acesta':return ROST.on&&nearF&&seeDist(false)>6;
-    case'starT':return H.star&&S.temp>=18&&nearF&&seeDist(false)>4;
-    case'starC':return H.star&&S.temp<18&&!ICE.on&&nearF&&seeDist(false)>4;
+    case'starT':return H.star&&habTemp()>=18&&nearF&&seeDist(false)>4;
+    case'starC':return H.star&&habTemp()<18&&!ICE.on&&nearF&&seeDist(false)>4;
     case'urchinT':return !!H.urchinT&&!ICE.on&&nearF&&seeDist(false)>4;
     case'sponge':return !!H.sponge&&!ICE.on&&nearF;
     case'odontaster':return ICE.on&&H.star&&nearF;

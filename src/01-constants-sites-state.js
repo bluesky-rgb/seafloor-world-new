@@ -39,6 +39,9 @@ const W={k:0,w:0,L:0};
 const OPT={K:[0,0,0],c:[0,0,0],mu0:1,zenW:0,sunDir:new THREE.Vector3(0,1,0)};
 const CUR={x:1,z:0};
 const Z0=0.003;
+/* which species live somewhere follows the long-term climate, not one day's reading: when today's real temperature is
+   shown (50-live-ocean.js), the habitat rules keep using the place's usual temperature (S.tempRef) */
+const habTemp=()=>S.tempRef!=null?S.tempRef:S.temp;
 const pressure=z=>PATM+RHO*G*Math.max(z,0);
 function curProfile(zab){const h=Math.max(S.D,0.05);return Math.max(0,Math.log(Math.max(zab,Z0*1.2)/Z0)/(Math.log(h/Z0)-1));}
 const MU_T=[[0,1.88],[5,1.61],[10,1.39],[15,1.22],[20,1.08],[25,0.96],[30,0.87],[35,0.80]];

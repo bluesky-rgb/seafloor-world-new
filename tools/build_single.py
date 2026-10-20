@@ -14,7 +14,7 @@ html, n = re.subn(r'<link rel="stylesheet" href="css/style\.css(\?v=[0-9a-f]+)?"
 assert n == 1
 # the site loads data/etopo20.js on demand; the single file inlines it ahead of the app script
 html, n = re.subn(r'<script src="js/seafloor\.js(\?v=[0-9a-f]+)?"></script>',
-                  lambda m: '<script>\n' + read('data/etopo20.js') + '</script>\n<script>window.SEAFLOOR_LIVE=' + read('data/live.json').strip() + ';</script>\n<script>\n' + read('js/seafloor.js') + '</script>', html)
+                  lambda m: '<script>\n' + read('data/etopo20.js') + '</script>\n<script>window.SEAFLOOR_LIVE=' + read('data/live.json').strip() + ';window.SEAFLOOR_REEF_HIST=' + read('data/reef_history.json').strip() + ';</script>\n<script>\n' + read('js/seafloor.js') + '</script>', html)
 # (the live ocean data is a snapshot from data/live.json at build time; the site itself fetches the latest)
 assert n == 1
 # narration text for the browser-speech fallback (the single file has no audio/ folder next to it)

@@ -31,7 +31,7 @@ TIDE_URL = ('https://marine-api.open-meteo.com/v1/marine?latitude=27.45&longitud
 # today's sea state (wave height and period, sea surface temperature), hourly from the same marine API
 SEA_URL = ('https://marine-api.open-meteo.com/v1/marine?latitude=%s&longitude=%s'
            '&hourly=wave_height,wave_period,sea_surface_temperature&past_days=1&forecast_days=4&timezone=GMT&cell_selection=sea')
-SEA = {'monterey': (36.62, -121.90), 'xisha': (16.5, 111.6), 'eilat': (29.5, 34.95), 'nanji': (27.45, 121.12)}
+SEA = {'monterey': (36.62, -121.90), 'xisha': (16.5, 111.6), 'nanji': (27.45, 121.12)}   # (the Gulf of Aqaba has no wave-model coverage)
 HIST_OUT = os.path.join(os.path.dirname(OUT), 'reef_history.json')
 NSIDC = 'https://noaadata.apps.nsidc.org/NOAA/G02135/%s/daily/data/%s_seaice_extent_%s_v4.0.csv'
 

@@ -61,7 +61,7 @@ docs/                 项目文档
 | 40–42 | 34–68 | 自由驾驶、探险任务、触碰发光 |
 | 43–45 exp-* | 40–73 | 三个物理实验：深海声道、压力、全球地形图 |
 | 46–49 | 46–141 | 明信片、共享图鉴、VR、展览模式与语音讲解 |
-| 50-live-ocean | 200 | 现实中的海洋：读取 `data/live.json`，珊瑚白化（`CORALU.uBleach/uDead`）、真实潮位 `liveTide()`、海冰卡片、单轴小折线图与“怎么观察”指南 |
+| 50-live-ocean | 330 | 现实中的海洋：读取 `data/live.json`，珊瑚白化（`CORALU.uBleach/uDead`）、真实潮位 `liveTide()`、海冰卡片、单轴小折线图与“怎么观察”指南 |
 | 99-main-loop | 65 | 初始化与每帧主循环 |
 
 ## 3. 状态与数据流
@@ -217,7 +217,9 @@ GitHub Actions（更新现实海洋数据，北京时间 10:23 / 22:23）──�
 - 每个来源独立下载，失败时保留上一次的数值并记在 `errors` 里；`check.py` 在数据超过 3 天时给出警告。
 - 白化：珊瑚材质有 `uBleach` 和 `uDead` 两个 uniform。`bleachOf(DHW)` 按 NOAA 的阈值（4、8、12）分段平滑，`deadOf` 用过去一年的最高 DHW（10–20）。每种生长型有不同的敏感度（几何体属性 `aKind`），再乘以每个群体的随机因子（由实例位置哈希）；朝上的表面先白。
 - 潮汐：逐小时值用 Catmull-Rom 插值，高潮、低潮用三点抛物线求极值时刻；时间按当地 UTC+8 显示。
-- 单文件版本（Claude 里发布的那份）把构建时的 `data/live.json` 快照内联为 `window.SEAFLOOR_LIVE`。
+- 时间机器：`data/reef_history.json`（每片礁从 1985 年起的每日 SST、HotSpot、DHW，以十分之一为单位存整数）在第一次打开时加载；白化状态用 `reefStep()` 逐日递推（恢复 e 折时间约 42 天，死亡约 1100 天），播放时每 0.1 秒前进半天。
+- 海况与昼夜：`liveEnv(id)` 给出当地今天的水温、浪高、周期和（可选的）昼夜，`applyLocation()` 在载入地点参数后调用；生境判断用 `habTemp()`（常年水温），不受当天读数影响。
+- 单文件版本（Claude 里发布的那份）把构建时的 `data/live.json` 和 `data/reef_history.json` 快照内联为 `window.SEAFLOOR_LIVE` 和 `window.SEAFLOOR_REEF_HIST`。
 - 详细说明见 [LIVE_DATA.md](LIVE_DATA.md)。
 
 ## 11. 性能

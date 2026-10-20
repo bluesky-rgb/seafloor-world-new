@@ -20,19 +20,19 @@ function rebuild(){
   sunLight.intensity=1.5*sky;sunLight.color.setRGB(day?1:0.75,day?1:0.85,1);hemi.intensity=0.65*sky;
   U.uTorch.value=S.torch==='off'?0:(DIVE.on?2.6:1);U.uTorchCol.value.set(...(S.torch==='blue'?[0.08,0.28,1.6]:[1.1,1.0,0.88]));
 
-  H.coral=S.temp>=18&&lf>=0.01&&S.D<=150&&!TRUK.on&&!MANG.on&&!TIDE.on;
-  H.kelp=S.temp<=20&&S.temp>=3&&S.D<=35&&lf>=0.01&&!TIDE.on;
-  H.anem=H.coral&&S.temp>=20&&S.D<=40&&lf>=0.1;
-  H.clam=H.coral&&S.temp>=22&&S.D<=20&&lf>=0.2;
+  H.coral=habTemp()>=18&&lf>=0.01&&S.D<=150&&!TRUK.on&&!MANG.on&&!TIDE.on;
+  H.kelp=habTemp()<=20&&habTemp()>=3&&S.D<=35&&lf>=0.01&&!TIDE.on;
+  H.anem=H.coral&&habTemp()>=20&&S.D<=40&&lf>=0.1;
+  H.clam=H.coral&&habTemp()>=22&&S.D<=20&&lf>=0.2;
   H.fan=S.cur>=0.03&&S.D>=3&&!MANG.on&&!ARC.on&&!TIDE.on;
   H.sponge=(S.D>=400&&S.D<=7000&&!brineOn&&!ABY.on)||ICE.on;
   H.holo=S.D>=6000&&!DIVE.replay;H.xeno=H.holo||ABY.on;
-  H.urchinT=S.temp<18&&S.D<=200&&!ARC.on;
-  H.urchinD=S.temp>=18&&S.D<=70&&!MANG.on&&!TIDE.on;
+  H.urchinT=habTemp()<18&&S.D<=200&&!ARC.on;
+  H.urchinD=habTemp()>=18&&S.D<=70&&!MANG.on&&!TIDE.on;
   H.star=S.D<=200&&!MANG.on&&!ARC.on&&!TIDE.on;
   H.seep=S.seep&&S.D>=800;
 
-  const hab=MANG.on?'mangrove':TIDE.on?'intertidal':SMT.on?'seamount':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':S.temp<18?'temperate':'warm';
+  const hab=MANG.on?'mangrove':TIDE.on?'intertidal':SMT.on?'seamount':ABY.on?'abyss':ROST.on?'cwc':ICE.on?'ant':S.loc==='bluehole'?'anox':S.loc==='vent'&&!DIVE.on?'vent':S.D>=6000?'hadal':S.D>200?'deep':H.coral?'reef':habTemp()<18?'temperate':'warm';
   const key=hab+(H.seep?'s':'');
   if(key!==habKey){habKey=key;paintFloor(hab);paintRocks(hab);}
   floor.position.y=F-(ABY.on||SMT.on||TIDE.on?0.3:MANG.on?2.5:0);rocks.children.forEach(m=>m.position.y=F+m.userData.base);rocks.visible=!DIVE.replay&&!ABY.on&&!MANG.on&&!SMT.on&&!TIDE.on;
@@ -67,11 +67,11 @@ function zoneUpdate(){
     if(DIVE.bh)bhH();
   }else{
     H.krill=false;H.salp=false;H.childressi=S.loc==='brine';H.acropora=S.loc==='spawn';
-    H.manta=S.temp>=20&&S.D>=6&&S.D<=120&&lf>=0.01;H.turtle=S.temp>=18&&S.D>=4&&S.D<=60;H.angler=S.D>=700;
-    H.sardine=!H.coral&&S.temp<=24&&S.D<=200&&S.D>=5;H.chromis=H.coral&&lf>=0.15;H.anthias=H.coral;H.butterfly=H.coral&&S.D<=60;
-    H.snapper=H.coral&&S.D<=80;H.parrot=H.coral&&S.D<=30;H.clown=H.anem;H.rockfish=H.kelp||(S.temp<=16&&S.D>=8&&S.D<=150);
-    H.lantern=S.D>=200&&S.D<=1200;H.hatchet=S.D>=200&&S.D<=1000;H.moon=S.D<=150&&S.temp>=6;H.nettle=S.temp<=20&&S.D<=100;H.atolla=S.D>=400;H.comb=true;
-    H.whaleshark=S.temp>=22&&S.D>=8&&S.D<=200;H.hammer=S.temp>=20&&S.D>=15&&S.D<=300;
+    H.manta=habTemp()>=20&&S.D>=6&&S.D<=120&&lf>=0.01;H.turtle=habTemp()>=18&&S.D>=4&&S.D<=60;H.angler=S.D>=700;
+    H.sardine=!H.coral&&habTemp()<=24&&S.D<=200&&S.D>=5;H.chromis=H.coral&&lf>=0.15;H.anthias=H.coral;H.butterfly=H.coral&&S.D<=60;
+    H.snapper=H.coral&&S.D<=80;H.parrot=H.coral&&S.D<=30;H.clown=H.anem;H.rockfish=H.kelp||(habTemp()<=16&&S.D>=8&&S.D<=150);
+    H.lantern=S.D>=200&&S.D<=1200;H.hatchet=S.D>=200&&S.D<=1000;H.moon=S.D<=150&&habTemp()>=6;H.nettle=habTemp()<=20&&S.D<=100;H.atolla=S.D>=400;H.comb=true;
+    H.whaleshark=habTemp()>=22&&S.D>=8&&S.D<=200;H.hammer=habTemp()>=20&&S.D>=15&&S.D<=300;
     H.sperm=S.D>=300&&S.D<=2000;H.squid=S.D>=300&&S.D<=1000;H.siph=S.D>=300&&S.D<=1000;
     H.vampire=S.D>=600&&S.D<=1300;H.gulper=S.D>=500&&S.D<=3000;H.cucumber=S.D>=500&&S.D<=5000;H.dumbo=S.D>=1000&&S.D<=7000;
     H.snail=S.D>=6000&&S.D<=8200;H.amphi=S.D>=6000;

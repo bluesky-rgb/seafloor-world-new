@@ -171,7 +171,7 @@ footer .wrap{padding-block:36px 56px;color:var(--muted);font-size:.88rem;display
 <section id="live"><div class="wrap">
   <p class="eyebrow">The ocean today</p>
   <h2>What changes every day with the real world</h2>
-  <p class="col sub">The repository downloads real-world ocean data twice a day. The water temperature and bleaching of three coral reefs and the tide at the Nanji Islands follow reality, and the Arctic and Antarctic show today’s sea-ice extent. The animals are still simulated; what changes is the conditions they live in. The table shows the latest download.</p>
+  <p class="col sub">The repository downloads real-world ocean data twice a day. The water temperature and bleaching of three coral reefs and the tide at the Nanji Islands follow reality, and the Arctic and Antarctic show today’s sea-ice extent. The animals are still simulated; what changes is the conditions they live in. The table shows the latest download. The corals also have a “time machine” that goes back to any day since 1985: at the Paracels, only 3 of the 15 years from 1985 to 1999 reached bleaching Alert Level 1, against 14 of the 17 years since 2010.</p>
   <div class="tbl"><table><thead><tr><th>Place</th><th>Today</th><th>Source</th></tr></thead><tbody id="liveRows"><tr><td colspan="3">Reading data/live.json…</td></tr></tbody></table></div>
   <p class="col sub">How to watch: open the 3D world and press “How to watch” in the console’s “The ocean today” section. It explains the bleaching threshold, heat stress (DHW) and the alert levels, gives step-by-step things to look for and when to come back, and the limits of each kind of data.</p>
 </div></section>
@@ -272,6 +272,7 @@ update log in index.html ──sync_docs.py──▶ docs/CHANGELOG.md · ROADMA
   fetch('data/live.json?h='+Math.floor(Date.now()/3.6e6)).then(function(r){return r.json();}).then(function(d){
     var rows=[];
     for(var k in REEF){var c=d.coral&&d.coral[k];if(!c)continue;rows.push('<tr><td>'+REEF[k]+'</td><td>'+LV[c.level]+' · SST '+f(c.sst)+' °C (bleaching threshold '+f(c.threshold)+' °C) · heat stress DHW '+f(c.dhw)+'</td><td class="num">NOAA CRW · '+c.date+'</td></tr>');}
+    var W=d.sea&&d.sea.monterey;if(W){var j=Math.round((Date.now()/1000-W.t0)/W.step);if(j>=0&&j<W.H.length&&W.H[j]!=null)rows.push('<tr><td>Monterey kelp forest · sea state</td><td>Significant wave height '+f(W.H[j])+' m, period '+f(W.T[j],0)+' s, SST '+f(W.sst[j])+' °C</td><td class="num">Open-Meteo</td></tr>');}
     var T=d.tide;if(T){var x=(Date.now()/1000-T.t0)/T.step,i=Math.floor(x);if(i>=0&&i<T.h.length-1){var h=T.h[i]+(T.h[i+1]-T.h[i])*(x-i);rows.push('<tr><td>Nanji Islands · tide</td><td>About '+(h>=0?'+':'−')+f(Math.abs(h),2)+' m now ('+(T.h[i+1]>T.h[i]?'rising':'falling')+')</td><td class="num">Open-Meteo / Météo-France</td></tr>');}}
     [['north','Arctic · sea-ice extent'],['south','Antarctic · sea-ice extent']].forEach(function(p){var I=d.ice&&d.ice[p[0]];if(!I)return;var pc=(I.extent-I.climMedian)/I.climMedian*100;
       rows.push('<tr><td>'+p[1]+'</td><td>'+f(I.extent,2)+' million km², '+f(Math.abs(pc),0)+'% '+(pc<0?'below':'above')+' the 1981–2010 median for the date, '+ord(I.rankLow)+' lowest for this date since '+I.firstYear+'</td><td class="num">NSIDC · '+I.date+'</td></tr>');});

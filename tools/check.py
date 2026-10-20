@@ -77,6 +77,11 @@ try:
     for r in ('xisha', 'spawn', 'eilat'):
         if r not in live.get('coral', {}):
             errors.append('data/live.json: no coral data for %s' % r)
+    hist = json.loads(read('data', 'reef_history.json'))
+    for r in ('xisha', 'spawn', 'eilat'):
+        h = hist.get('reefs', {}).get(r)
+        if not h or not (len(h['sst10']) == len(h['hs10']) == len(h['dhw10'])) or len(h['dhw10']) < 3650:
+            errors.append('data/reef_history.json: missing or short record for %s' % r)
     import datetime as _dt
     age = (_dt.datetime.now(_dt.timezone.utc) - _dt.datetime.fromisoformat(live['updated'].replace('Z', '+00:00'))).days
     if age > 3:
