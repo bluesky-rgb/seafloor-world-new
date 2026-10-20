@@ -137,7 +137,7 @@ function tideUI(){
   const state=L?(L.nearExt?(L.nearExt>0?$t('高潮'):$t('低潮')):L.rising?$t('涨潮'):$t('落潮')):(Math.abs(h)>1.85?(h>0?$t('高潮'):$t('低潮')):hr<6.21?$t('涨潮'):$t('落潮'));
   $('tideV').textContent=(h>=0?'+':'−')+Math.abs(h).toFixed(2)+' m · '+state;
   if(document.activeElement!==$('sTide'))$('sTide').value=Math.round(hr/12.42*1000);
-  $('tideLive').setAttribute('aria-pressed',!!L);$('tidePlay').disabled=false;
+  $('tideLive').setAttribute('aria-pressed',!!L);if(L)liveBadge();$('tidePlay').disabled=false;
   const sub=[[$t('滨螺带'),1.9],[$t('藤壶带'),1.0],[$t('龟足'),0.6],[$t('贻贝床'),-0.1],[$t('鼠尾藻'),0.0],[$t('珊瑚藻与马尾藻'),-1.3]].filter(z=>z[1]<h).map(z=>z[0]);
   const under=$t('现在淹在水下：')+(sub.length?sub.join($t('、')):$t('只有潮下带的海藻和海胆'))+$t('。藤壶被淹没时会伸出蔓足捕食，露出水面就关紧壳板保水。');
   $('tideNote').textContent=L?($t('现实潮位，当地时间 ')+L.clock+$t('。')+(L.next?L.next+$t('。'):'')+under)

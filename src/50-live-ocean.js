@@ -38,7 +38,7 @@ const REEF_KB=Math.exp(-1/42),REEF_KD=Math.exp(-1/1100);
 function reefStep(st,dhw,days){if(dhw==null)return st;const n=days||1;st.b=Math.max(bleachOf(dhw),st.b*Math.pow(REEF_KB,n));st.d=Math.max(deadOf(dhw),st.d*Math.pow(REEF_KD,n));return st;}
 function reefToday(c){const st={b:0,d:0};for(const r of c.series)reefStep(st,r[2]);return st;}   /* series runs oldest to newest ([days before the last date, SST, DHW]) */
 function reefNow(){
-  if(!REEF_IDS.includes(LIVE.site))return{b:0,d:0};
+  if(!REEF_IDS.includes(LIVE.site)||LIVE.cmp)return{b:0,d:0};
   if(LIVE.sim!=null)return{b:bleachOf(LIVE.sim),d:deadOf(LIVE.sim)};
   if(TM.on&&TM.id===LIVE.site)return{b:TM.b,d:TM.d};
   const c=reefData(LIVE.site);return LIVE.on&&c?reefToday(c):{b:0,d:0};
@@ -189,18 +189,28 @@ function coralCard(id){
   el.insertAdjacentHTML('beforeend','<p class="lnote">'+$t('过去一年最高：DHW ')+fx(c.peak365.dhw)+QLP+fmtDayY(c.peak365.date)+QCM+LIVE_LV[lvOfDhw(c.peak365.dhw)][0]+QRP+$t('。')+(rec?$t('有记录以来热应力最强的年份：')+rec+$t('。'):'')+'</p>'
     +'<p class="lscene"><b>'+sceneHead+'</b>'+bleachWords(st)+'</p>'
     +'<div class="ctl"><label for="simDhw">'+$t('模拟热应力 DHW')+' <b id="simV">'+(simOn?fx(LIVE.sim):$t('今天 ')+fx(c.dhw))+'</b></label><input id="simDhw" type="range" min="0" max="20" step="0.5" value="'+fx(simOn?LIVE.sim:c.dhw)+'"></div>'
-    +'<div class="seg lrow"><button type="button" id="simBack"'+(simOn?'':' disabled')+'>'+$t('回到今天的实测')+'</button><button type="button" class="lguideBtn">'+$t('怎么观察')+'</button></div>'
+    +'<div class="seg lrow"><button type="button" class="lcmp" aria-pressed="false">'+$t('按住对比：健康时的样子')+'</button><button type="button" id="simBack"'+(simOn?'':' disabled')+'>'+$t('回到今天的实测')+'</button><button type="button" class="lguideBtn">'+$t('怎么观察')+'</button></div>'
     +'<ol class="lhow"><li>'+$t('看珊瑚的颜色，再对照上面的警报等级。')+'</li><li>'+$t('把“模拟热应力”从 0 拖到 16，看白化怎样从枝状珊瑚的顶端开始扩散，再拖回“今天”。')+'</li><li>'+$t('看温度曲线：海温高于白化阈值的那些天，DHW 曲线才会上升；它累计的是过去 12 周。')+'</li><li>'+$t('打开下面的“时间机器”，回到有记录以来最热的那几年，播放一整个夏天。')+'</li></ol>'
     +'<details class="tm"'+(TM.on&&TM.id===id?' open':'')+'><summary>⏱ '+$t('时间机器：回看 1985 年以来的任何一天')+'</summary><div class="tmBody"></div></details>');
   el.querySelector('#simDhw').addEventListener('input',e=>{if(TM.on)tmStop();LIVE.sim=+e.target.value;applyBleach();const v=$('simV');if(v)v.textContent=fx(LIVE.sim);
     const sc=el.querySelector('.lscene');if(sc)sc.innerHTML='<b>'+$t('画面里（模拟 DHW ')+fx(LIVE.sim)+QRP+QCO+'</b>'+bleachWords(reefNow());el.querySelector('#simBack').disabled=false;});
   el.querySelector('#simBack').addEventListener('click',()=>{LIVE.sim=null;applyBleach();renderLive();});
+  bindCompare(el.querySelector('.lcmp'));
   const det=el.querySelector('details.tm');
   det.addEventListener('toggle',()=>{if(det.open){if(!(TM.on&&TM.id===id))tmStart(id,det.querySelector('.tmBody'));else tmBody(det.querySelector('.tmBody'));}else if(TM.on)tmStop(true);});
   if(TM.on&&TM.id===id)tmBody(det.querySelector('.tmBody'));
   return el;
 }
 
+/* hold to compare: while pressed the reef shows its typical healthy state (live data off for the corals), released it returns */
+function bindCompare(b){
+  if(!b)return;const on=v=>{LIVE.cmp=v;b.setAttribute('aria-pressed',v);applyBleach();liveBadge();};
+  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture&&b.setPointerCapture(e.pointerId);on(true);});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(t=>b.addEventListener(t,()=>on(false)));
+  b.addEventListener('keydown',e=>{if((e.key===' '||e.key==='Enter')&&!e.repeat){e.preventDefault();on(true);}});
+  b.addEventListener('keyup',e=>{if(e.key===' '||e.key==='Enter')on(false);});
+  b.addEventListener('blur',()=>on(false));
+}
 /* ---- time machine: any day of the reef's NOAA record (data/reef_history.json, loaded on first use) ---- */
 function histLoad(cb){
   if(LIVE.hist)return cb();
@@ -259,7 +269,7 @@ function tmApply(force){
   const set=(id,h)=>{const e=$(id);if(e)e.innerHTML=h;};
   set('tmDate',fmtDayY(v.iso));set('tmChip',chip(lvOf(v.hs||0,v.dhw||0)));
   set('tmSst',v.sst==null?'—':fx(v.sst)+' °C');set('tmDhw',v.dhw==null?'—':fx(v.dhw));set('tmBD',pctS(TM.b)+' / '+pctS(TM.d));
-  set('tmScene','<b>'+$t('画面里：')+'</b>'+bleachWords(TM));
+  set('tmScene','<b>'+$t('画面里：')+'</b>'+bleachWords(TM));liveBadge();
   const sl=$('tmSlider');if(sl&&document.activeElement!==sl)sl.value=TM.idx;
   const now=performance.now();if(!force&&now-tmChartT<300)return;tmChartT=now;
   const box=$('tmChart');if(!box)return;
@@ -328,11 +338,29 @@ function rowText(id,k){
   const I=D.ice&&D.ice[k];if(!I)return'—';const pc=(I.extent-I.climMedian)/I.climMedian*100;return fx(I.extent,2)+$t(' 百万 km²')+' · '+(pc>=0?'+':'−')+fx(Math.abs(pc),0)+$t('% 比常年');
 }
 const LIVE_ROW_NAME={xisha:$t('西沙 · 珊瑚热应力'),spawn:$t('三亚 · 珊瑚热应力'),eilat:$t('埃拉特 · 珊瑚热应力'),monterey:$t('蒙特雷 · 今日海况'),nanji:$t('南麂列岛 · 潮位'),arctic:$t('北极 · 海冰面积'),ice:$t('南极 · 海冰面积')};
+/* HUD badge: today's real reading for the current place (or the time-machine day), click to open the card */
+function liveBadge(){
+  const b=$('hLive');if(!b)return;const id=LIVE.site,D=LIVE.data;
+  let h='';
+  if(D&&LIVE.on&&!DIVE.on){
+    if(LIVE.cmp)h='<i style="background:#7fb6c2"></i>'+$t('对比：健康时的样子');
+    else if(REEF_IDS.includes(id)&&reefData(id)){
+      if(TM.on&&TM.id===id&&tmR()){const v=tmVals();h=chipDot(lvOf(v.hs||0,v.dhw||0))+'<b>'+$t('时间机器')+'</b> '+fmtDayY(v.iso)+' · DHW '+(v.dhw==null?'—':fx(v.dhw));}
+      else if(LIVE.sim!=null)h=chipDot(lvOfDhw(LIVE.sim))+'<b>'+$t('模拟')+'</b> '+$t('热应力 DHW')+' '+fx(LIVE.sim);
+      else{const c=reefData(id);h=chipDot(c.level)+'<b>'+$t('今日实测')+'</b> '+LIVE_LV[c.level][0]+' · '+fx(c.sst)+' °C · DHW '+fx(c.dhw);}}
+    else if(id==='nanji'&&TIDE.now){const L=TIDE.now;h='<i style="background:var(--accent)"></i><b>'+$t('今日实测')+'</b> '+$t('潮位 ')+(L.h>=0?'+':'−')+fx(Math.abs(L.h),2)+' m · '+(L.rising?$t('涨潮'):$t('落潮'));}
+    else if((id==='arctic'||id==='ice')&&D.ice){const I=D.ice[id==='arctic'?'north':'south'];if(I){const pc=(I.extent-I.climMedian)/I.climMedian*100;h='<i style="background:'+(pc<0?LIVE_LV[2][1]:'var(--accent)')+'"></i><b>'+$t('今日实测')+'</b> '+$t('海冰 ')+fx(I.extent,2)+$t(' 百万 km²')+QLP+(pc>=0?'+':'−')+fx(Math.abs(pc),0)+'%'+QRP;}}
+    else{const w=seaAt(id,Date.now());if(w&&w.H!=null)h='<i style="background:var(--accent)"></i><b>'+$t('今日实测')+'</b> '+$t('浪高 ')+fx(w.H)+' m'+(w.T!=null?' · '+fx(w.T,0)+' s':'')+(w.sst!=null&&!reefData(id)?' · '+fx(w.sst)+' °C':'');}
+  }
+  b.hidden=!h;if(h)b.innerHTML=h;
+}
+const chipDot=lv=>'<i style="background:'+LIVE_LV[lv][1]+'"></i>';
+$('hLive').addEventListener('click',()=>{if($('panel').classList.contains('closed'))$('toggle').click();const s=$('liveSec');if(s)setTimeout(()=>s.scrollIntoView({block:'start',behavior:'smooth'}),60);});
 function renderLive(){
   const sec=$('liveSec');if(!sec)return;
   $('liveOn').setAttribute('aria-pressed',LIVE.on);$('liveOn').textContent=LIVE.on?$t('跟随现实数据：开'):$t('跟随现实数据：关');
   const D=LIVE.data;
-  if(!D){$('liveUpd').textContent='';$('liveHere').innerHTML='<p class="note">'+(LIVE.err?$t('现实数据暂时没有加载成功，场景使用资料里的典型数值。'):$t('正在加载现实数据……'))+'</p>';$('liveList').innerHTML='';return;}
+  if(!D){liveBadge();$('liveUpd').textContent='';$('liveHere').innerHTML='<p class="note">'+(LIVE.err?$t('现实数据暂时没有加载成功，场景使用资料里的典型数值。'):$t('正在加载现实数据……'))+'</p>';$('liveList').innerHTML='';return;}
   const up=new Date(D.updated),age=(Date.now()-up.getTime())/864e5;
   $('liveUpd').textContent=$t('更新于 ')+up.toLocaleString(LANG==='en'?'en-GB':'zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+(age>3?$t('（已超过 3 天）'):'');
   const here=$('liveHere');here.innerHTML='';const id=LIVE.site;
@@ -347,6 +375,7 @@ function renderLive(){
   if(id==='nanji'&&LIVE.on){const c=here.querySelector('.lcard');if(c)c.insertAdjacentHTML('beforeend',seaLine(id));}
   $('liveList').innerHTML=LIVE_ROWS.map(([lid,k])=>'<li'+(lid===id?' aria-current="true"':'')+'><span class="ln1">'+LIVE_ROW_NAME[lid]+'</span><span class="ln2">'+rowText(lid,k)+'</span>'+(lid===id?'':'<button type="button" data-go="'+lid+'">'+$t('前往')+'</button>')+'</li>').join('');
   here.querySelectorAll('.lguideBtn').forEach(b=>b.addEventListener('click',()=>openLiveGuide(b)));
+  liveBadge();
 }
 let liveGuideFrom=null;
 function openLiveGuide(from){liveGuideFrom=from||document.activeElement;$('liveGuide').hidden=false;$('liveGuideX').focus();}

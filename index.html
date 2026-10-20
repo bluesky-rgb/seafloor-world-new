@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=72a87a96">
+<link rel="stylesheet" href="css/style.css?v=b3727b7c">
 </head>
 <body>
 <canvas id="gl" tabindex="0" aria-label="海底三维场景，可拖动旋转视角，滚轮或双指缩放；也可用方向键转动、+/− 缩放；按 G 键用文字描述当前画面"></canvas>
@@ -30,6 +30,7 @@
   <div class="press" id="hPress">1.79 atm · 182 kPa</div>
   <div id="hTemp">水温 28 °C</div>
   <div id="hLoc">南海西沙群岛珊瑚礁</div>
+  <button id="hLive" type="button" hidden></button>
 </div>
 <svg id="prof" viewBox="0 0 96 400" hidden aria-label="下潜深度剖面，珠穆朗玛峰按比例放在海沟中"></svg>
 <div id="cap" aria-live="polite"><div id="capT"></div><div id="capS"></div></div>
@@ -366,6 +367,15 @@
             <li data-s="done">现实数据：珊瑚白化时间机器（1985 年至今）、今日海况与当地昼夜</li>
             <li>现实数据：用 Argo 浮标的实测温盐剖面驱动下潜时的水温</li>
             <li>画质：用带骨骼动画的 glTF 模型替换主角生物</li>
+          </ul>
+        </div>
+        <div>
+          <h3>让现实数据的作用看得见<time>2026-10-20</time></h3>
+          <ul>
+            <li>画面左上角地名下方新增“今日实测”标签：当前地点今天的真实读数（珊瑚的警报等级、海温和热应力，南麂的潮位，蒙特雷的浪高，南北极的海冰），点它打开详细卡片；用时间机器或模拟滑块时，它会说明画面显示的是哪一天、哪种情况</li>
+            <li>珊瑚卡片新增“按住对比：健康时的样子”：按住时画面变回没有热应力的健康珊瑚，松开回到今天的真实状态</li>
+            <li>左下角新增“⏱ 珊瑚时间机器”按钮，一键跳到西沙并打开时间机器</li>
+            <li>白化珊瑚的骨骼更白，枝状珊瑚的白化更容易看出来</li>
           </ul>
         </div>
         <div>
@@ -844,7 +854,7 @@
   <div class="ovlBox wide">
     <button class="ovlX" id="liveGuideX" type="button" aria-label="关闭">×</button>
     <h2 id="liveGuideT">现实中的海洋：怎么看、怎么观察</h2>
-    <p class="lead">海底世界里有几样东西会跟着现实世界每天变化：三片珊瑚礁的海温和白化程度、南麂列岛的潮位，以及北极、南极今天的海冰面积。数据来自美国国家海洋和大气管理局（NOAA）、法国气象局的海洋模型和美国冰雪数据中心（NSIDC），仓库每天自动下载两次。画面里的鱼和其他生物仍然是按生态规律模拟的，现实数据改变的是它们所处的环境。</p>
+    <p class="lead">海底世界里有几样东西会跟着现实世界每天变化：三片珊瑚礁的海温和白化程度、南麂列岛的潮位，以及北极、南极今天的海冰面积。数据来自美国国家海洋和大气管理局（NOAA）、法国气象局的海洋模型和美国冰雪数据中心（NSIDC），仓库每天自动下载两次。画面里的鱼和其他生物仍然是按生态规律模拟的，现实数据改变的是它们所处的环境。画面左上角地名下方的“今日实测”标签，显示的就是这个地点今天的真实读数，点它会打开详细卡片。</p>
 
     <h3>一、珊瑚白化：西沙、三亚、埃拉特</h3>
     <p><b>原理。</b>造礁珊瑚的颜色来自组织里的共生藻，共生藻用光合作用给珊瑚提供大部分养分。海水持续偏热时，珊瑚会把共生藻排出去，组织变得透明，露出白色的石灰质骨骼，这就是白化。白化的珊瑚还活着，如果几周内水温回落，共生藻可以重新回来；热得太久，珊瑚就会饿死，表面很快长满藻皮。</p>
@@ -863,6 +873,7 @@
     <ol>
       <li>在“真实地点”里选“西沙 · 珊瑚礁”，控制台“现实中的海洋”一栏会显示今天的警报等级、海温和 DHW。场景里的水温也换成了今天的卫星海温。</li>
       <li>看画面里的珊瑚：没有热应力时是褐、绿、紫等颜色；DHW 到 2–4，枝状珊瑚的顶端先变浅；到 8 以上，大部分珊瑚发白；超过 12，部分珊瑚死去，变成灰绿色。</li>
+      <li>按住卡片里的“按住对比：健康时的样子”：画面会变回没有热应力时的健康珊瑚，松开就回到今天的真实状态。在埃拉特这样对比，差别最明显。</li>
       <li>拖动“模拟热应力 DHW”从 0 到 16，看白化怎样扩散：枝状珊瑚最敏感，块状珊瑚最耐热，朝上、受光多的表面先白。看完点“回到今天的实测”。</li>
       <li>看两条曲线：海温曲线越过虚线（白化阈值）的那些天，下面的 DHW 曲线才会往上爬；海温回落以后，DHW 还要过几周才降下来，所以白化往往在热浪过后才最明显。把手指或鼠标放在曲线上，可以读出每一天的数值。</li>
       <li>比较三处：同一天，三亚和西沙的海温可能差不多，但阈值不同，因为每片海的“常年”不同。红海北部的珊瑚以耐热著称，可它在 2024 年也遭遇了有记录以来最强的热应力。</li>
@@ -931,7 +942,7 @@
     <h3>自由驾驶</h3>
     <p>点左下角“自由驾驶”，自己开着水下机器人游。电脑：W/S 前进后退，A/D 左右平移，Q/E 下潜上浮，←/→ 转向，拖动画面转头，Esc 退出。手机：左下摇杆移动，右侧按钮上浮、下潜，拖动画面转头。最高约 1 m/s，海流和波浪会推着你漂，缆绳长 60 m。下潜路线中不能自由驾驶。</p>
     <h3>现实中的海洋</h3>
-    <p>控制台的“现实中的海洋”一栏每天跟着现实世界更新：西沙、三亚、埃拉特的珊瑚按今天的卫星海温和热应力白化，南麂列岛的海面是此刻的真实潮位，北极和南极显示今天的海冰面积。左下角的“⏱ 珊瑚时间机器”（或这一栏里的“时间机器”按钮）能回到 1985 年以来的任何一天，播放一整个夏天的热浪。点“怎么观察”看每个数字的意思和观察方法；不想跟着变化，可以关掉。</p>
+    <p>控制台的“现实中的海洋”一栏每天跟着现实世界更新：西沙、三亚、埃拉特的珊瑚按今天的卫星海温和热应力白化，南麂列岛的海面是此刻的真实潮位，北极和南极显示今天的海冰面积。画面左上角的“今日实测”标签显示当前地点今天的读数；珊瑚卡片里可以按住“对比”看健康时的样子；左下角的“⏱ 珊瑚时间机器”（或这一栏里的“时间机器”按钮）能回到 1985 年以来的任何一天，播放一整个夏天的热浪。点“怎么观察”看每个数字的意思和观察方法；不想跟着变化，可以关掉。</p>
     <h3>文字描述（G 键）</h3>
     <p>按 G 键或点控制台顶部的“文字描述”，会用文字列出你现在在哪里、水深、压强、水温、光线，以及附近看得见的生物和它们的一句介绍。适合使用读屏软件，或者看不清三维画面的时候。</p>
     <h3>时间与照明</h3>
@@ -994,7 +1005,7 @@
 <script>/* language: ?lang=en|zh, saved choice, or the browser language; English text is loaded only when needed */
 (function(){var l=null;try{var q=new URLSearchParams(location.search).get('lang');l=q?(q==='en'?'en':'zh'):localStorage.getItem('seafloor-lang');}catch(e){}
 if(l!=='en'&&l!=='zh')l=/^zh/i.test(navigator.language||'zh')?'zh':'en';window.SEAFLOOR_LANG=l;
-if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=cd4e0219"><\/script>');}})();</script>
-<script src="js/seafloor.js?v=2e04711f"></script>
+if(l==='en'){document.documentElement.lang='en';document.write('<script src="i18n/en.js?v=4faa87cb"><\/script>');}})();</script>
+<script src="js/seafloor.js?v=45612356"></script>
 </body>
 </html>
